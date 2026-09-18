@@ -405,6 +405,20 @@ bank, a waiting area where queued members visibly wait — and a camera that sca
 **This is the highest-risk phase in the expansion.** The floor took two phases to get right the
 first time. It goes on a branch, and `main` keeps a recordable build throughout.
 
+> **Done, 2026-09-19.** Two project rooms against the back wall with a corridor between them,
+> and a waiting area below where queued members stand in queue order. The rooms were the
+> visible half; the **waiting area was the meaningful one** — a queued member is placed by
+> exactly the mechanism that seats a slot holder at a desk, so dispatch off the front of the
+> queue became a walk out of the waiting area and into a room, with no protocol change at all.
+> The camera is the existing `--furn` knob, raised 1.45 → 1.8 on wide screens because the plan
+> is in percentages and the rooms grew with the floor while the furniture did not.
+>
+> **The column was not re-laid, deliberately.** The floor stayed 250px and the rebuild happened
+> inside it, so the 838px measurement `DEMO.md` records still holds and this phase does not by
+> itself invalidate the framing. The phase's real find was a Phase 12 leftover: pawn name labels
+> carried a dark halo behind dark text, which one name on a tile field survives and three side
+> by side in a waiting area does not. See `PROGRESS.md`.
+
 ### Phase 16 — Agent-to-agent handoff
 
 **Objective.** An agent can pass work to another desk: an envelope crosses the floor, the

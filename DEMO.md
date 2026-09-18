@@ -61,6 +61,8 @@ Then:
       window gives with a plain toolbar; add a bookmarks bar and a couple of extensions and the
       viewport drops to ~806, which puts the team-chat box below the fold. The board grew 41 px
       in Phase 14 (the agent picker), so the slack is ~24 px where it used to be ~65.
+      **Phase 15 did not change this number** — the floor was rebuilt into rooms inside its
+      existing 250 px, so the 838 was re-measured on the deployed build and came back identical.
       **The height is the part that matters.** The board is now capped to the viewport and the
       activity log scrolls inside itself, so a *shorter* window does not push panels off-screen
       any more — it squeezes the log instead, and at ~806 px of viewport the agent's answer
@@ -112,13 +114,14 @@ two screens. This is the cheapest possible proof that the three windows are one 
 much stronger than pointing at three identical numbers, which a viewer could assume were
 screenshots.
 
-> Three people, one workspace, one budget. Two agents on the floor — Ada, who takes engineering
-> work, and Iris, who researches. Same meter, same queue, same desks — on every screen, live.
-> When I move here, it moves there.
+> Three people, one workspace, one budget. Two agent rooms on the floor — Ada, who takes
+> engineering work, and Iris, who researches — and a waiting area between them and us. Same
+> meter, same queue, same rooms, on every screen, live. When I move here, it moves there.
 
 Keep it to one click each — the floor is the opening handshake, not the point of the demo. The
 nameplates are legible at recording size, so the agents introduce themselves; do not stop to
-read them out.
+read them out, and do not narrate the floor plan. It pays off twice in the next two beats and
+explaining it up front spends that twice.
 
 ### 0:45–1:30 · The queue moment `[~1s of product time]`
 
@@ -135,10 +138,15 @@ read them out.
    ```
    when is our next deploy?
    ```
-   → Charlie gets **queue position 1**, and it is visible on Alice's and Bob's screens too.
+   → Charlie gets **queue position 1** — and on all three screens he **walks into the waiting
+   area and stands there**, captioned `queued #1`.
 
 > Both agents are busy, so Charlie doesn't get a failure and he doesn't get a spinner — he gets
-> a real position in line, and the whole team can see he's waiting.
+> a real position in line, he's standing in it, and the whole team can see him waiting.
+
+**Let the walk land before you talk over it.** Charlie crossing the floor into the waiting area
+is the queue becoming a place rather than a number, and it is the setup for the auto-dispatch
+walk in the next beat. It takes ~700 ms.
 
 **Have Bob pick Iris deliberately, not "Either".** If both of them ask for Ada, the second
 request silently lands on Iris and the activity log says *"Iris → bob · Ada was busy"* — which
@@ -159,14 +167,19 @@ This runs itself. Alice's task finishes, and three things happen in sequence —
 1. A **toast** fires on all three screens and Alice's fact appears in **team memory**,
    attributed to her — this lands as her task *starts*, so give it a beat before the rest
 2. Her slot frees → **Charlie is auto-dispatched into it** *(rehearsed: 64–84 ms)*. Watch the
-   floor: Charlie **walks to the freed desk and sits down**, and that desk's monitor lights up.
-   Alice **walks back** to where she was standing. Nobody told either of them to move — the
-   room is rendering the scheduler.
+   floor: Charlie **walks out of the waiting area, into Ada's room, and sits down**; the room
+   and its monitor light up around him. Alice **walks back** to where she was standing. Nobody
+   told either of them to move — the room is rendering the scheduler.
 3. ~6 seconds later Charlie's response arrives — **already carrying Alice's fact**
 
-> **The floor is worth narrating here.** A lit monitor *is* the slot being BUSY, and someone
-> sitting at a desk *is* the holder of that slot. There is no separate slot card any more
-> because there is nothing left for it to say.
+> **The floor is worth narrating here.** A lit room *is* the slot being BUSY, someone sitting at
+> the desk inside it *is* the holder of that slot, and the waiting area *is* the queue. There is
+> no separate slot card and no queue card any more because there is nothing left for either to
+> say.
+
+**This walk is the single best three seconds in the demo.** It is one continuous shot of a
+scheduler dispatching: a person leaves the queue, crosses the floor, enters the room, and the
+room comes on. Do not cut away from it to point at a panel.
 
 > Alice saved one fact for the team. Her slot frees, Charlie is dispatched automatically — he
 > never asked twice — and his agent already knows the deploy window. Nobody told it. That's

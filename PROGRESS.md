@@ -14,8 +14,8 @@
 | **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 15 — multi-room floor rebuild** |
-| **Phase status** | `READY`. Phase 14 (named agents) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 85/85. Phase 6 remains `BLOCKED` on the user's recording, and is deliberately deferred until the expansion lands — user decision, 2026-09-19 |
+| **Current phase** | **Phase 16 — agent-to-agent handoff** |
+| **Phase status** | `READY`. Phase 15 (multi-room floor) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 85/85, `rehearse.py --takes 2` 12/12 twice. Phase 6 remains `BLOCKED` on the user's recording, and is deliberately deferred until the expansion lands — user decision, 2026-09-19 |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -47,8 +47,8 @@
 | 12 | Paper-office light theme | `COMPLETE` — deployed and verified 2026-09-19 |
 | 13 | Public landing page | `COMPLETE` — deployed and verified 2026-09-19 |
 | 14 | Named agents at each desk | `COMPLETE` — deployed and verified 2026-09-19 |
-| 15 | Multi-room floor rebuild | `NOT STARTED` ← **here** |
-| 16 | Agent-to-agent handoff | `NOT STARTED` |
+| 15 | Multi-room floor rebuild | `COMPLETE` — deployed and verified 2026-09-19 |
+| 16 | Agent-to-agent handoff | `NOT STARTED` ← **here** |
 | 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done; 6, 7, 9 are the user's. **Deferred until the expansion lands, by user decision 2026-09-19.** The rehearsed take and the 640×950 framing in `DEMO.md` are invalidated by the reskin and will need re-rehearsing |
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
@@ -76,6 +76,102 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 15 — 2026-09-19 — the multi-room floor**
+
+The single open floor is now a plan. Two project rooms stand against
+the back wall with a corridor between them, one per agent slot, and a
+**waiting area** below where queued members physically stand in queue
+order. Hot desks along the left, cooler and plants at the edges.
+Frontend only — `components.jsx` and `styles.css`, nothing else.
+
+**Four decisions worth the space:**
+
+1. **The waiting area is the phase, not the rooms.** Rooms were the
+   visible half; the queue was the meaningful half. A queued member is
+   drawn on a numbered spot by *exactly* the mechanism that seats a slot
+   holder at a desk, and with the same promise — the coordinate the
+   server holds is never touched, so leaving the queue walks them back
+   to where they were actually standing. Dispatch off the front of the
+   queue is now a walk out of the waiting area and into a room, which is
+   the scheduler made visible. Nothing in the protocol changed to do it.
+2. **A corridor, bought by making the rooms smaller.** Two rooms filling
+   the floor edge to edge left a 76px desk adrift in a 267px room and no
+   way to read the plan except as "two boxes". 34% wide each with 20%
+   between them gives the office circulation and gives the furniture a
+   room it can fill. The floor is a wide, short box (606×250 at the demo
+   window) and that is what the plan had to be composed for.
+3. **The room's corner and the desk's centre are kept as separate
+   fields.** The desk is drawn room-locally (`left: 50%`, `top:
+   DESK_IN_ROOM`), but the person seated at it is a pawn on the *floor*
+   like any other. The first version derived the corner back out of a
+   centre at each use site; `deskX`/`deskY` now sit beside `x`/`y`
+   instead, because deriving one from the other at two call sites is how
+   they drift.
+4. **The desk bank is furniture and is labelled as such.** Two plain hot
+   desks, nothing bound to them, nothing lighting up. They answer "why
+   is this person standing here" — without them the lower half is an
+   empty field with a rug in it. They are deliberately smaller and
+   flatter than an agent desk: anything competing for attention with the
+   two desks that report scheduler state would be costing the room the
+   thing it is for.
+
+**Two bugs found by building this, both measured rather than eyeballed:**
+
+- **Pawn name labels had an `--ink` halo behind `--ink` text** — dark
+  glow behind dark text, left over from the graphite theme.
+  `.desk__label` was corrected when the theme flipped in Phase 12 and
+  this was missed. It survived a whole phase because one name on a tile
+  field reads as a slightly heavy label; three side by side in the
+  waiting area is what made it obvious. Now haloed in `--floor`, like
+  the desk labels.
+- **The waiting-area caption is fixed-size text while the spots are
+  percentages**, so the gap between them shrinks with the floor: every
+  left-hand position that cleared at 606px collided at the 430px the
+  landing preview renders. Moved to the far end of the line, which is
+  the only position that holds at every width.
+
+**The column height is unchanged — 838px, same as Phase 14.** Measured
+on the deployed build at 640px: a populated board is 1,002px of which
+the spend panel is 164; a clean board is the same **838px** against
+`DEMO.md`'s 862px viewport. The floor stayed at 250px and the rebuild
+happened inside it, so `DEMO.md`'s framing survives this phase intact.
+`BUILD_PLAN.md` anticipated re-laying the column here; that was not
+needed and deliberately not done — the measurement was already
+known-good and re-laying it would have invalidated it for no gain.
+
+**Verified against deployed AWS, not exit codes:**
+
+| Check | Result |
+|---|---|
+| `vite build` | ✅ clean, 81.63 KB gzipped JS (was 80.95) |
+| Deployed | ✅ Amplify job 19 `SUCCEED`, bundle `index-Cdc7hv_S.js` |
+| `ws_smoke.py` | ✅ **85/85** — unchanged from Phase 14, no regression |
+| `rehearse.py --takes 2` | ✅ **12/12 twice**, unattended, 94s of headroom |
+| Rooms light with their slot, on the deployed URL | ✅ both rooms blue, `carol` at Ada's desk, `dave` at Iris's |
+| A queued member stands in the waiting area | ✅ `bob` on spot 1, captioned `queued #1` in ochre |
+| `/` and `/#/workspace` HTTP status | ✅ **200** and **200** |
+| Console on the deployed page | ✅ zero errors, zero warnings |
+| Horizontal overflow at 390 / 640 / 1500 | ✅ none at any width |
+| Wide layout (≥1100px) | ✅ rooms scale with the floor; `--furn` 1.45 → 1.8 |
+| Landing preview renders the same floor | ✅ from canned props, caption clear of the queue |
+
+**Known cosmetic limits, recorded rather than fixed.** Five or more
+people queued puts the fifth under the "WAITING AREA" caption — the
+mildest failure available, and 5 queued is far outside the demo. At
+390px the rooms are cramped and `RESEARCHER` crowds its room edge;
+mobile is not the demo case and there is no overflow at that width.
+Two people standing on the same coordinate still overlap, exactly as
+before this phase.
+
+**A `TEAM#p15` partition is left in the table.** ~30 rows of test data
+from driving real busy/queued state against the deployed board — the
+only honest way to verify a floor that renders scheduler state. It is
+inert: Phase 9 partitions every row by team, so `alpha` cannot see it,
+`ws_smoke.py` passed with it present, and `reset-demo.sh` only inspects
+`alpha`. Left rather than bulk-deleted from the live table, which is a
+destructive operation for no benefit. Remove it with the workspace's
+own admin delete if it ever matters.
 
 **Phase 14 — 2026-09-19 — named agents at each desk**
 
@@ -1296,17 +1392,25 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Phase 15 — multi-room floor rebuild.** See `BUILD_PLAN.md` for the 12–16 sequence and why it
-is ordered that way. **The highest-risk phase in the expansion** — the floor took two phases to
-get right the first time, so it goes on a branch and `main` keeps a recordable build throughout.
+**Phase 16 — agent-to-agent handoff.** The last phase of the expansion. See `BUILD_PLAN.md` for
+the 12–16 sequence and why it is ordered that way. This one changes the protocol and the
+schema, so `CONTRACT.md` is updated **in the same commit**, never after.
 
-Two things Phase 14 leaves on the table for it:
+**The budget ceiling governs the whole chain.** A handoff must not become a way to spend past
+the ceiling one leg at a time — both legs bill to the same team budget under one task id, and
+that check is the reason this phase is last rather than first.
 
-- **The desks are `DESK_SPOTS` in `components.jsx`** — two hardcoded positions, joined to the
-  live slots by `desksFrom()`. Rooms replace the spots, not the join.
-- **The single column is 838 px of content against a 862 px viewport** — ~24 px of slack, down
-  from ~65. Phase 15 re-lays that column anyway; the number is in `DEMO.md` so the re-rehearsal
-  starts from a measurement.
+Three things Phase 15 leaves on the table for it:
+
+- **The floor already has somewhere for an envelope to travel.** The rooms are `ROOMS` in
+  `components.jsx` with `deskX`/`deskY` in floor percent, and the corridor between them is
+  clear space by construction. A handoff animation has a route without new geometry.
+- **Placement precedence is a three-way branch in `CanvasPanel`** — desk, then waiting spot,
+  then the member's own coordinate. A handoff that moves somebody adds a fourth case there,
+  not a new mechanism.
+- **The column is 838 px of content against an 862 px viewport** — ~24 px of slack, unchanged
+  by Phase 15. Anything Phase 16 adds to the board comes out of that margin; the number is in
+  `DEMO.md` so the re-rehearsal starts from a measurement.
 
 > **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
 > Must list is built, deployed and verified, and the product has been submittable since Phase
