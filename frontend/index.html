@@ -9,7 +9,11 @@
       name="description"
       content="HiveOS is the OS scheduler for your team's shared AI budget: agent slots, a FIFO run queue, and a live token quota every member can see."
     />
-    <meta name="color-scheme" content="dark" />
+    <!-- Declared so the browser paints the canvas cream before React mounts.
+         Without it a cold load flashes the UA's default white — or, on a
+         device set to dark, near-black — behind a page that is neither. -->
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#fff8e7" />
   </head>
   <body>
     <div id="root"></div>

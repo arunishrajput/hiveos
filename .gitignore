@@ -37,6 +37,9 @@ yarn-debug.log*
 frontend-build.zip
 /tmp/
 
+# --- Screenshots taken while checking a layout ---
+.playwright-mcp/
+
 # --- Editors / OS ---
 .DS_Store
 .vscode/

@@ -30,17 +30,25 @@ function formatClock(date) {
   return date.toLocaleTimeString('en-GB', { hour12: false })
 }
 
+/* The hive cell.
+ *
+ * Amber and blue swapped roles when the theme did. The hexagon used to be
+ * stroked amber because amber was the brightest thing available on graphite;
+ * on cream a #f0a714 hairline is barely there, and the outline is the part
+ * that has to survive at 18px. So the cell is drawn in ink and amber moves to
+ * the fill — which is also the rule the rest of the system follows.
+ */
 export function Mark({ className }) {
   return (
     <svg className={className} viewBox="0 0 32 32" aria-hidden="true">
       <path
         d="M16 5.5l8 4.6v9.2l-8 4.6-8-4.6V10.1z"
-        fill="none"
-        stroke="#f0a714"
+        fill="#ffca54"
+        stroke="#1a1320"
         strokeWidth="2.6"
         strokeLinejoin="round"
       />
-      <circle cx="16" cy="14.7" r="2.8" fill="#4fa8c7" />
+      <circle cx="16" cy="14.7" r="2.8" fill="#1a1320" />
     </svg>
   )
 }

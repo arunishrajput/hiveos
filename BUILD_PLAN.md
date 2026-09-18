@@ -335,12 +335,87 @@ put inside it.
 
 ---
 
+## Phases 12–16 — The expansion *(added 2026-09-19, user decision)*
+
+**Context.** Phases 9–11 closed with a submittable product. The user chose to spend the
+remaining window expanding rather than recording, taking
+[Munder Difflin](https://munderdiffl.in/) as the reference for finish: a warm light "paper
+office", a real public front door, and a floor with named agents working in rooms.
+
+**What is borrowed and what is not.** Munder Difflin is a *local* harness — one person, many
+clones, on their own machine. HiveOS is the cloud inverse — many people, one shared budget. The
+expansion borrows the **finish**, never the architecture: nothing here moves HiveOS toward being
+a CLI harness, and the never-build list in `CLAUDE.md` still stands.
+
+**Ordering rationale.** The reskin is first because everything after it is built in the new
+palette and would otherwise be painted twice. The landing page is second because it is the
+highest-value thing a judge sees and it is independent of the backend. Named agents are third
+because the floor rebuild needs identities to put in rooms, and the handoff needs both.
+
+| # | Phase | Touches | Depends on |
+|---|---|---|---|
+| 12 | Paper-office light theme | frontend only | — |
+| 13 | Public landing page | frontend only | 12 |
+| 14 | Named agents at each desk | backend + `CONTRACT.md` + frontend | 12 |
+| 15 | Multi-room floor rebuild | frontend only | 12, 14 |
+| 16 | Agent-to-agent handoff | backend + `CONTRACT.md` + frontend | 14, 15 |
+
+### Phase 12 — Paper-office light theme
+
+**Objective.** Re-tokenise the whole app from the graphite operator console to a warm light
+theme, so the later phases have one palette to build in.
+
+The colour rule that governs everything after this: **brand amber is a fill, never text; state
+hues are text-weight.** `#ffca54` on cream is 1.6:1 and cannot carry a word; darkened jade,
+ochre, blue and red carry every machine-state label. The two never collide — nothing amber
+means anything, and nothing meaningful is brand amber. It is written at the top of `styles.css`
+and is the first thing to read before touching colour in this project.
+
+### Phase 13 — Public landing page
+
+**Objective.** A front door at `/`, with the workspace behind an "Enter the workspace" CTA.
+Hero, the cost-overrun evidence already written up in `SUBMISSION.md`, how-it-works, a live
+board preview, footer. Alternating cream/sand bands; one ink-dark terminal card, which is the
+one place the old graphite is allowed back.
+
+**Watch for.** The workspace is currently mounted at `/` with an entry gate. Moving it behind a
+route must not break the deep link a judge is given, and Amplify's SPA rewrite already returns
+`404-200` on deep links (harmless — see `PROGRESS.md`).
+
+### Phase 14 — Named agents at each desk
+
+**Objective.** Slots stop being interchangeable. Each desk holds a named agent with a role and
+a system prompt; the requester picks one; the ledger records which agent ran the task.
+
+**Schema and protocol change** — `CONTRACT.md` in the same commit.
+
+### Phase 15 — Multi-room floor rebuild
+
+**Objective.** Replace the single open floor with a multi-room office — project rooms, a desk
+bank, a waiting area where queued members visibly wait — and a camera that scales it.
+
+**This is the highest-risk phase in the expansion.** The floor took two phases to get right the
+first time. It goes on a branch, and `main` keeps a recordable build throughout.
+
+### Phase 16 — Agent-to-agent handoff
+
+**Objective.** An agent can pass work to another desk: an envelope crosses the floor, the
+receiving agent picks it up, and both legs bill to the same team budget under one task id.
+
+**The budget ceiling still governs the whole chain** — a handoff must not become a way to spend
+past the ceiling one leg at a time. That check is the reason this phase is last.
+
+---
+
 ## If you are behind schedule
 
 Cut in this order:
-1. Phase 5 entirely
-2. Per-task cost breakdown, task history, announcements
-3. The second agent slot — one slot still demonstrates queueing
-4. Shared memory — the queue plus token meter alone still tells the story
+1. Phase 16, then 15, then 14 — the expansion is enhancement, and cutting from the back always
+   leaves a coherent product. Phases 12 and 13 are what a judge sees in the first five seconds;
+   cut those last.
+2. Phase 5 entirely
+3. Per-task cost breakdown, task history, announcements
+4. The second agent slot — one slot still demonstrates queueing
+5. Shared memory — the queue plus token meter alone still tells the story
 
 **Never cut:** the deployed public URL, the token meter, or the demo video. Those three are the submission.

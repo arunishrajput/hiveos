@@ -1,57 +1,102 @@
-/* HiveOS — operator console.
+/* HiveOS — the paper office.
  *
  * Layout target is ~640px: the demo is three browser windows side by side on
  * one 1920px screen, so a compact single column is the primary case, not the
  * fallback.
  *
- * Colour is strictly semantic. Chroma appears only where it reports resource
- * state — instrument blue for activity, jade/amber/coral for budget health.
- * Every structural surface stays graphite, which is what keeps the one loud
- * element (the quota strip) loud.
+ * Colour is strictly semantic, and the light theme splits that rule in two —
+ * this is the thing to understand before changing anything here:
+ *
+ *   BRAND AMBER IS A FILL, NEVER TEXT.  #ffca54 on cream is 1.6:1. As a
+ *   background under ink text it is 11:1. So amber paints buttons, badges,
+ *   active rails and the daylight in the room; it never carries a word.
+ *
+ *   STATE HUES ARE TEXT-WEIGHT.  Everything that reports machine state —
+ *   instrument blue for activity, jade/ochre/red for budget health — is
+ *   darkened until it passes on paper, because those colours have to be
+ *   legible as small mono labels.
+ *
+ * The two never collide: nothing amber ever means anything, and nothing
+ * meaningful is ever brand amber. That is what lets the room be warm and
+ * decorative while the quota strip stays the one loud instrument on the board.
  */
 
 :root {
-  --ink: #0f141a;
-  --panel: #161d25;
-  --panel-raised: #1b232c;
-  --rule: #252f3a;
-  --rule-soft: #1e2731;
+  /* Paper. Three surfaces, warm, close together — the separation between them
+   * is carried by the hairline rules, not by contrast. */
+  --cream: #fff8e7;
+  --paper: #fffdf7;
+  --sand: #fbefd2;
 
-  --text: #dae2ea;
-  --dim: #78879a;
-  --faint: #4e5c6b;
+  /* Ink. `--ink` is the darkest thing in the system: body text, and the one
+   * or two panels that invert. It is NOT the page background any more —
+   * that is `--cream`. */
+  --ink: #1a1320;
+  --panel: var(--paper);
+  --panel-raised: var(--sand);
+  --rule: #e6d9bc;
+  --rule-soft: #efe4cc;
+  /* One step stronger, for pills and for hover — a hairline that has to hold
+   * its own against a filled neighbour needs the extra contrast. */
+  --rule-strong: #d6c59e;
+
+  --text: var(--ink);
+  --dim: #5a5347;
+  --faint: #8c8375;
+
+  /* Brand — fills only, per the rule above. */
+  --amber: #ffca54;
+  --amber-deep: #e9a72c;
+  --on-amber: #17150e;
 
   /* Activity */
-  --cool: #4fa8c7;
-  /* Budget thresholds — BUILD_PLAN.md: green <50%, amber 50-80%, red >80% */
-  --safe: #3fb88e;
-  --honey: #f0a714;
-  --alarm: #ff5c4d;
+  --cool: #2c7fa1;
+  /* Budget thresholds — BUILD_PLAN.md: green <50%, amber 50-80%, red >80%.
+   * The thresholds are unchanged; the hues are darkened for paper. `--honey`
+   * is deliberately a deep ochre rather than the brand amber it used to be —
+   * a warn state that reads as the same colour as every button on the board
+   * reports nothing at all. */
+  --safe: #2f8f62;
+  --honey: #c07a10;
+  --alarm: #c4372b;
 
-  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  --tick: #222c36;
+  --tick: #ece0c4;
   --gap: 14px;
+
+  /* Radii. Munder-Difflin-scale softness: 10px is the workhorse, 14px for the
+   * larger cards, 999px for pills. The console used to be square-cornered
+   * throughout; on cream that read as unfinished rather than as precise. */
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
 
   /* Workspace floor.
    *
-   * All graphite, deliberately. The rule at the top of this file is that
-   * chroma only reports resource state, and a room is the largest surface on
-   * the board — colouring it would quietly outshout the quota strip, which is
-   * the one element that must stay loud. The room gets its character from
-   * pattern and shadow instead, and the only chromatic thing in it is a lit
-   * monitor, which *is* a state report. */
-  --floor: #19212a;
-  --tile: #1d2731;
-  --desk: #4a4031;
-  --desk-edge: #221d16;
-  --desk-top: #5c5040;
-  --screen-off: #10161c;
-  /* The single exception: a plant is not state, but a grey plant reads as a
-   * rendering bug. Desaturated hard enough that it cannot be mistaken for the
-   * jade of a healthy budget. */
-  --foliage: #3d5c48;
+   * The room is now allowed warmth, which the graphite version was not. What
+   * keeps it from outshouting the quota strip is not desaturation any more —
+   * it is that everything in here is a *tint*, held well above 80% lightness,
+   * while every instrument on the board is a saturated mid-tone. The room is
+   * the paper; the meter is the ink on it.
+   *
+   * The wood is the exception and is meant to be: a desk is the one piece of
+   * furniture a person has to find at a glance to read the floor. */
+  --floor: #f2e7d0;
+  --tile: #ecdfc2;
+  --desk: #c08c4e;
+  --desk-edge: #8e6335;
+  --desk-top: #d6a467;
+  --screen-off: #3a3630;
+  /* A lit monitor is a light source, not a label, so it keeps the bright blue
+   * that `--cool` had to give up to stay legible as text on paper. The two
+   * mean the same thing — "this slot is consuming the budget" — and have to be
+   * recognisably the same hue while differing in weight. */
+  --screen-on: #4fa8c7;
+  /* A plant is not state, but a grey plant reads as a rendering bug. Muted
+   * hard enough that it cannot be mistaken for the jade of a healthy budget. */
+  --foliage: #5e8c63;
 
   /* Room scale. Everything in the floor is sized off these two, so the wide
    * layout only has to change the numbers rather than restate the furniture.
@@ -67,18 +112,27 @@
    * did not paint at all. Only the hair varies per character; see sprites.js.
    */
   --sp-skin: #d9a879;
-  --sp-shirt: #46525f;
+  /* Darkened from the graphite theme's #46525f. A person is the only thing on
+   * this floor that moves, and on cream tiles a mid-slate torso lost its
+   * silhouette the moment it crossed a desk. */
+  --sp-shirt: #39424e;
 
-  /* Room structure. Warm neutrals, not chroma: the rule at the top of this
-   * file reserves saturated hue for state, and a wall that is merely warmer
-   * than the floor does not compete with the quota strip for attention the way
-   * a coloured one would. */
-  --wall: #232d38;
-  --wall-trim: #2f3b47;
-  --rug: #232c39;
-  --chair: #3c4653;
-  --glass: #2b4a58;
-  --shadow: rgba(0, 0, 0, 0.45);
+  /* Room structure. The wall is the lightest surface in the room and the floor
+   * is a shade under it, which is the opposite of the graphite version and the
+   * reason the room now reads as lit from above rather than from a screen. */
+  --wall: #fffdf7;
+  --wall-trim: #ddcaa4;
+  /* A shade under the floor, and barely off its hue. The graphite rug sat
+   * ~4% off the tiles and read as a soft surface; translated to paper as a
+   * *hue* shift instead of a value one it became a lilac slab that read as a
+   * UI panel dropped on the room. The rug is defined by its rounded silhouette
+   * and its inset edge, not by its colour. */
+  --rug: #e8dfcd;
+  --chair: #5f6b7a;
+  --glass: #bfe0ee;
+  /* Warm and soft. A neutral black shadow on cream turns grey and makes the
+   * whole room look dusty; this is brown, and short. */
+  --shadow: rgba(122, 94, 48, 0.22);
 }
 
 * {
@@ -92,7 +146,7 @@ body {
 }
 
 body {
-  background: var(--ink);
+  background: var(--cream);
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
@@ -324,13 +378,21 @@ body {
   font-weight: 600;
 }
 
+/* The unfilled track needs its own ground on paper. On graphite the gaps
+ * between ticks fell to the dark panel behind and the track read as a row of
+ * lit segments; on cream, gaps and page are the same colour, so without
+ * `background-color` the empty part of the meter simply vanishes and a 12%
+ * spend looks identical to a 12% *scale*. */
 .strip {
   height: 22px;
+  background-color: var(--paper);
   background-image: repeating-linear-gradient(
     90deg,
     var(--tick) 0 7px,
     transparent 7px 9px
   );
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
   position: relative;
   overflow: hidden;
 }
@@ -379,9 +441,11 @@ body {
 .slot {
   background: var(--panel);
   border: 1px solid var(--rule);
-  border-left: 2px solid var(--faint);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: var(--r);
   padding: 12px;
   min-width: 0;
+  transition: border-color 180ms ease, background 180ms ease;
 }
 
 .slot--busy {
@@ -444,10 +508,14 @@ body {
 
 /* --- Run queue ------------------------------------------------------------ */
 
+/* Rows are separated cards rather than a flush 1px-gapped stack. On graphite a
+ * hairline gap was enough to divide two dark rows; on paper both rows and the
+ * gap between them are near-white, so the division has to come from the gap
+ * being real and each row carrying its own outline. */
 .queue {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 6px;
 }
 
 .queue__row {
@@ -456,7 +524,9 @@ body {
   gap: 12px;
   padding: 9px 12px;
   background: var(--panel);
-  border-left: 2px solid var(--rule);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: var(--r);
 }
 
 .queue__row--mine {
@@ -523,19 +593,22 @@ body {
 
 .field {
   width: 100%;
-  background: var(--ink);
+  background: var(--paper);
   border: 1px solid var(--rule);
   color: var(--text);
   font-family: var(--sans);
   font-size: 13px;
   padding: 10px 12px;
-  border-radius: 0;
+  border-radius: var(--r);
 }
 
 .field::placeholder {
   color: var(--faint);
 }
 
+/* Focus stays instrument blue rather than brand amber. An amber ring on an
+ * amber button is invisible, and the focus ring is the one piece of chrome
+ * that must never be decorative. */
 .field:focus-visible,
 .btn:focus-visible,
 .chip:focus-visible {
@@ -545,7 +618,7 @@ body {
 
 .field:disabled {
   color: var(--faint);
-  background: var(--panel);
+  background: var(--sand);
 }
 
 .request__actions {
@@ -555,10 +628,13 @@ body {
   flex-wrap: wrap;
 }
 
+/* The primary action is the one place brand amber carries weight. Ink on amber
+ * is 11:1, so the label stays readable at mono-uppercase sizes where a lighter
+ * pairing would not. */
 .btn {
-  background: var(--cool);
-  color: var(--ink);
-  border: none;
+  background: var(--amber);
+  color: var(--on-amber);
+  border: 1px solid var(--amber);
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 600;
@@ -566,27 +642,31 @@ body {
   text-transform: uppercase;
   padding: 11px 18px;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: var(--r);
+  transition: background 140ms ease, border-color 140ms ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: #6bbcd8;
+  background: var(--amber-deep);
+  border-color: var(--amber-deep);
 }
 
 .btn:disabled {
-  background: var(--rule);
+  background: var(--sand);
+  border-color: var(--rule);
   color: var(--faint);
   cursor: not-allowed;
 }
 
 .btn--ghost {
-  background: transparent;
+  background: var(--paper);
   border: 1px solid var(--rule);
   color: var(--dim);
 }
 
 .btn--ghost:hover:not(:disabled) {
-  background: var(--panel);
+  background: var(--sand);
+  border-color: var(--rule-strong);
   color: var(--text);
 }
 
@@ -610,7 +690,7 @@ body {
 .activity {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 6px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -622,7 +702,9 @@ body {
   gap: 10px;
   padding: 9px 12px;
   background: var(--panel);
-  border-left: 2px solid var(--rule);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: var(--r);
 }
 
 .entry__ts {
@@ -696,7 +778,8 @@ body {
 
 .fact {
   border: 1px solid var(--rule);
-  border-left: 2px solid var(--honey);
+  border-left: 3px solid var(--honey);
+  border-radius: var(--r);
   background: var(--panel);
   padding: 6px 10px;
   font-family: var(--mono);
@@ -722,11 +805,17 @@ body {
   padding: 24px;
 }
 
+/* The one card in the product that floats in open space rather than sitting in
+ * a stack, so it is the one that earns a shadow. Everywhere else a hairline is
+ * enough, because there is a neighbour to divide it from. */
 .gate__card {
   width: 100%;
   max-width: 420px;
   border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
   background: var(--panel);
+  box-shadow: 0 10px 30px rgba(122, 94, 48, 0.1);
+  overflow: hidden;
 }
 
 .gate__head {
@@ -793,19 +882,27 @@ body {
 }
 
 .chip {
-  background: var(--ink);
+  background: var(--paper);
   border: 1px solid var(--rule);
   color: var(--text);
   font-size: 17px;
   line-height: 1;
   padding: 7px 10px;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: var(--r);
+  transition: border-color 140ms ease, background 140ms ease;
 }
 
+.chip:hover {
+  border-color: var(--rule-strong);
+}
+
+/* The chosen marker is the one selected-state on the board that is pure brand
+ * rather than machine state — picking a fox over an owl reports nothing — so
+ * amber is the correct colour for it, as a fill behind the glyph. */
 .chip--on {
-  border-color: var(--cool);
-  background: var(--panel-raised);
+  border-color: var(--amber-deep);
+  background: var(--amber);
 }
 
 /* --- Motion --------------------------------------------------------------- *
@@ -854,7 +951,7 @@ body {
    * whole demo. At 250 it gets 104px, which is a full response. */
   height: 250px;
   border: 1px solid var(--rule);
-  border-radius: 3px;
+  border-radius: var(--r-lg);
   /* Layered top to bottom: baseboard, back wall, floor tiles.
    *
    * The wall band is what turns a plan view into a room. Without it the floor
@@ -884,8 +981,12 @@ body {
   background-repeat: no-repeat, repeat, repeat;
   background-color: var(--floor);
   /* Vignette. Pulls the eye to the middle of the room and stops the tile field
-   * running flat into the panel border. */
-  box-shadow: inset 0 0 44px 10px rgba(0, 0, 0, 0.42);
+   * running flat into the panel border.
+   *
+   * Warm brown rather than black, and half the strength it was on graphite. A
+   * neutral dark vignette on cream tiles turns the corners of the room grey
+   * and the whole floor reads as dirty rather than as lit. */
+  box-shadow: inset 0 0 40px 8px rgba(150, 118, 62, 0.16);
   cursor: crosshair;
   overflow: hidden;
 }
@@ -939,16 +1040,20 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #8c6f52;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  background: #f4f0e6;
+  box-shadow: 0 0 0 1px var(--desk-edge);
 }
 
+/* Paper, and now actually paper-coloured. It used to be a cool grey-blue at
+ * 50% alpha, which on a dark desk read as a sheet and on a light one reads as
+ * a smudge. */
 .desk__surface::after {
   right: 7px;
   width: 11px;
   height: 8px;
   border-radius: 1px;
-  background: rgba(218, 226, 234, 0.5);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px rgba(142, 99, 53, 0.35);
   transform: rotate(-6deg);
 }
 
@@ -978,14 +1083,19 @@ body {
  * A lit screen is the same statement, made in the room instead of on a card —
  * which is the entire argument for putting the floor first. */
 .desk--busy .desk__monitor {
-  background: var(--cool);
+  background: var(--screen-on);
   /* The wide, soft third shadow is light spilling from the screen onto the
    * desk and the floor around it. A lit rectangle alone reads as a sticker;
-   * the spill is what makes it read as a source. */
+   * the spill is what makes it read as a source.
+   *
+   * Both spills are stronger than the graphite version needed. Glow is
+   * additive against a dark room and barely has to try; against a cream floor
+   * it is competing with a surface that is already bright, and at the old
+   * alphas the screen lit up without anything around it changing. */
   box-shadow:
     inset 0 0 0 2px var(--desk-edge),
-    0 0 12px 2px rgba(79, 168, 199, 0.55),
-    0 10px 26px 8px rgba(79, 168, 199, 0.2);
+    0 0 14px 3px rgba(79, 168, 199, 0.72),
+    0 10px 28px 10px rgba(79, 168, 199, 0.34);
 }
 
 @keyframes screen-flicker {
@@ -1005,7 +1115,7 @@ body {
   border-radius: 4px 4px 7px 7px;
   background: var(--chair);
   box-shadow:
-    inset 0 -2px 0 0 rgba(0, 0, 0, 0.3),
+    inset 0 -2px 0 0 rgba(26, 19, 32, 0.32),
     0 3px 6px var(--shadow);
 }
 
@@ -1029,8 +1139,13 @@ body {
   text-transform: uppercase;
   color: var(--dim);
   /* The floor is patterned and people walk over it, so the label needs its own
-   * ground to stay readable. */
-  text-shadow: 0 1px 2px var(--ink), 0 0 3px var(--ink);
+   * ground to stay readable. The halo is the floor colour, not the text
+   * colour — it inverted with the theme, and an ink halo behind ink text on a
+   * cream floor would black out the label entirely. */
+  text-shadow:
+    0 1px 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
 }
 
 .desk--busy .desk__label {
@@ -1058,9 +1173,15 @@ body {
   height: calc(30px * var(--furn));
   padding: 0 calc(7px * var(--furn));
   border-radius: 2px;
-  background: #33414f;
+  /* An actual whiteboard now. On graphite it was a dark slate with pale marks;
+   * inverting the room inverts the board, and a dark rectangle hung on a white
+   * wall reads as a hole in it. */
+  background: #ffffff;
+  /* The frame has to be darker than the wall it hangs on, not than the board
+   * it surrounds — a white board framed in `--rule-strong` on a near-white
+   * wall read as an outlined card floating in space. */
   box-shadow:
-    inset 0 0 0 2px #1b242d,
+    inset 0 0 0 2px #b09a70,
     0 3px 5px var(--shadow);
 }
 
@@ -1068,7 +1189,7 @@ body {
   height: 2px;
   width: 100%;
   border-radius: 1px;
-  background: rgba(218, 226, 234, 0.22);
+  background: rgba(26, 19, 32, 0.26);
 }
 
 .board__scribble--short {
@@ -1088,16 +1209,18 @@ body {
   width: calc(14px * var(--furn));
   height: calc(14px * var(--furn));
   border-radius: 3px 3px 1px 1px;
-  background: rgba(79, 168, 199, 0.32);
-  box-shadow: inset 0 -3px 0 0 rgba(79, 168, 199, 0.22);
+  background: #cfe7f1;
+  box-shadow: inset 0 -3px 0 0 #a9d2e2;
 }
 
 .cooler__body {
   width: calc(16px * var(--furn));
   height: calc(16px * var(--furn));
   border-radius: 1px 1px 2px 2px;
-  background: #38454f;
-  box-shadow: 0 3px 5px var(--shadow);
+  background: #e7ddcb;
+  box-shadow:
+    inset 0 0 0 1px var(--rule-strong),
+    0 3px 5px var(--shadow);
 }
 
 /* Lounge rug. No border and a soft edge, so it reads as a soft surface laid on
@@ -1110,8 +1233,9 @@ body {
   border-radius: 7px;
   background: var(--rug);
   box-shadow:
-    inset 0 0 0 3px rgba(218, 226, 234, 0.045),
-    inset 0 0 18px 4px rgba(0, 0, 0, 0.3);
+    inset 0 0 0 3px rgba(255, 253, 247, 0.85),
+    inset 0 0 0 4px rgba(190, 168, 126, 0.5),
+    inset 0 0 20px 5px rgba(122, 94, 48, 0.07);
 }
 
 
@@ -1124,9 +1248,10 @@ body {
   width: calc(70px * var(--furn));
   height: calc(28px * var(--furn));
   border-radius: 2px;
-  background: linear-gradient(160deg, var(--glass), #1d3440);
+  background: linear-gradient(160deg, #eaf6fb, var(--glass));
   box-shadow:
-    inset 0 0 0 3px #38454f,
+    inset 0 0 0 3px var(--paper),
+    0 0 0 1px var(--rule-strong),
     0 3px 6px var(--shadow);
 }
 
@@ -1136,7 +1261,7 @@ body {
 .fixture--window::after {
   content: '';
   position: absolute;
-  background: #38454f;
+  background: var(--paper);
 }
 
 .fixture--window::before {
@@ -1157,7 +1282,11 @@ body {
 
 /* The light it throws onto the floor. Soft, wide and very low contrast — it is
  * doing atmosphere, not illumination, and anything stronger would compete with
- * a lit monitor, which is the one thing in this room that means something. */
+ * a lit monitor, which is the one thing in this room that means something.
+ *
+ * Brand amber, and this is the one place in the product where that is not a
+ * contradiction: the rule is that amber never *carries meaning*, and sunlight
+ * on a floor is the purest possible case of a colour that reports nothing. */
 .fixture--daylight {
   left: 17%;
   top: 46%;
@@ -1166,8 +1295,8 @@ body {
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    rgba(120, 170, 190, 0.09),
-    rgba(120, 170, 190, 0) 70%
+    rgba(255, 202, 84, 0.34),
+    rgba(255, 202, 84, 0) 70%
   );
 }
 
@@ -1283,11 +1412,13 @@ body {
   transform: scale(calc(var(--px-n) / 4));
   transform-origin: 0 0;
   /* A one-pixel dark rim around the whole composed sprite. Cheap — one filter
-   * rather than another ~60 shadow entries per design — and it is what stops
-   * the characters dissolving into a patterned floor of almost the same value.
-   * Applied here rather than on `.sprite` so it does not also outline the
-   * contact shadow. */
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.85));
+   * rather than another ~60 shadow entries per design. It was originally here
+   * to stop the characters dissolving into a floor of almost the same value;
+   * on cream tiles the value gap is wide and it is no longer load-bearing, but
+   * it stays because a hard outline is what makes pixel art read as pixel art
+   * rather than as a blurry stamp. Applied here rather than on `.sprite` so it
+   * does not also outline the contact shadow. */
+  filter: drop-shadow(0 0 1px rgba(26, 19, 32, 0.8));
 }
 
 /* Hair colour arrives inline from `lookFor`, keyed on the marker the person
@@ -1507,7 +1638,7 @@ body {
 }
 
 .member--busy {
-  border-color: rgba(79, 168, 199, 0.5);
+  border-color: rgba(44, 127, 161, 0.5);
 }
 
 .member--busy .member__state {
@@ -1539,12 +1670,14 @@ body {
 
 /* Destructive, and it looks it. The only irreversible action in the product. */
 .btn--danger {
-  border-color: rgba(255, 92, 77, 0.45);
+  border-color: rgba(196, 55, 43, 0.45);
   color: var(--alarm);
 }
 
 .btn--danger:hover {
-  background: rgba(255, 92, 77, 0.1);
+  background: rgba(196, 55, 43, 0.09);
+  border-color: rgba(196, 55, 43, 0.7);
+  color: var(--alarm);
 }
 
 /* --- Team chat ------------------------------------------------------------ */
@@ -1583,10 +1716,10 @@ body {
 .toast {
   padding: 10px 12px;
   border: 1px solid var(--rule);
-  border-left: 2px solid var(--cool);
-  border-radius: 3px;
-  background: var(--panel-raised);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  border-left: 3px solid var(--cool);
+  border-radius: var(--r);
+  background: var(--paper);
+  box-shadow: 0 8px 24px rgba(122, 94, 48, 0.2);
 }
 
 .toast--alarm {
@@ -1692,9 +1825,12 @@ body {
     animation: breathe 1.6s ease-in-out infinite;
   }
 
+  /* The flash a slot gives when it engages. Light theme inverts which
+   * direction "brighter" is, so this went from a dark blue-grey lifting to the
+   * raised panel, to a blue tint settling back down into sand. */
   @keyframes engage {
     from {
-      background: #223a45;
+      background: #d5e9f2;
     }
     to {
       background: var(--panel-raised);

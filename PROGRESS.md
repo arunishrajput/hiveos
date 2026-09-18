@@ -3,7 +3,7 @@
 > Current execution state. A fresh Claude Code session reads this to know exactly where things stand.
 > Keep it operational and short. Not a diary — history lives in git.
 
-**Last updated:** 2026-09-18
+**Last updated:** 2026-09-19
 
 ---
 
@@ -14,8 +14,8 @@
 | **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 6 — demo readiness** (Phase 3 closed out 2026-09-18: the model call is live) |
-| **Phase status** | `BLOCKED — WAITING FOR MANUAL ACTION`. Everything buildable is done and rehearsed, Phase 5 included; **recording, upload and submission are the user's** |
+| **Current phase** | **Phase 13 — public landing page**, first of the 12–16 expansion |
+| **Phase status** | `READY`. Phase 12 (paper-office light theme) complete and deployed 2026-09-19. Phase 6 remains `BLOCKED` on the user's recording, and is now deliberately deferred until the expansion lands — user decision, 2026-09-19 |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — verified cold, zero setup |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -43,7 +43,12 @@
 | 9 | Per-team isolation | `COMPLETE` — 2026-09-18 |
 | 10 | Workspace passphrases | `COMPLETE` — 2026-09-18 |
 | 11 | Workspace administration | `COMPLETE` — 2026-09-18 |
-| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done; 6, 7, 9 are the user's ← **here** |
+| 12 | Paper-office light theme | `COMPLETE` — deployed and verified 2026-09-19 |
+| 13 | Public landing page | `NOT STARTED` ← **here** |
+| 14 | Named agents at each desk | `NOT STARTED` |
+| 15 | Multi-room floor rebuild | `NOT STARTED` |
+| 16 | Agent-to-agent handoff | `NOT STARTED` |
+| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done; 6, 7, 9 are the user's. **Deferred until the expansion lands, by user decision 2026-09-19.** The rehearsed take and the 640×950 framing in `DEMO.md` are invalidated by the reskin and will need re-rehearsing |
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -59,14 +64,45 @@ reasoning.
 | 6. Budget ceiling + `budget_exhausted` | **done, enforced, verified** — rehearsed at 675/500, refused, not one token spent |
 | 7. Cap `max_tokens` per call | **done** — `MAX_TOKENS_PER_CALL=400`, a backstop rather than a shaper |
 
-**What is still not a real agent:** a fact is saved by the `remember: k = v` prompt convention,
-not by the model deciding to call `set_team_memory`. Tool calling was judged not worth a second
-round trip and a new failure surface against the deadline, with everything else green. This is
-the only place the agent differs in *kind* from the Phase 3 design.
+**Superseded 2026-09-18 by Phase 8 slice 5 — the agent does call its tools.** This section used
+to end with "a fact is saved by the `remember: k = v` prompt convention, not by the model
+deciding to call `set_team_memory`", which was true when Phase 3 closed and false eight hours
+later. `shared/llm.py` ships the tool schema and `agent_runner/app.py` dispatches the call; the
+regex survives only as the fallback path. Corrected 2026-09-19 — a stale line at the *top* of
+this file outranks the accurate one in the Phase 8 record further down, because the top is what
+a fresh session reads first.
 
 ---
 
 ## Completed
+
+**Phase 12 — 2026-09-19 — the paper office**
+
+Re-tokenised the whole app from the graphite operator console to a warm light
+theme, taking [Munder Difflin](https://munderdiffl.in/) as the reference. The
+palette is measured from that site's computed styles, not eyeballed: cream
+`#fff8e7`, paper `#fffdf7`, sand `#fbefd2`, amber `#ffca54`, ink `#1a1320`,
+hairline `#e6d9bc`. Inter replaces IBM Plex Sans, JetBrains Mono replaces IBM
+Plex Mono — both self-hosted through `@fontsource`, so a cold load still never
+waits on a CDN.
+
+**The rule that governs every later phase: brand amber is a fill, never text;
+state hues are text-weight.** `#ffca54` on cream is 1.6:1 and cannot carry a
+word; under ink it is 11:1. So amber paints buttons, the chosen marker chip,
+the logo and the daylight on the floor, and every machine-state label — jade,
+ochre, blue, red — was darkened until it passes on paper. Nothing amber means
+anything and nothing meaningful is amber, which is what lets the room be warm
+and decorative while the quota strip stays the one loud instrument. It is
+written at the top of `styles.css`.
+
+Backend untouched — the diff is eight files, all frontend.
+
+| Check | Result |
+|---|---|
+| `vite build` | ✅ clean |
+| Deployed | ✅ Amplify job 15 `SUCCEED` |
+| Live board connects | ✅ verified in a real browser against the deployed URL: `live`, 4 online, real quota 2,439/5,000, memory and ledger populated from a genuine `state_snapshot` |
+| `ws_smoke.py` | ⏸️ **not run** — zero backend files changed, and its connection-leak checks fail whenever a browser is on the board, which one was. Not evidence of a pass; there was simply nothing in its scope to regress |
 
 **Phase 11 — 2026-09-18 — workspace administration**
 
@@ -937,6 +973,29 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
 
 ## Known issues and discoveries
 
+- **Inverting a theme inverts what a colour is *for*, not just its value.** Three bugs in the
+  Phase 12 reskin were all the same shape. `--ink` was the page background *and* the halo behind
+  desk labels — flipping it to a text colour would have blacked out every label on the floor.
+  `@keyframes engage` flashed *from* dark *to* raised, which on paper had to become a tint
+  settling down. The logo's hexagon was stroked amber because amber was the brightest thing
+  available on graphite, and a `#f0a714` hairline on cream is barely there. Grep for the token,
+  then read every use — a token whose value flips has usages that flip with it.
+- **A track that was defined by its background stops existing when the background matches the
+  page.** The quota strip's ticks sat on transparent gaps that fell through to a dark panel; on
+  cream the gaps and the page became the same colour and the *unfilled* part of the meter
+  vanished, so 12% spent looked identical to a meter that only went up to 12%. Anything that
+  reads as a proportion needs its empty half painted explicitly.
+- **Glow is additive, so it costs more against a light surface.** The lit-monitor spill was
+  tuned at 0.55/0.2 alpha against a near-black room. At the same alphas on a cream floor the
+  screen lit up and nothing around it changed — the beat reads as "a rectangle turned blue"
+  rather than "that desk is working". Raised to 0.72/0.34.
+- **Translating a colour between themes is a *value* move, not a hue move.** The lounge rug sat
+  4% off the floor on graphite and read as a soft surface. Translated as a hue shift instead it
+  became a lilac slab that read as a UI panel dropped on the room — the single loudest thing on
+  a floor whose job is to stay quiet. Keep the relationship, not the recipe.
+- **A frame has to out-contrast what it hangs *on*, not what it contains.** A white whiteboard
+  framed in the standard hairline, mounted on a near-white wall, read as an outlined card
+  floating in space.
 - **A test asserting a placeholder's behaviour will fail when the placeholder improves.** Three
   checks broke on the model swap and none was a product bug: two asserted `estimated is True`
   (only ever true of the stub) and the Phase 3 memory gate demanded the literal substring
@@ -1095,20 +1154,20 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Record the video.** Nothing else moves the submission forward.
+**Phase 13 — the public landing page.** See `BUILD_PLAN.md` for the 12–16 sequence and why it
+is ordered that way.
 
-Every feature in `PRD.md`'s Must list is built, deployed and verified. Phase 5 was built, not
-cut. Phase 3 is closed — the agent is real and the token counts are the provider's own. The
-recorded sequence passes 12/12 twice unattended and takes ~13 s of product time. There is
-nothing left to build that improves the submission more than a clean take does. **Do not start
-new work in a fresh session — open `DEMO.md` and record.**
+> **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
+> Must list is built, deployed and verified, and the product has been submittable since Phase
+> 4. The user has decided to spend the remaining window expanding rather than recording
+> (2026-09-19), and that decision is made — do not reopen it. When the expansion lands, the
+> recording work in Phase 6 is still the last step, and `DEMO.md` will need re-rehearsing
+> because the reskin changed what is on screen.
 
 ```bash
-python scripts/rehearse.py --takes 2   # confirm the sequence still passes
+python scripts/rehearse.py --takes 2   # still the way to confirm the sequence passes
 ./scripts/reset-demo.sh                # clean board, warm Lambdas, verified
 ```
-
-Then follow `DEMO.md` beat by beat, and finish the three items in *Manual actions pending*.
 
 > **`DEMO.md` is the only run sheet.** The earlier list that lived in this section had Alice
 > claim a slot and then save a fact, which the scheduler does not allow — rehearsal caught it.
