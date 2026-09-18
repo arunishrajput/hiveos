@@ -5,6 +5,7 @@
 | | |
 |---|---|
 | **Live URL** | <https://main.dbavt8jr66qxx.amplifyapp.com> — opens cold, no setup, no sign-in |
+| **Straight to the board** | <https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace> — skips the front page |
 | **Repository** | <https://github.com/arunishrajput/hiveos> |
 | **Video** | *(paste the YouTube link here before submitting)* |
 | **Track** | Ship It |

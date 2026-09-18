@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useHive } from './useHive'
+import Landing from './landing'
 import { AVATARS } from './sprites'
 import {
   ActivityPanel,
@@ -533,14 +534,57 @@ function Workspace({ identity }) {
   )
 }
 
+/* --- Routing --------------------------------------------------------------
+ *
+ * Two routes, one hash, no router library — the same reasoning that kept
+ * Tailwind and a state library out of this frontend.
+ *
+ * The hash specifically, rather than a real path. Amplify serves this SPA with
+ * a `404-200` rewrite, so a deep link like `/workspace` returns the right body
+ * under an HTTP **404** (see PROGRESS.md — harmless, but real). A hash never
+ * leaves `/`, so the workspace link a judge or a teammate is handed is a clean
+ * 200 and is still bookmarkable and shareable.
+ *
+ * Anything that is not the workspace is the front door, including a stale or
+ * mistyped hash — a landing page is the right thing to show someone who is
+ * lost, and it is one click from where they meant to go.
+ */
+const WORKSPACE_ROUTE = '#/workspace'
+
+function useIsWorkspace() {
+  const read = () => window.location.hash === WORKSPACE_ROUTE
+  const [isWorkspace, setIsWorkspace] = useState(read)
+
+  useEffect(() => {
+    const sync = () => setIsWorkspace(read())
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
+
+  // A hash link leaves the scroll position where it was, so arriving at the
+  // workspace from halfway down the landing page would open the board
+  // mid-scroll. Browsers restore scroll on back too, hence every change and
+  // not just the entry.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [isWorkspace])
+
+  return isWorkspace
+}
+
 export default function App() {
   const [identity, setIdentity] = useState(loadIdentity)
+  const isWorkspace = useIsWorkspace()
 
   const enter = useCallback((next) => {
     saveIdentity(next)
     setIdentity(next)
   }, [])
 
+  // `useHive` lives inside `Workspace`, so the landing route opens no socket
+  // and writes no `CONN#` row. Reading the front page costs the backend
+  // nothing and never appears in anyone's member list.
+  if (!isWorkspace) return <Landing />
   if (!identity) return <Gate onEnter={enter} />
   return <Workspace identity={identity} />
 }

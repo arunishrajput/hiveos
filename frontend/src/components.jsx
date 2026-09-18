@@ -532,6 +532,13 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
 
   const walking = useWalking(placed)
 
+  /* The landing page renders this same room from canned state, with no socket
+   * behind it. Without an `onMove` there is nothing to move, so the floor drops
+   * its click target, its tab stop and its "click to move" affordance rather
+   * than advertising an interaction that silently does nothing — and becomes an
+   * image for a screen reader instead of an application. */
+  const interactive = Boolean(onMove)
+
   const move = (event) => {
     const box = event.currentTarget.getBoundingClientRect()
     if (!box.width || !box.height) return
@@ -555,19 +562,23 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
         <span className="panel__label" id="floor-label">
           Workspace floor
         </span>
-        <span className="panel__aside">click or use arrow keys to move</span>
+        {interactive && (
+          <span className="panel__aside">click or use arrow keys to move</span>
+        )}
       </div>
 
       <div
-        className="floor"
-        onClick={move}
-        onKeyDown={nudge}
-        tabIndex={0}
-        role="application"
+        className={`floor ${interactive ? '' : 'floor--still'}`}
+        onClick={interactive ? move : undefined}
+        onKeyDown={interactive ? nudge : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        role={interactive ? 'application' : 'img'}
         aria-label={
           `Shared workspace floor. ${members.length} ` +
-          `${members.length === 1 ? 'person' : 'people'} present. ` +
-          'Click or use the arrow keys to move your marker.'
+          `${members.length === 1 ? 'person' : 'people'} present` +
+          (interactive
+            ? '. Click or use the arrow keys to move your marker.'
+            : `, ${busyUsers.size} at an agent desk.`)
         }
       >
         {/* Wall fixtures sit in the back band of the room, above everything

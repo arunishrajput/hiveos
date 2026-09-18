@@ -14,10 +14,11 @@
 | **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 13 — public landing page**, first of the 12–16 expansion |
-| **Phase status** | `READY`. Phase 12 (paper-office light theme) complete and deployed 2026-09-19. Phase 6 remains `BLOCKED` on the user's recording, and is now deliberately deferred until the expansion lands — user decision, 2026-09-19 |
+| **Current phase** | **Phase 14 — named agents at each desk** |
+| **Phase status** | `READY`. Phase 13 (public landing page) complete and deployed 2026-09-19. Phase 6 remains `BLOCKED` on the user's recording, and is now deliberately deferred until the expansion lands — user decision, 2026-09-19 |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
-| **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — verified cold, zero setup |
+| **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
+| **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
 | **Amplify app** | `dbavt8jr66qxx`, branch `main` — **not in CloudFormation** (see below) |
 | **Repository** | https://github.com/arunishrajput/hiveos (public, `main`) |
@@ -44,8 +45,8 @@
 | 10 | Workspace passphrases | `COMPLETE` — 2026-09-18 |
 | 11 | Workspace administration | `COMPLETE` — 2026-09-18 |
 | 12 | Paper-office light theme | `COMPLETE` — deployed and verified 2026-09-19 |
-| 13 | Public landing page | `NOT STARTED` ← **here** |
-| 14 | Named agents at each desk | `NOT STARTED` |
+| 13 | Public landing page | `COMPLETE` — deployed and verified 2026-09-19 |
+| 14 | Named agents at each desk | `NOT STARTED` ← **here** |
 | 15 | Multi-room floor rebuild | `NOT STARTED` |
 | 16 | Agent-to-agent handoff | `NOT STARTED` |
 | 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done; 6, 7, 9 are the user's. **Deferred until the expansion lands, by user decision 2026-09-19.** The rehearsed take and the 640×950 framing in `DEMO.md` are invalidated by the reskin and will need re-rehearsing |
@@ -75,6 +76,64 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 13 — 2026-09-19 — the public landing page**
+
+A front door at `/`: hero with the board beside it, the cost-overrun evidence
+from `SUBMISSION.md` with its sources attached, four how-it-works steps, the
+AWS pipeline in the one ink-dark terminal card the theme allows, and a footer.
+Alternating cream and sand bands, divided by hairlines. Frontend only — the
+backend was not touched and neither was any protocol.
+
+**Three decisions, each of which had a plausible alternative:**
+
+1. **The route is a hash, `#/workspace`, not a path.** A real `/workspace`
+   would be served through Amplify's `404-200` SPA rewrite — the app boots, but
+   the response is an HTTP **404**, which is already recorded below as a wart
+   worth not adding to. A hash never leaves `/`, so the link handed to a judge
+   or a teammate is a clean 200 and is still bookmarkable, shareable and
+   back-button-correct. Verified with `curl`: both `/` and the hash link return
+   **200**. No router library — same reasoning that kept out Tailwind and a
+   state library.
+2. **The board preview does not connect, and that is the whole point.** A live
+   preview socket was the obvious idea and is wrong: `$connect` writes a `CONN#`
+   row, so every visitor to the front page would appear as a phantom member on
+   the default board, inflate the member count *on camera* during a take, and
+   fail `ws_smoke.py`'s four connection-leak checks. There is no read-only
+   observer in the protocol and inventing one for a marketing page is the wrong
+   trade. Instead the preview renders the **real** `QuotaBar` and `CanvasPanel`
+   from canned props, so the picture cannot drift from the product.
+3. **`useHive` stays inside `Workspace`**, so the landing route opens no socket
+   at all. Proven rather than asserted — `window.WebSocket` was wrapped with a
+   counter on the deployed page: **0** sockets while on `/`, **1** the moment
+   the workspace mounted.
+
+`CanvasPanel` gained one guard: with no `onMove` it drops its click handler,
+its tab stop and its "click or use arrow keys" affordance, and becomes
+`role="img"` rather than `role="application"`. A still room that advertises an
+interaction it does not have is worse than one that says nothing.
+
+**Verified against the deployed public URL, not exit codes:**
+
+| Check | Result |
+|---|---|
+| `vite build` | ✅ clean, 80.95 KB gzipped JS (was 78.4) |
+| Deployed | ✅ Amplify job 16 `SUCCEED` |
+| Landing renders at `/` on the deployed URL | ✅ hero, 3 stat cards, 4 steps, terminal card, footer |
+| Preview shows the product working | ✅ 2 lit desks, 3 people, `queued #1`, meter ochre at 56.9% |
+| CTA → gate → board | ✅ and the board came up `live`, real quota 2,439/5,000, real memory and ledger |
+| Sockets opened on the landing route | ✅ **zero** — counted, not assumed |
+| Back and forward across the route | ✅ both directions render the right page |
+| `/` and `/#/workspace` HTTP status | ✅ **200** and **200** |
+| Console on the deployed page | ✅ zero errors, zero warnings |
+| 390 px viewport | ✅ no horizontal overflow anywhere; nav fits; the ASCII diagram scrolls inside its own card |
+| `ws_smoke.py` | ⏸️ **not run** — zero backend files changed. Not evidence of a pass; there was nothing in its scope to regress |
+
+**The ASCII diagram is column-aligned by hand and will break silently.** The
+`│` drops from the centre of *Router Lambda* to `SQS` and the `▲` rises from
+*Runner* to *DynamoDB*; edit any label and the arrows keep pointing at whatever
+now occupies that column. It still looks like a diagram while saying something
+false. There is a comment on it in `landing.jsx` and a note below.
 
 **Phase 12 — 2026-09-19 — the paper office**
 
@@ -973,6 +1032,23 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
 
 ## Known issues and discoveries
 
+- **A marketing page that connects to the product is a write to the product.** The obvious way
+  to build a "live board preview" is to open a socket. Here that writes a `CONN#` row, which
+  means every visitor to the front page joins the default workspace: the member count on camera
+  is wrong, and `ws_smoke.py`'s leak checks fail for reasons that have nothing to do with the
+  code. Render the real components from canned props instead — the picture still cannot drift
+  from the product, and the page stays free.
+- **Hand-aligned ASCII in a `<pre>` breaks silently when its labels are edited.** The pipeline
+  diagram in `landing.jsx` puts its `│` and `▲` under specific columns of the line above. Rename
+  a service and the arrows point at whatever moved into that column — it goes on looking like a
+  diagram while saying something untrue. Nothing checks this; the column arithmetic is in a
+  comment above the constant.
+- **Wide-layout rules written for `.board` leak onto anything that reuses its components.**
+  `@media (min-width: 1100px)` releases `.floor` to `height: auto; flex: 1` so the room fills its
+  grid column. Outside that grid there is nothing to fill, and a box whose contents are all
+  absolutely positioned then collapses to zero height. The landing preview pins `.lp-preview
+  .floor` explicitly. Reusing a board component anywhere new means checking what that media
+  query does to it.
 - **Inverting a theme inverts what a colour is *for*, not just its value.** Three bugs in the
   Phase 12 reskin were all the same shape. `--ink` was the page background *and* the halo behind
   desk labels — flipping it to a text colour would have blacked out every label on the floor.
@@ -1154,8 +1230,9 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Phase 13 — the public landing page.** See `BUILD_PLAN.md` for the 12–16 sequence and why it
-is ordered that way.
+**Phase 14 — named agents at each desk.** See `BUILD_PLAN.md` for the 12–16 sequence and why it
+is ordered that way. This is the first phase of the expansion that changes the **schema and the
+protocol** — `CONTRACT.md` moves in the same commit, and `ws_smoke.py` is back in scope.
 
 > **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
 > Must list is built, deployed and verified, and the product has been submittable since Phase
@@ -1181,6 +1258,10 @@ seam.
 
 ### Standing gotchas for the recording
 
+- **Point the recording windows at `/#/workspace`, not `/`.** `/` is the landing page now. It is
+  the right thing for a judge arriving cold and the wrong thing for a take — three windows each
+  needing an extra click before the gate is three chances to be caught mid-scroll. `DEMO.md` has
+  the link.
 - **Close stray browser tabs before running `ws_smoke.py`.** Its CONN#-leak checks assert the
   table holds no connection rows, so one live browser fails four checks that have nothing to do
   with the code. `reset-demo.sh` warns when it finds live rows.

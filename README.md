@@ -7,6 +7,8 @@ Teams sharing AI agents have no visibility into usage, no fairness mechanism for
 Built for the **First Commit** hackathon (WeMakeDevs × AWS), Ship It track.
 
 **Live URL:** **https://main.dbavt8jr66qxx.amplifyapp.com** — opens cold, no setup, no sign-in.
+The front page explains the product; the board itself is one click behind it, at
+[`/#/workspace`](https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace).
 
 ![The HiveOS operator console](docs/hud.png)
 

@@ -33,6 +33,21 @@ before and uses the open default workspace.
 At the gate, each browser enters the same **workspace** name and the same
 **passphrase**. The first one in creates it and becomes its administrator.
 
+**Point the three recording windows at the board directly:**
+
+```
+https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace
+```
+
+`/` is the public landing page now, and the board is one CTA click behind it.
+That is right for a judge arriving cold and wrong for a take — three windows
+each needing an extra click before the gate is three chances to be caught
+mid-scroll on camera. The hash link goes straight to the gate.
+
+Show `/` itself in the opening seconds if you want the pitch on screen, then
+cut to the three board windows. It is a still page; nothing on it moves and
+nothing on it connects.
+
 It prints `snapshot clean — both slots IDLE, 0/5000 tokens, queue and memory empty`. If it
 prints `DIRTY`, or warns that connection rows were live, **close every browser tab pointed at
 the deployed URL and run it again.**
@@ -222,5 +237,7 @@ rescue a demo.**
 1. Upload to YouTube, **public or unlisted**
 2. **Open the link in a signed-out browser** — an accidentally-private video is a zero
 3. Confirm the video is **under 3:00**
-4. Confirm the public URL still opens cold: <https://main.dbavt8jr66qxx.amplifyapp.com>
+4. Confirm both doors still open cold — the landing page at
+   <https://main.dbavt8jr66qxx.amplifyapp.com> and the board one click behind it at
+   <https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace>
 5. Submit with the writeup in `SUBMISSION.md`
