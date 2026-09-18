@@ -85,6 +85,13 @@
    * furniture a person has to find at a glance to read the floor. */
   --floor: #f2e7d0;
   --tile: #ecdfc2;
+  /* Inside a project room: a shade above the corridor, no hue shift. The rooms
+   * have to separate from the corridor without becoming a second colour — the
+   * one saturated thing on this floor is a lit screen, and a tinted room would
+   * be competing with it. `--room-floor-busy` is the reflection of that screen
+   * and is the only place the room takes a hue. */
+  --room-floor: #f7efdd;
+  --room-floor-busy: #e4eff4;
   --desk: #c08c4e;
   --desk-edge: #8e6335;
   --desk-top: #d6a467;
@@ -1058,11 +1065,13 @@ body {
     linear-gradient(45deg, var(--tile) 25%, transparent 25%, transparent 75%, var(--tile) 75%);
   /* The wall is a *percentage* of the floor, not a fixed 52px, so it stays a
    * wall when the room grows on a wide screen instead of thinning into a
-   * stripe. 20% matches WALK_TOP (22) in components.jsx closely enough that
-   * nobody stands in it. Wall and baseboard are one layer — a separately
-   * positioned 3px line cannot track a percentage-sized band. */
+   * stripe. 14% matches WALK_TOP (14) in components.jsx exactly — the project
+   * rooms now stand against this band, so a wall that overshot it would run
+   * behind their back wall and read as a double line. Wall and baseboard are
+   * one layer: a separately positioned 3px line cannot track a
+   * percentage-sized band. */
   background-size:
-    100% 20%,
+    100% 14%,
     var(--tile-size) var(--tile-size),
     var(--tile-size) var(--tile-size);
   background-position:
@@ -1087,14 +1096,73 @@ body {
   outline-offset: 2px;
 }
 
+/* --- Project rooms -------------------------------------------------------- */
+
+/* One room per scheduler slot, standing against the back wall.
+ *
+ * The rooms are what turn a single open floor into an office with a plan: an
+ * agent is somewhere specific, the corridor outside is somewhere else, and a
+ * person crossing from one to the other is visibly going to work. Position and
+ * size are set inline from ROOMS in components.jsx — percentages, so the plan
+ * scales with the floor and no media query has to restate it.
+ *
+ * Walls are a border rather than four positioned bars: one declaration, and it
+ * tracks the percentage box for free.
+ */
+.room {
+  position: absolute;
+  /* A shade above the corridor floor, so the room reads as its own surface
+   * without introducing a second hue. Everything in this room is a tint of the
+   * same paper — see the colour note at the top of the file. */
+  background: var(--room-floor);
+  border: 2px solid var(--wall-trim);
+  /* The back wall is shared with the room band behind it, so it carries no
+   * rounding; the corridor corners do. */
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  box-shadow: inset 0 0 18px 4px rgba(150, 118, 62, 0.07);
+  pointer-events: none;
+}
+
+/* The doorway: a gap punched in the wall facing the corridor, painted in the
+ * corridor's own floor colour so it reads as an opening rather than as a white
+ * bar laid over the wall. Two jambs mark where the wall stops. */
+.room__door {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 2px;
+  background: var(--floor);
+  box-shadow:
+    -3px 0 0 0 var(--wall-trim),
+    3px 0 0 0 var(--wall-trim);
+}
+
+/* A working room is lit by its own screen. The tint is the same instrument
+ * blue the monitor uses, at the strength of a reflection rather than a source —
+ * the monitor is the thing that is on, and the room is what that looks like
+ * from the corridor. The border warms too, or the room reads as tinted rather
+ * than as occupied. */
+.room--busy {
+  background: var(--room-floor-busy);
+  border-color: var(--cool);
+}
+
 /* --- Desks ---------------------------------------------------------------- */
 
 /* A desk is bound to a scheduler slot, so it reports machine state rather than
  * decorating the room: the monitor lights while that slot is BUSY. That is the
  * whole point of putting the floor first — "both agents are working" becomes
- * something you see rather than something you read off a card. */
+ * something you see rather than something you read off a card.
+ *
+ * Positioned inside its room rather than on the floor: `top` comes from
+ * DESK_IN_ROOM in components.jsx, and `left: 50%` centres it in the room. The
+ * person seated at it is still a pawn on the *floor*, which is why
+ * components.jsx keeps a floor-space `deskY` alongside the room's own corner. */
 .desk {
   position: absolute;
+  left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
@@ -1311,10 +1379,13 @@ body {
   width: 58%;
 }
 
-/* Water cooler, against the wall. */
+/* Water cooler. Moved out of the back wall and down beside the waiting area —
+ * its old spot at (88, 22) is inside Iris's room now, and a water cooler in
+ * somebody's office is a different claim than one in the corridor. Next to the
+ * people who are waiting is also simply where a cooler goes. */
 .fixture--cooler {
-  left: 88%;
-  top: 22%;
+  left: 90%;
+  top: 68%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1338,19 +1409,98 @@ body {
     0 3px 5px var(--shadow);
 }
 
-/* Lounge rug. No border and a soft edge, so it reads as a soft surface laid on
- * the tiles rather than as another panel drawn on top of them. */
-.fixture--rug {
-  left: 50%;
-  top: 72%;
-  width: 46%;
-  height: 84px;
-  border-radius: 7px;
+/* --- Waiting area --------------------------------------------------------- */
+
+/* Where the queue physically is.
+ *
+ * The rug this replaces was spatial only — it broke up the tile field and said
+ * nothing. This says something: queued members stand on it, in order, at the
+ * spots WAIT_* in components.jsx lays out, and the walk from here to a desk
+ * when a slot frees is the scheduler dispatching, in the room.
+ *
+ * Still soft-edged and borderless, for the reason the rug was: a bordered
+ * rectangle on the floor reads as another UI panel dropped onto the room
+ * rather than as a surface inside it.
+ *
+ * Sized in percentages like the rest of the plan. The height used to be a
+ * fixed 84px here, which held its size while the room around it grew on a wide
+ * screen and left the queue standing off the end of its own rug. */
+.waiting {
+  position: absolute;
+  left: 21%;
+  top: 64%;
+  width: 58%;
+  height: 32%;
+  border-radius: 8px;
   background: var(--rug);
   box-shadow:
     inset 0 0 0 3px rgba(255, 253, 247, 0.85),
     inset 0 0 0 4px rgba(190, 168, 126, 0.5),
     inset 0 0 20px 5px rgba(122, 94, 48, 0.07);
+  pointer-events: none;
+}
+
+/* Named, because an unlabelled rug with people on it is a lounge. The label is
+ * the difference between "three people are standing around" and "three people
+ * are waiting for an agent", and that distinction is the product. */
+/* Pinned to the top *right*, which is the last place a queue reaches.
+ *
+ * Centred was worst — that is exactly where the second and third person stand.
+ * Top-left is where the line *starts*, so the first person to queue sat on it.
+ * The caption is fixed-size text while the waiting spots are percentages, so
+ * the gap between them shrinks with the floor and any left-hand position that
+ * clears at 606px collides at the 430px the landing preview renders. The right
+ * end is free until five people are queued, at which point a quiet 8px label
+ * passing behind somebody's feet is the mildest failure available here. */
+.waiting__label {
+  position: absolute;
+  right: 10px;
+  top: 5px;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* --- Hot desks ------------------------------------------------------------ */
+
+/* The team's own desks, along the left of the corridor. Furniture: nothing is
+ * bound to them and nothing lights up. They exist so the open floor reads as
+ * the rest of an office rather than as empty ground, and so a person standing
+ * on the left is standing *somewhere*.
+ *
+ * Deliberately smaller and flatter than an agent desk. If these competed for
+ * attention with the two desks that report scheduler state, they would be
+ * costing the room the thing it is for. */
+.hotdesk {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.hotdesk__surface {
+  width: calc(42px * var(--furn));
+  height: calc(17px * var(--furn));
+  border-radius: 2px;
+  background: linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 -3px 0 0 var(--desk-edge),
+    0 3px 5px var(--shadow);
+}
+
+.hotdesk__chair {
+  width: calc(14px * var(--furn));
+  height: calc(11px * var(--furn));
+  margin-top: calc(3px * var(--furn));
+  border-radius: 3px 3px 5px 5px;
+  background: var(--chair);
+  box-shadow: 0 2px 4px var(--shadow);
 }
 
 
@@ -1598,11 +1748,18 @@ body {
   color: var(--text);
   /* The floor is patterned and people stand close together, so a label needs
    * its own ground or it dissolves into both the tiles and the next person's
-   * name. */
+   * name.
+   *
+   * The halo is the *floor* colour, not the text colour. It was `--ink` — a
+   * dark glow behind dark text, which on graphite was a legible outline and on
+   * cream is a smudge that swallows the name whole. `.desk__label` was
+   * corrected when the theme flipped in Phase 12 and this was missed; the room
+   * rebuild put three of these side by side in the waiting area, which is what
+   * finally made it obvious. */
   text-shadow:
-    0 1px 2px var(--ink),
-    0 0 4px var(--ink),
-    0 0 8px var(--ink);
+    0 1px 2px var(--floor),
+    0 0 4px var(--floor),
+    0 0 8px var(--floor);
 }
 
 .pawn__state {
@@ -1610,7 +1767,7 @@ body {
   font-size: 9px;
   letter-spacing: 0.06em;
   color: var(--faint);
-  text-shadow: 0 1px 2px var(--ink), 0 0 3px var(--ink);
+  text-shadow: 0 1px 2px var(--floor), 0 0 3px var(--floor);
 }
 
 /* Your own marker is the one you need to find instantly to know that clicking
@@ -1621,6 +1778,15 @@ body {
 
 .pawn--busy .pawn__state {
   color: var(--cool);
+}
+
+/* Waiting for a slot. Ochre is the same hue the quota strip uses for "getting
+ * close to a limit", and it means the same thing here: this person is not
+ * blocked and not working, they are next. It has to be a text-weight hue and
+ * not brand amber — the rule at the top of this file — because it is carrying
+ * a word. */
+.pawn--waiting .pawn__state {
+  color: var(--honey);
 }
 
 
@@ -2126,13 +2292,18 @@ body {
     position: static;
   }
 
-  /* The room got bigger; its contents have to as well, or 36px people stand
-   * in a 1000px hall looking lost. One knob each for the characters and the
-   * furniture — see the tokens at the top of this file. */
+  /* The camera. The room got bigger; its contents have to as well, or 36px
+   * people stand in a 1000px hall looking lost. One knob each for the
+   * characters and the furniture — see the tokens at the top of this file.
+   *
+   * `--furn` went 1.45 -> 1.8 with the room plan. The plan is in percentages
+   * so the rooms grew with the floor, and at 1.45 a 110px desk sat in a 366px
+   * room looking like a dolls' house. Measured against the room it stands in
+   * rather than against the floor, which is the thing that changed. */
   .floor {
     --px-n: 6;
     --tile-size: 60px;
-    --furn: 1.45;
+    --furn: 1.8;
   }
 }
 

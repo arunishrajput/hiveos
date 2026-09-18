@@ -422,8 +422,13 @@ const STEP = 4
  *
  * The click handler applies the inverse, so clicking a spot still puts you on
  * that spot. Both directions use this one constant; they cannot drift apart.
+ *
+ * Lowered from 22 to 14 with the room plan: the wall band got thinner because
+ * the project rooms now stand against it and were eating the band's height
+ * twice. Safe to change precisely because both directions read this constant —
+ * the only visible effect is that a stored coordinate renders slightly higher.
  */
-const WALK_TOP = 22
+const WALK_TOP = 14
 
 /* How long a walk takes, whatever the distance. Must match the `left`/`top`
  * transition in styles.css: the class drives the leg animation and the
@@ -503,56 +508,136 @@ const ARROWS = {
   ArrowRight: [STEP, 0],
 }
 
-/* Where each desk stands, in the same 0-100 percentage space as the avatars.
+/* The floor plan, in the same 0-100 percentage space as the avatars.
  *
  * Percentages, not pixels, for exactly the reason CONTRACT.md gives for avatar
  * coordinates: three browsers at different widths have to agree on where
- * things are. A pixel desk would sit under a different person's feet on a
+ * things are. A pixel room would sit under a different person's feet on a
  * narrower window, which is the one thing this board is supposed to be
- * incapable of.
+ * incapable of. Every number in this section is a percentage of the floor box,
+ * so the whole plan scales with it and nothing here needs a media query.
  *
- * Positions only. *Who* sits at each desk comes from `state_snapshot.agents[]`,
+ * The office reads in three bands, top to bottom:
+ *
+ *   0-14    back wall — window, whiteboard. Not walkable (WALK_TOP).
+ *   14-62   two project rooms, standing against that wall, one per agent slot,
+ *           with a corridor between them.
+ *   62-100  the open floor — waiting area in the middle, hot desks on the
+ *           left, cooler and plants at the edges.
+ *
+ * `x`/`y` are the room's top-left corner, not its centre, because a room is
+ * placed by its edges and the wall it shares with the corridor is the thing
+ * that has to line up.
+ *
+ * The rooms are narrower than the space would allow, and the 20% left between
+ * them is the reason. The floor is a wide, short box — 606x250 at the demo
+ * window — and two rooms filling it edge to edge left a 76px desk adrift in a
+ * 267px room and no way to read the plan except as "two boxes". A corridor
+ * running from the whiteboard down to the waiting area gives the office
+ * circulation, and gives each room a size its furniture can fill.
+ *
+ * Positions only. *Who* works in each room comes from `state_snapshot.agents[]`,
  * which carries the roster — so renaming an agent is a backend edit and the
- * room follows, rather than two lists that have to be kept in step.
+ * floor follows, rather than two lists that have to be kept in step.
  */
-const DESK_SPOTS = [
-  { slot_id: 'coder', x: 27, y: 34 },
-  { slot_id: 'researcher', x: 73, y: 34 },
+const ROOMS = [
+  { slot_id: 'coder', x: 6, y: 14, w: 34, h: 48 },
+  { slot_id: 'researcher', x: 60, y: 14, w: 34, h: 48 },
 ]
 
-/* The desks to draw: a spot, joined to the live slot behind it.
+/* How far down its room a desk sits, as a fraction of the room's height.
  *
- * Driven by the spots rather than by the agent list, so an agent with nowhere
- * to sit is simply not drawn — better than a desk stacked at (0, 0) on top of
- * another one. Phase 15 rebuilds this into rooms; until then two spots is the
- * floor.
+ * Above centre on purpose: the desk stack is drawn from its own centre, and
+ * the person seated at it hangs SEAT_DROP below that, carrying two lines of
+ * label under them. At 0.42 in a 46-tall room the occupant's "working" line
+ * fell across the bottom wall — measured on the deployed floor height, not
+ * guessed. 0.38 in a 48-tall room lands the whole stack inside. */
+const DESK_IN_ROOM = 0.38
+
+/* The rooms to draw, each joined to the live slot behind it.
+ *
+ * Driven by the plan rather than by the agent list, so an agent with no room is
+ * simply not drawn — better than a desk stacked at (0, 0) on top of another
+ * one. The join itself is unchanged from the two-spot version it replaces; only
+ * the geometry either side of it is new.
  */
-function desksFrom(agents) {
+function roomsFrom(agents) {
   const bySlot = new Map(agents.map((agent) => [agent.slot_id, agent]))
-  return DESK_SPOTS.map((spot) => {
-    const agent = bySlot.get(spot.slot_id)
+  return ROOMS.map((room) => {
+    const agent = bySlot.get(room.slot_id)
     return {
-      ...spot,
+      ...room,
       agent,
-      name: agent?.name || spot.slot_id,
+      name: agent?.name || room.slot_id,
       role: agent?.role || '',
       busy: agent?.status === 'BUSY',
+      /* The desk's centre in *floor* percent, kept alongside the room's own
+       * corner rather than replacing it. The desk is drawn room-locally, but
+       * the person seated at it is a pawn on the floor like any other, so the
+       * one coordinate that has to exist in floor space is this one. Deriving
+       * it back out of the corner at each use site is how the two drift. */
+      deskX: room.x + room.w / 2,
+      deskY: room.y + room.h * DESK_IN_ROOM,
     }
   })
 }
+
+/* The waiting area, and where people stand in it.
+ *
+ * This is the half of the phase that makes the queue a place rather than a
+ * label. A queued member is drawn on a numbered spot, in queue order, exactly
+ * the way a slot holder is drawn at their desk — same mechanism, same promise:
+ * the coordinate the server holds for them is never touched, so leaving the
+ * queue walks them back to wherever they were actually standing.
+ *
+ * The line runs left to right at the mouth of the rooms, so when a slot frees
+ * and the front of the queue is dispatched, the walk from the waiting spot to
+ * the desk crosses the room in full view. That walk is the scheduler, visible.
+ */
+/* WAIT_X0 is 38 rather than the area's own left edge because the first spot at
+ * 30 put somebody 5px under the "WAITING AREA" caption, and the two read as one
+ * smudge at recording size. Measured against the rendered boxes at 640px, not
+ * eyeballed. The caption then moved to the top *right* — the far end of the
+ * line — which is the half of the fix that holds at every floor width; see
+ * `.waiting__label` in styles.css. */
+const WAIT_X0 = 38
+const WAIT_DX = 9
+const WAIT_Y0 = 80
+const WAIT_PER_ROW = 5
+/* Overflow rows stack *upward*, towards the rooms. Downward would put the
+ * sixth person's name label through the bottom edge of the floor. */
+const WAIT_DY = -12
+
+function waitSpot(position) {
+  const i = Math.max(0, position - 1)
+  const row = Math.floor(i / WAIT_PER_ROW)
+  const col = i % WAIT_PER_ROW
+  return { x: WAIT_X0 + col * WAIT_DX, y: WAIT_Y0 + row * WAIT_DY }
+}
+
+/* Hot desks for the humans, along the left edge of the open floor.
+ *
+ * Furniture, not state: nobody is assigned one and nothing lights up. They earn
+ * their place by answering "why is this person standing here" — without them
+ * the lower half is an empty field with a rug in it, and the two rooms read as
+ * the only places in the office anyone could possibly be.
+ */
+const HOT_DESKS = [
+  { x: 9, y: 72 },
+  { x: 9, y: 91 },
+]
 
 /* How far below a desk's own centre its chair sits, in floor percent. The desk
  * stack is label, monitor, surface, chair from the top, all centred on the
  * desk coordinate, so the seat is roughly a third of that stack below it. */
 const SEAT_DROP = 13
 
-/* Fixed decor. Percentages for the same reason. Positions are chosen to stay
- * clear of the desks and to put something in the lower half, which was dead
- * space that made the room read as a field rather than an office. */
+/* Fixed decor. Percentages for the same reason. Re-placed for the room plan:
+ * the old positions sat where the project rooms now stand, and a potted plant
+ * inside somebody's office is a different claim than one in the corridor. */
 const PLANTS = [
-  { x: 6, y: 62 },
-  { x: 94, y: 62 },
-  { x: 16, y: 88 },
+  { x: 92, y: 91 },
+  { x: 16, y: 66 },
 ]
 
 /* The shared workspace floor.
@@ -568,7 +653,7 @@ const PLANTS = [
  * person is waiting" is legible from the room itself.
  */
 export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], onMove }) {
-  const desks = desksFrom(agents)
+  const rooms = roomsFrom(agents)
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
 
   /* Who is sitting where. A slot holder is drawn at that slot's desk rather
@@ -578,22 +663,37 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
    * at the desk afterwards, and would mean the room quietly editing state the
    * server owns. */
   const seatOf = new Map()
-  desks.forEach((desk) => {
-    const holder = desk.busy ? desk.agent?.current_user : null
-    if (holder) seatOf.set(holder, desk)
+  rooms.forEach((room) => {
+    const holder = room.busy ? room.agent?.current_user : null
+    if (holder) seatOf.set(holder, room)
   })
 
+  /* Three places a person can be, in this order of precedence: at an agent's
+   * desk because they hold that slot, on a waiting spot because they are in
+   * the queue, or wherever they last walked to. The first two are the board
+   * showing scheduler state; only the third is the coordinate the server
+   * keeps. Somebody dispatched off the front of the queue moves from the
+   * second to the first, which is the walk the room exists to show. */
   const placed = members.map((member, index) => {
     const desk = seatOf.get(member.user_id)
+    const position = desk ? null : queuedBy.get(member.user_id)
+    const waiting = position ? waitSpot(position) : null
     return {
       id: member.user_id,
       member,
       index,
       desk,
-      left: desk ? desk.x : Math.max(0, Math.min(100, Number(member.x) || 0)),
+      waiting: Boolean(waiting),
+      left: desk
+        ? desk.deskX
+        : waiting
+          ? waiting.x
+          : Math.max(0, Math.min(100, Number(member.x) || 0)),
       top: desk
-        ? desk.y + SEAT_DROP
-        : toFloor(Math.max(0, Math.min(100, Number(member.y) || 0))),
+        ? desk.deskY + SEAT_DROP
+        : waiting
+          ? waiting.y
+          : toFloor(Math.max(0, Math.min(100, Number(member.y) || 0))),
     }
   })
 
@@ -664,32 +764,64 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
           <span className="cooler__body" />
         </div>
 
-        {/* A rug under the lounge end of the room. Purely spatial: it breaks
-            the single uniform tile field into zones, which is most of what
-            makes a top-down room look designed rather than tiled. */}
-        <div className="fixture fixture--rug" aria-hidden="true" />
+        {/* The waiting area: a rug and a caption, with no state of its own —
+            the state is *who is standing on it*. Drawn before the rooms so a
+            room's wall reads as being in front of the corridor floor rather
+            than behind it. */}
+        <div className="waiting" aria-hidden="true">
+          <span className="waiting__label">Waiting area</span>
+        </div>
 
-        {/* Desks after the rug so they sit on it, and before the pawns so
-            someone standing at a desk is in front of it, not behind it. */}
-        {desks.map((desk) => (
+        {/* Hot desks. Furniture — see HOT_DESKS. */}
+        {HOT_DESKS.map((spot, i) => (
           <div
-            key={desk.slot_id}
-            className={`desk ${desk.busy ? 'desk--busy' : ''}`}
-            style={{ left: `${desk.x}%`, top: `${desk.y}%` }}
+            key={i}
+            className="hotdesk"
+            style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
             aria-hidden="true"
           >
-            {/* Nameplate above the desk, not below it. People approach a desk
-                from the chair side, so a label under the chair is guaranteed
-                to end up behind somebody's head. The name reads as a person
-                and the role as a job, which is the whole difference between
-                a desk and a slot. */}
-            <span className="desk__label">{desk.name}</span>
-            {desk.role && <span className="desk__role">{desk.role}</span>}
-            <span className="desk__monitor" />
-            <span className="desk__surface">
-              <span className="desk__keyboard" />
-            </span>
-            <span className="desk__chair" />
+            <span className="hotdesk__surface" />
+            <span className="hotdesk__chair" />
+          </div>
+        ))}
+
+        {/* The project rooms, each bound to a scheduler slot: walls, a doorway
+            onto the corridor, and the agent's desk inside. Before the pawns so
+            someone standing at a desk is in front of it, not behind it. */}
+        {rooms.map((room) => (
+          <div
+            key={room.slot_id}
+            className={`room ${room.busy ? 'room--busy' : ''}`}
+            style={{
+              left: `${room.x}%`,
+              top: `${room.y}%`,
+              width: `${room.w}%`,
+              height: `${room.h}%`,
+            }}
+            aria-hidden="true"
+          >
+            {/* A gap punched in the wall that faces the corridor. Without it
+                the rooms are two boxes; with it they are rooms somebody could
+                have walked into, which is most of what sells a plan view. */}
+            <span className="room__door" />
+
+            <div
+              className={`desk ${room.busy ? 'desk--busy' : ''}`}
+              style={{ top: `${DESK_IN_ROOM * 100}%` }}
+            >
+              {/* Nameplate above the desk, not below it. People approach a desk
+                  from the chair side, so a label under the chair is guaranteed
+                  to end up behind somebody's head. The name reads as a person
+                  and the role as a job, which is the whole difference between
+                  a desk and a slot. */}
+              <span className="desk__label">{room.name}</span>
+              {room.role && <span className="desk__role">{room.role}</span>}
+              <span className="desk__monitor" />
+              <span className="desk__surface">
+                <span className="desk__keyboard" />
+              </span>
+              <span className="desk__chair" />
+            </div>
           </div>
         ))}
 
@@ -705,7 +837,7 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
           </div>
         ))}
 
-        {placed.map(({ id, member, index, desk, left, top }) => {
+        {placed.map(({ id, member, index, desk, waiting, left, top }) => {
           const mine = id === me
           const busy = busyUsers.has(id)
           const position = queuedBy.get(id)
@@ -720,7 +852,8 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
               key={id}
               className={
                 `pawn ${mine ? 'pawn--mine' : ''} ${busy ? 'pawn--busy' : ''} ` +
-                `${isWalking ? 'pawn--walking' : ''} ${seated ? 'pawn--seated' : ''}`
+                `${isWalking ? 'pawn--walking' : ''} ${seated ? 'pawn--seated' : ''} ` +
+                `${waiting && !isWalking ? 'pawn--waiting' : ''}`
               }
               style={{ left: `${left}%`, top: `${top}%` }}
             >
