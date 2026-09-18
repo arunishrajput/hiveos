@@ -14,8 +14,8 @@
 | **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 14 — named agents at each desk** |
-| **Phase status** | `READY`. Phase 13 (public landing page) complete and deployed 2026-09-19. Phase 6 remains `BLOCKED` on the user's recording, and is now deliberately deferred until the expansion lands — user decision, 2026-09-19 |
+| **Current phase** | **Phase 15 — multi-room floor rebuild** |
+| **Phase status** | `READY`. Phase 14 (named agents) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 85/85. Phase 6 remains `BLOCKED` on the user's recording, and is deliberately deferred until the expansion lands — user decision, 2026-09-19 |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -46,8 +46,8 @@
 | 11 | Workspace administration | `COMPLETE` — 2026-09-18 |
 | 12 | Paper-office light theme | `COMPLETE` — deployed and verified 2026-09-19 |
 | 13 | Public landing page | `COMPLETE` — deployed and verified 2026-09-19 |
-| 14 | Named agents at each desk | `NOT STARTED` ← **here** |
-| 15 | Multi-room floor rebuild | `NOT STARTED` |
+| 14 | Named agents at each desk | `COMPLETE` — deployed and verified 2026-09-19 |
+| 15 | Multi-room floor rebuild | `NOT STARTED` ← **here** |
 | 16 | Agent-to-agent handoff | `NOT STARTED` |
 | 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done; 6, 7, 9 are the user's. **Deferred until the expansion lands, by user decision 2026-09-19.** The rehearsed take and the 640×950 framing in `DEMO.md` are invalidated by the reskin and will need re-rehearsing |
 
@@ -76,6 +76,72 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 14 — 2026-09-19 — named agents at each desk**
+
+Slots stop being interchangeable. `coder` and `researcher` are now the desks of
+**Ada, the Engineer** and **Iris, the Researcher** — each with a role, a
+tagline and its own persona in the system prompt. The requester picks one, the
+floor captions each desk with its nameplate, and the ledger records which agent
+actually ran the task.
+
+**Four decisions worth the space:**
+
+1. **The roster is code, not rows** (`backend/shared/agents.py`). Names on the
+   `AGENT#` row was the obvious move and needed a backfill for every workspace
+   that already exists — `ensure_team` writes slot rows *conditionally*, so an
+   existing row is never updated and every board created before today would
+   have opened with nameless desks. The row keeps `status` and `current_user`;
+   `state_snapshot` joins the rest. One tuple, one edit, no migration.
+2. **The ids stay `coder` and `researcher`.** They are in deployed rows, in
+   `seed.sh`, in `ws_smoke.py` and in every queued task. Adding a name to an id
+   is free; changing the id is a migration that buys nothing.
+3. **A preference is still not a reservation — but the substitution is now
+   said out loud.** This is the phase's real find: the SQS message carried one
+   `agent_type` holding *what the user asked for*, and the runner recorded that
+   as the agent that ran the task. While the slots were interchangeable it was
+   a harmless mislabel. The moment they have names it is the ledger crediting
+   Ada for Iris's work — and a governance product whose ledger misattributes
+   work is the criticism it levels at everything else. The message now carries
+   `slot_id` (ran) and `requested_agent` (asked), and `agent_response` names
+   both. Nobody queues behind an idle agent; they are just told who took it.
+4. **`persona` never leaves the backend.** It is the model's instruction, not
+   board state. `agents.public()` sends name, role and tagline only, and
+   `ws_smoke.py` asserts the persona's absence from the snapshot.
+
+**Verified against deployed AWS, not exit codes:**
+
+| Check | Result |
+|---|---|
+| `sam build --use-container` + `sam deploy` | ✅ `UPDATE_COMPLETE`, `shared/agents.py` present in both function bundles |
+| `ws_smoke.py` | ✅ **85/85** (79 before, +6 for this phase) |
+| Snapshot carries each desk's identity, in roster order | ✅ `[('coder','Ada'), ('researcher','Iris')]` |
+| Persona leaks to a client | ✅ **no** — snapshot keys are `agent_type, current_user, name, role, slot_id, status, tagline` |
+| An agent answers in character | ✅ live on the deployed board: *"I'm Ada, the Engineer at HiveOS's agent desks. I handle engineering tasks like coding, debugging…"* — 549 real tokens |
+| Substitution reported honestly | ✅ bob asked `coder`, got `researcher`: response `agent_name=Iris, requested_name=Ada`; ledger row `agent_type=researcher, requested_agent=coder` |
+| An unsubstituted task records nothing | ✅ `requested_agent` null on alice's row |
+| Floor, picker and attribution on the deployed URL | ✅ nameplates read *Ada / ENGINEER* and *Iris / RESEARCHER*, the busy desk's name goes blue, activity reads `ADA → DANA 549 TOKENS` |
+| Landing preview | ✅ same nameplates from canned props |
+
+**The demo column got 41 px taller, and the margin is now thin.** Measured on
+the deployed build at 640 px wide: the clean board is **838 px** of content,
+against the **862 px viewport** `DEMO.md` records for a 640×950 window. It
+still fits — with ~24 px to spare where it had ~65. The picker is the whole of
+the increase, and 16 px of it was bought back by laying the picks on one
+baseline below 1100 px (`styles.css`).
+
+How thin that margin is depends on the browser: this session's Chrome carries
+~145 px of its own chrome rather than ~88, giving a 806 px viewport, and at
+that height the team-chat input sits ~32 px below the fold. The page scrolls
+rather than clipping, and the chat box is the least load-bearing control on the
+board — but **re-measure in the actual recording browser before a take**.
+Deliberately not fixed by shrinking the room: Phase 15 re-lays this column.
+
+> **The line that used to be in this file — "the board is 933 px tall, so it
+> fits 950 with ~17 px to spare" — was wrong and is now deleted.** It compared
+> board height against *window* height, ignoring the browser's chrome
+> entirely. `DEMO.md`'s 862-into-862 figure was the sound one, and is the
+> measurement the number above replaces.
 
 **Phase 13 — 2026-09-19 — the public landing page**
 
@@ -1230,9 +1296,17 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Phase 14 — named agents at each desk.** See `BUILD_PLAN.md` for the 12–16 sequence and why it
-is ordered that way. This is the first phase of the expansion that changes the **schema and the
-protocol** — `CONTRACT.md` moves in the same commit, and `ws_smoke.py` is back in scope.
+**Phase 15 — multi-room floor rebuild.** See `BUILD_PLAN.md` for the 12–16 sequence and why it
+is ordered that way. **The highest-risk phase in the expansion** — the floor took two phases to
+get right the first time, so it goes on a branch and `main` keeps a recordable build throughout.
+
+Two things Phase 14 leaves on the table for it:
+
+- **The desks are `DESK_SPOTS` in `components.jsx`** — two hardcoded positions, joined to the
+  live slots by `desksFrom()`. Rooms replace the spots, not the join.
+- **The single column is 838 px of content against a 862 px viewport** — ~24 px of slack, down
+  from ~65. Phase 15 re-lays that column anyway; the number is in `DEMO.md` so the re-rehearsal
+  starts from a measurement.
 
 > **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
 > Must list is built, deployed and verified, and the product has been submittable since Phase
@@ -1265,9 +1339,13 @@ seam.
 - **Close stray browser tabs before running `ws_smoke.py`.** Its CONN#-leak checks assert the
   table holds no connection rows, so one live browser fails four checks that have nothing to do
   with the code. `reset-demo.sh` warns when it finds live rows.
-- Three browsers at **640×950** each is the layout the HUD is designed for. The board is 933 px
-  tall with the memory panel showing, so it fits with ~17 px to spare. It was 640×880 before the
-  workspace floor landed in Phase 5.
+- Three browsers at **640×950** each is the layout the single-column HUD is designed for. The
+  height figure that used to be here compared the board against the *window* height and ignored
+  the browser's own chrome; `DEMO.md`'s viewport-to-viewport measurement is the one to trust.
+  Re-measured on the deployed build 2026-09-19: a clean board is **838 px of content**, which
+  fits `DEMO.md`'s recorded 862 px viewport with ~24 px to spare. **Check it in the recording
+  browser** — a Chrome with a bookmarks bar and an extension or two gives ~806 px instead, and
+  the team-chat input drops below the fold.
 - Each browser needs a **different profile or a cleared localStorage** to hold a separate
   identity: the entry gate persists to `localStorage['hiveos.identity']`, so two tabs of the
   same origin share one name.

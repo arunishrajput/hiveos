@@ -30,7 +30,7 @@ import time
 import traceback
 from collections import namedtuple
 
-from shared import broadcast, history, llm, memory, scheduler, state
+from shared import agents, broadcast, history, llm, memory, scheduler, state
 
 # The floor on how long a task occupies its slot. This pads the *slot*, not the
 # model: the queue mechanic is the thing being demonstrated, and a sub-second
@@ -84,11 +84,12 @@ def _handle(task):
         history.record(
             team,
             task.get("user_id"),
-            task.get("agent_type") or slot_id,
+            slot_id,
             tokens=0,
             estimated=False,
             status=history.FAILED,
             prompt=task.get("prompt", ""),
+            requested_agent=task.get("requested_agent"),
         )
         _reply_error(task, "agent task failed")
     finally:
@@ -125,11 +126,12 @@ def _refuse_over_budget(team, task):
     history.record(
         team,
         task.get("user_id"),
-        task.get("agent_type") or task.get("slot_id"),
+        task.get("slot_id"),
         tokens=0,
         estimated=False,
         status=history.REFUSED,
         prompt=task.get("prompt", ""),
+        requested_agent=task.get("requested_agent"),
     )
     broadcast.broadcast_to_team(
         team,
@@ -192,7 +194,10 @@ def _run_agent(team, task):
     if FAIL_SENTINEL in prompt:
         raise RuntimeError(f"fault injection via {FAIL_SENTINEL}")
 
-    agent_type = task.get("agent_type") or task["slot_id"]
+    # Who answers is the desk this ran at, never the preference on the request.
+    # They are usually the same; when they are not, the substitution is what
+    # `_reply` reports and what the ledger records.
+    agent = agents.get(task["slot_id"])
     requester = task.get("user_id", "unknown")
     started = time.monotonic()
 
@@ -225,7 +230,7 @@ def _run_agent(team, task):
 
     try:
         text, tokens, called = llm.complete(
-            prompt, llm.build_system_prompt(context), run_tool
+            prompt, llm.build_system_prompt(context, agent), run_tool
         )
         result = AgentResult(text=text, tokens=tokens, estimated=False)
         if called:
@@ -236,7 +241,7 @@ def _run_agent(team, task):
         # so — and `estimated=True` keeps the meter honest about it.
         print(f"[runner] model call failed ({type(exc).__name__}: {exc}) — composing fallback")
         fact = _remember_from_prompt(team, prompt, requester)
-        result = _stub_agent(prompt, context, agent_type, fact)
+        result = _stub_agent(prompt, context, agents.name_of(task["slot_id"]), fact)
     else:
         # The model answered but chose not to save, and the prompt plainly
         # asked. Save it regardless: the fact is what the user asked for, and
@@ -259,29 +264,34 @@ def _hold_slot(started):
         time.sleep(remaining)
 
 
-def _stub_agent(prompt, context, agent_type, fact):
+def _stub_agent(prompt, context, agent_name, fact):
     """Composed answer for when the model is unreachable. Always `estimated`.
 
     This is the fallback ladder's bottom rung (PRD.md) kept live in code rather
     than as a plan: the workspace degrades to text it composes itself instead
     of surfacing a provider outage as a broken product.
+
+    Still signed by the agent whose desk the task ran at. The name is the only
+    part of that agent this path can honour — the persona goes to a model that
+    is not answering — but a reply from "Ada · offline" is at least the same
+    board the room is showing.
     """
     if fact:
         text = (
-            f"[{agent_type} · offline] Saved for the team: "
+            f"[{agent_name} · offline] Saved for the team: "
             f"{fact['key']} — {fact['val']}. Every agent task from now on "
             "loads this before it starts."
         )
     elif context:
         text = (
-            f"[{agent_type} · offline] Task accepted: {prompt!r}.\n{context}\n"
+            f"[{agent_name} · offline] Task accepted: {prompt!r}.\n{context}\n"
             "Those facts were loaded before this task began — nobody had to "
             "repeat them. The model itself is unreachable right now, so this "
             "reply is composed and its token count is an estimate."
         )
     else:
         text = (
-            f"[{agent_type} · offline] Task accepted: {prompt!r}. The model is "
+            f"[{agent_name} · offline] Task accepted: {prompt!r}. The model is "
             "unreachable right now, so this reply is composed; the scheduler, "
             "queue, quota and shared memory around it are live either way."
         )
@@ -305,16 +315,24 @@ def _reply(team, task, result):
     """
     usage = state.add_tokens(team, result.tokens, estimated=result.estimated)
 
+    # The desk it ran at, which is the agent that answered. Not the preference
+    # on the request: those differ whenever the asked-for agent was busy, and
+    # the whole point of naming the agents is that the difference is visible.
+    slot_id = task["slot_id"]
+    requested = task.get("requested_agent")
+    substituted = requested if requested and requested != slot_id else None
+
     # After the ADD, never before: the ledger must not be able to report a cost
     # that the team counter has not actually taken.
     history.record(
         team,
         task.get("user_id"),
-        task.get("agent_type") or task["slot_id"],
+        slot_id,
         tokens=result.tokens,
         estimated=result.estimated,
         status=history.DONE,
         prompt=task.get("prompt", ""),
+        requested_agent=requested,
     )
 
     # `usage` already carries `estimated`, read back from the row, so the
@@ -326,7 +344,16 @@ def _reply(team, task, result):
         {
             "event": "agent_response",
             "user_id": task.get("user_id"),
-            "agent_type": task.get("agent_type") or task["slot_id"],
+            "agent_type": slot_id,
+            "agent_name": agents.name_of(slot_id),
+            # Null on an ordinary task. Set only when somebody asked for one
+            # agent and a different one took the work, which is a thing the
+            # room should say out loud rather than quietly substitute. The
+            # name rides along for the same reason `agent_name` does: the
+            # activity log renders a frame on its own, without a roster to
+            # join against.
+            "requested_agent": substituted,
+            "requested_name": agents.name_of(substituted) if substituted else None,
             "text": result.text,
             "tokens_used_this_call": result.tokens,
             "estimated": result.estimated,

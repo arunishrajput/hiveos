@@ -61,9 +61,16 @@ TEMPERATURE = 0.3
 # a narrow panel beside three other people's. Stated in the imperative and
 # repeated, because a single polite "be brief" is reliably ignored the moment a
 # prompt looks like it wants code.
-SYSTEM_PROMPT = (
+#
+# Split from the rules below so a named agent can replace it. Everything after
+# it — the tools, the brevity rules — is identical whoever is at the desk;
+# only the identity changes.
+SHARED_ROLE = (
     "You are a shared team agent running inside HiveOS, a workspace where an "
-    "entire team draws on one pooled AI token budget.\n"
+    "entire team draws on one pooled AI token budget."
+)
+
+SYSTEM_PROMPT = (
     "You have tools. Use set_team_memory whenever someone asks you to "
     "remember, note or record something for the team — it is shared, so every "
     "teammate's later tasks will know it. Use get_task_context for questions "
@@ -95,8 +102,30 @@ def _api_key():
     return _key_cache
 
 
-def build_system_prompt(context):
-    """The system prompt: who the agent is, plus what the team already knows.
+def _identity(agent):
+    """Who is answering. The roster entry's persona, or the generic agent.
+
+    Falls back rather than raising: a task queued before an agent was removed
+    from the roster still has to run, and running it as the generic shared
+    agent is a better outcome than failing a task someone is waiting on.
+    """
+    if not agent:
+        return SHARED_ROLE
+    return (
+        f"You are {agent['name']}, the {agent['role']} at one of HiveOS's "
+        "agent desks — a workspace where an entire team draws on one pooled "
+        f"AI token budget. {agent['persona']}"
+    )
+
+
+def build_system_prompt(context, agent=None):
+    """The system prompt: who this agent is, then the rules, then what the
+    team already knows.
+
+    `agent` is a roster entry from `shared.agents` — the desk this task is
+    running at. Identity first and rules second on purpose: the rules are
+    absolute and shared, so they are stated after the persona rather than
+    before it, where a persona could read as qualifying them.
 
     `context` is the team's shared memory. Loading it *before* the call is the
     product claim — a queued user's agent knows the team's facts the moment its
@@ -107,7 +136,7 @@ def build_system_prompt(context):
     makes that decision itself and hears the outcome as a tool result, which is
     where it belongs.
     """
-    parts = [SYSTEM_PROMPT]
+    parts = [_identity(agent), SYSTEM_PROMPT]
     if context:
         parts.append(context)
     return "\n\n".join(parts)

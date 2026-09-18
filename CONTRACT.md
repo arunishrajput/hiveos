@@ -16,7 +16,7 @@ Ranks 3rd in the source-of-truth hierarchy — above `PRD.md`, below deployed AW
 | SQS queue | `hiveos-agent-tasks` |
 | SQS dead-letter queue | `hiveos-agent-tasks-dlq` |
 | Default team | `alpha` — teams are **not** hardcoded; this is only where a connection lands if it names none |
-| Agent slot IDs | `coder`, `researcher` |
+| Agent slot IDs | `coder`, `researcher` — the ids; the agents at those desks are **Ada** and **Iris** (below) |
 | Lambda architecture | `arm64` |
 | Lambda runtime | `python3.13` |
 | WebSocket stage | `prod` |
@@ -65,6 +65,61 @@ If Bedrock is ever unblocked, swap the body of `llm.py:complete` and add `bedroc
 
 ---
 
+## The agent roster
+
+`backend/shared/agents.py`. One entry per desk, and the single definition of
+which agents exist — `state.SLOT_IDS` and `scheduler.SLOTS` both derive from
+it, so the slot rows, the claim fallback order and the desks on the floor
+cannot disagree about the roster.
+
+| id | name | role | takes |
+|---|---|---|---|
+| `coder` | **Ada** | Engineer | code, debugging, design, implementation |
+| `researcher` | **Iris** | Researcher | finding, checking, summarising |
+
+Each entry carries a `persona` — a paragraph prepended to the system prompt in
+place of the generic `SHARED_ROLE` line, so the two desks answer differently.
+Order is meaningful: it is both the fallback order for a claim and the
+left-to-right order of the desks.
+
+**The roster lives in code, not in DynamoDB.** The `AGENT#` row holds only what
+varies at runtime (`status`, `current_user`) and `state_snapshot` joins the
+two. Storing names on the row would have needed a backfill for every workspace
+that already exists — `ensure_team` writes slot rows conditionally, so existing
+rows are never updated — in exchange for per-workspace personas nobody asked
+for.
+
+**The ids are `coder` and `researcher` and are not renamed.** They are in
+deployed rows, in `seed.sh`, in `ws_smoke.py` and in every queued task. Adding
+a name to an id costs nothing; changing the id costs a migration.
+
+**`persona` never leaves the backend.** `agents.public()` sends `name`, `role`
+and `tagline` only: the persona is the model's instruction, not board state,
+and shipping it on every snapshot would make a prompt edit a frontend concern.
+`ws_smoke.py` asserts its absence.
+
+### Requested versus ran
+
+`agent_type` on a claim is a **preference**, and was one before the agents had
+names (see the claim table below): it is tried first, then the remaining desks.
+Nobody queues behind an idle agent, and that does not change now that the desks
+differ — but the substitution must be *visible* rather than silent.
+
+| Carries the agent that **ran** | Carries the agent that was **asked for** |
+|---|---|
+| SQS `slot_id`; `agent_response.agent_type` / `.agent_name`; `TASK#.agent_type` | SQS `requested_agent`; `agent_response.requested_agent` / `.requested_name`; `TASK#.requested_agent`; `QUEUE#.agent_type`; `queue[].agent_type` |
+
+The two *requested* fields on a finished task are null unless somebody actually
+got a different agent — a ledger that repeated the same id in both columns on
+every row would bury the one case that matters.
+
+Before this, the SQS message carried a single `agent_type` holding the
+preference, and the runner recorded **that** as the agent which ran the task.
+With interchangeable slots it was a harmless mislabel; with named agents it is
+the ledger crediting Ada for Iris's work.
+
+---
+
 ## DynamoDB single-table schema
 
 Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billing.
@@ -73,7 +128,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 |---|---|---|
 | `TEAM#<team>` | `METADATA` | `name`, `token_budget` (N), `tokens_used` (N), `created_at` |
 | `TEAM#<team>` | `CONN#<connectionId>` | `user_id`, `avatar`, `x` (N), `y` (N), `connected_at` |
-| `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at` |
+| `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`. **No name or persona** — those come from the roster |
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
 
@@ -199,7 +254,9 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
 - **TASK#** — the ledger: one row per task that reached the runner, including
   the ones that never ran. `status` is `done`, `failed` or `refused`; a refused
   task records **zero** tokens, which is the clearest evidence that the ceiling
-  is a control and not a gauge. Sort key is microsecond-precision for the same
+  is a control and not a gauge. `agent_type` is the agent that **ran** it —
+  always the slot it ran on — and `requested_agent` is set only when that was
+  not the one asked for. See *Requested versus ran*. Sort key is microsecond-precision for the same
   reason `QUEUE#` is: at second granularity two tasks finishing together tie
   and fall back to UUID order, i.e. random. Cleared by `seed.sh` — the spend
   breakdown aggregates every row, so stale rows would open the board showing a
@@ -281,7 +338,7 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `send_message` | `{text}` | Broadcast to team chat as `chat_message` |
 | `move_avatar` | `{x, y}` | Update `CONN#` row, broadcast `avatar_moved` |
 
-**`agent_type` on `claim_agent` is a preference, not a reservation.** It is tried first, then the remaining slots in `SLOTS` order. Nobody queues behind an idle agent.
+**`agent_type` on `claim_agent` is a preference, not a reservation.** It is tried first, then the remaining slots in `SLOTS` order. Nobody queues behind an idle agent — and the agent that actually took it is named in the reply. Anything not in `SLOTS` becomes "no preference" rather than an error.
 
 **One active task per user.** A `claim_agent` from a user who already holds a slot or sits in the queue is refused with `error`. Without it a double-clicked button lets one person hold both slots — precisely the monopoly the product claims to prevent.
 
@@ -296,11 +353,13 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `event` | Payload | Sent when |
 |---|---|---|
 | `state_snapshot` | `{team, agents[], tokens_used, token_budget, pct_used, usage_estimated, members[], memory[], queue[], history[], spend[]}` | In reply to `hello` — a new client must be able to render everything from this one frame |
+
+`agents[]` entries are `{slot_id, agent_type, status, current_user, name, role, tagline}`, **in roster order** — which is desk order on the floor and fallback order for a claim. A client must not re-sort them: that order agreed with alphabetical only by the accident of `coder` preceding `researcher`. A slot row whose id is no longer on the roster still renders, last, under its id.
 | `chat_message` | `{user_id, text, ts}` | `send_message` runs. `user_id` is resolved from the sender's `CONN#` row, not trusted from the frame |
-| `agent_state_update` | `{agent_type, status, current_user, slot_id}` | Any slot state change |
+| `agent_state_update` | `{agent_type, status, current_user, slot_id}` | Any slot state change. **State only — no name.** Identity rides on `state_snapshot`; a client merges this patch over what it already holds, so a desk keeps its nameplate, and a slot it has never seen renders under its raw id until the 500 ms re-sync names it |
 | `token_update` | `{tokens_used, token_budget, pct_used, estimated}` | After every agent call that spent tokens |
 | `queue_update` | `{user_id, queue_position, estimated_wait_seconds}` | Queue add or removal |
-| `agent_response` | `{user_id, agent_type, text, tokens_used_this_call, estimated}` | Agent task completes |
+| `agent_response` | `{user_id, agent_type, agent_name, requested_agent, requested_name, text, tokens_used_this_call, estimated}` | Agent task completes. `agent_type`/`agent_name` are the agent that **ran** it; the two `requested_*` fields are null unless a different one was asked for |
 | `memory_updated` | `{key, val, updated_by}` | `set_team_memory` runs |
 | `budget_exhausted` | `{tokens_used, token_budget}` | Bedrock invocation refused at the ceiling |
 | `user_joined` | `{user_id, avatar, x, y}` | `$connect` |
@@ -342,7 +401,7 @@ the public URL.
 
 | Field | Shape | Notes |
 |---|---|---|
-| `history[]` | `{user_id, agent_type, tokens, estimated, status, prompt, at}` | Newest first, capped at 12 — every client parses the snapshot on connect, and nobody reads the 40th most recent task off a board |
+| `history[]` | `{user_id, agent_type, agent_name, requested_agent, tokens, estimated, status, prompt, at}` | Newest first, capped at 12 — every client parses the snapshot on connect, and nobody reads the 40th most recent task off a board |
 | `spend[]` | `{user_id, tokens, tasks}` | Biggest spender first |
 
 **`spend[]` aggregates every task row, not the twelve in `history[]`.** The
@@ -443,14 +502,18 @@ def broadcast_to_team(team_id, payload, apigw, table):
 ```json
 {
   "team_id": "alpha",
-  "slot_id": "coder",
+  "slot_id": "researcher",
   "user_id": "alice",
-  "agent_type": "coder",
+  "requested_agent": "coder",
   "prompt": "Write a user creation function",
   "connection_id": "abc123=",
   "enqueued_at": "2026-09-18T10:30:00Z"
 }
 ```
+
+`slot_id` is the desk that won the claim, and therefore the agent that will run this. `requested_agent` is the preference the user sent — here Ada was busy, so Iris took it — and is `null` when they asked for nobody in particular. **The runner reads the agent from `slot_id` and never from the preference.**
+
+This message used to carry `agent_type` instead, holding the preference; the runner then recorded it as the agent that ran the task. A message still in flight across a deploy is handled: the runner ignores the old field, and `requested_agent` reads as absent.
 
 `connection_id` is the requester's connection, used for directed replies. It may be stale by the time the runner executes — handle `GoneException` and continue.
 
@@ -465,6 +528,8 @@ def broadcast_to_team(team_id, payload, apigw, table):
 | `get_task_context` | `history.as_context()` | Recent tasks, who ran them and what each cost — read from `TASK#` |
 
 Memory is loaded **before** the model call, not on demand, so a queued user's agent already knows the team's facts the moment it starts.
+
+**The system prompt is `identity + rules + memory`, in that order.** Identity is the roster entry's persona for the desk the task is running at, or `SHARED_ROLE` if the slot is not on the roster. The rules — brevity, the tool instructions — are shared by every agent and come *after* the persona, where a persona cannot read as qualifying them. `get_task_context` names the agent that ran each task, so an agent asked where the budget went answers in names rather than slot ids.
 
 **These are real tools now.** The model is given their schemas and decides
 whether to call them; `llm.complete` runs the loop and the Agent Runner

@@ -284,6 +284,52 @@ export function SpendPanel({ spend, members, tokenBudget }) {
   )
 }
 
+/* Which agent to ask for.
+ *
+ * A preference, not a reservation, and the copy has to say so: picking a busy
+ * agent does not queue you behind them — the first free desk takes the work
+ * (CONTRACT.md). Advertising it as a booking would be the one promise this
+ * scheduler deliberately does not make.
+ *
+ * Rendered from `state_snapshot.agents[]`, so the roster, the desks on the
+ * floor and this list are the same list.
+ */
+export function AgentPicker({ agents, value, onChange, disabled }) {
+  if (!agents.length) return null
+
+  const option = (key, label, sub, selected, on, busy) => (
+    <button
+      type="button"
+      key={key}
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={on}
+      className={`pick ${selected ? 'pick--on' : ''} ${busy ? 'pick--busy' : ''}`}
+    >
+      <span className="pick__name">{label}</span>
+      <span className="pick__role">{sub}</span>
+    </button>
+  )
+
+  return (
+    <div className="picker" role="radiogroup" aria-label="Which agent takes this task">
+      {agents.map((agent) => {
+        const busy = agent.status === 'BUSY'
+        return option(
+          agent.slot_id,
+          agent.name || agent.slot_id,
+          busy ? 'busy' : agent.role || agent.slot_id,
+          value === agent.slot_id,
+          () => onChange(agent.slot_id),
+          busy,
+        )
+      })}
+      {option('any', 'Either', 'first free', value === null, () => onChange(null), false)}
+    </div>
+  )
+}
+
 export function SlotsPanel({ agents, me }) {
   const running = agents.filter((a) => a.status === 'BUSY').length
 
@@ -307,7 +353,7 @@ export function SlotsPanel({ agents, me }) {
               key={agent.slot_id}
               className={`slot ${busy ? 'slot--busy' : 'slot--idle'}`}
             >
-              <span className="slot__id">{agent.slot_id}</span>
+              <span className="slot__id">{agent.name || agent.slot_id}</span>
               <span className="slot__status">
                 <span className="slot__dot" />
                 {busy ? 'busy' : 'idle'}
@@ -457,7 +503,7 @@ const ARROWS = {
   ArrowRight: [STEP, 0],
 }
 
-/* Desk positions, in the same 0-100 percentage space as the avatars.
+/* Where each desk stands, in the same 0-100 percentage space as the avatars.
  *
  * Percentages, not pixels, for exactly the reason CONTRACT.md gives for avatar
  * coordinates: three browsers at different widths have to agree on where
@@ -465,13 +511,35 @@ const ARROWS = {
  * narrower window, which is the one thing this board is supposed to be
  * incapable of.
  *
- * `slot_id` ties a desk to a real scheduler slot, so the room is a view of
- * machine state rather than scenery that happens to resemble it.
+ * Positions only. *Who* sits at each desk comes from `state_snapshot.agents[]`,
+ * which carries the roster — so renaming an agent is a backend edit and the
+ * room follows, rather than two lists that have to be kept in step.
  */
-const DESKS = [
-  { slot_id: 'coder', x: 27, y: 34, label: 'coder' },
-  { slot_id: 'researcher', x: 73, y: 34, label: 'researcher' },
+const DESK_SPOTS = [
+  { slot_id: 'coder', x: 27, y: 34 },
+  { slot_id: 'researcher', x: 73, y: 34 },
 ]
+
+/* The desks to draw: a spot, joined to the live slot behind it.
+ *
+ * Driven by the spots rather than by the agent list, so an agent with nowhere
+ * to sit is simply not drawn — better than a desk stacked at (0, 0) on top of
+ * another one. Phase 15 rebuilds this into rooms; until then two spots is the
+ * floor.
+ */
+function desksFrom(agents) {
+  const bySlot = new Map(agents.map((agent) => [agent.slot_id, agent]))
+  return DESK_SPOTS.map((spot) => {
+    const agent = bySlot.get(spot.slot_id)
+    return {
+      ...spot,
+      agent,
+      name: agent?.name || spot.slot_id,
+      role: agent?.role || '',
+      busy: agent?.status === 'BUSY',
+    }
+  })
+}
 
 /* How far below a desk's own centre its chair sits, in floor percent. The desk
  * stack is label, monitor, surface, chair from the top, all centred on the
@@ -500,7 +568,7 @@ const PLANTS = [
  * person is waiting" is legible from the room itself.
  */
 export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], onMove }) {
-  const bySlot = new Map(agents.map((agent) => [agent.slot_id, agent]))
+  const desks = desksFrom(agents)
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
 
   /* Who is sitting where. A slot holder is drawn at that slot's desk rather
@@ -510,10 +578,9 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
    * at the desk afterwards, and would mean the room quietly editing state the
    * server owns. */
   const seatOf = new Map()
-  agents.forEach((agent) => {
-    if (agent.status !== 'BUSY' || !agent.current_user) return
-    const desk = DESKS.find((d) => d.slot_id === agent.slot_id)
-    if (desk) seatOf.set(agent.current_user, desk)
+  desks.forEach((desk) => {
+    const holder = desk.busy ? desk.agent?.current_user : null
+    if (holder) seatOf.set(holder, desk)
   })
 
   const placed = members.map((member, index) => {
@@ -604,28 +671,27 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
 
         {/* Desks after the rug so they sit on it, and before the pawns so
             someone standing at a desk is in front of it, not behind it. */}
-        {DESKS.map((desk) => {
-          const slot = bySlot.get(desk.slot_id)
-          const busy = slot?.status === 'BUSY'
-          return (
-            <div
-              key={desk.slot_id}
-              className={`desk ${busy ? 'desk--busy' : ''}`}
-              style={{ left: `${desk.x}%`, top: `${desk.y}%` }}
-              aria-hidden="true"
-            >
-              {/* Label above the desk, not below it. People approach a desk
-                  from the chair side, so a label under the chair is guaranteed
-                  to end up behind somebody's head. */}
-              <span className="desk__label">{desk.label}</span>
-              <span className="desk__monitor" />
-              <span className="desk__surface">
-                <span className="desk__keyboard" />
-              </span>
-              <span className="desk__chair" />
-            </div>
-          )
-        })}
+        {desks.map((desk) => (
+          <div
+            key={desk.slot_id}
+            className={`desk ${desk.busy ? 'desk--busy' : ''}`}
+            style={{ left: `${desk.x}%`, top: `${desk.y}%` }}
+            aria-hidden="true"
+          >
+            {/* Nameplate above the desk, not below it. People approach a desk
+                from the chair side, so a label under the chair is guaranteed
+                to end up behind somebody's head. The name reads as a person
+                and the role as a job, which is the whole difference between
+                a desk and a slot. */}
+            <span className="desk__label">{desk.name}</span>
+            {desk.role && <span className="desk__role">{desk.role}</span>}
+            <span className="desk__monitor" />
+            <span className="desk__surface">
+              <span className="desk__keyboard" />
+            </span>
+            <span className="desk__chair" />
+          </div>
+        ))}
 
         {PLANTS.map((plant, i) => (
           <div

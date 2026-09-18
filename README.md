@@ -18,15 +18,18 @@ The front page explains the product; the board itself is one click behind it, at
 
 - Each **workspace** is fully isolated — its own budget, slots, queue, memory and ledger,
   and can be **passphrase-protected**, with an owner who can set the budget or delete it
-- A team shares a **token budget** and a pool of **agent slots**
+- A team shares a **token budget** and two **named agents** — Ada, who takes engineering work,
+  and Iris, who researches — one at each desk, each with its own system prompt
 - The budget meter is **identical on every member's screen** and updates live
-- When all slots are busy, further requests **queue** with a real position
+- Asking for an agent is a **preference, not a booking** — if Ada is busy, Iris takes the work
+  and the reply and the ledger both say who actually ran it
+- When both desks are busy, further requests **queue** with a real position
 - A freed slot **auto-dispatches** the next queued task
 - Agents share **team memory** — a fact saved by one member is known to the next member's agent
 - The budget is an **enforced ceiling**, not a gauge — the server refuses to spend past it
 - A shared **workspace floor** shows who is present and who is mid-task, live on every screen
 
-**Status.** Everything above is live, deployed and verified against real AWS — 79/79 end-to-end
+**Status.** Everything above is live, deployed and verified against real AWS — 85/85 end-to-end
 checks (`scripts/ws_smoke.py`) and the full demo sequence 12/12 twice unattended
 (`scripts/rehearse.py`). The agent is real and the token counts are the provider's reported
 usage, not estimates.
@@ -164,6 +167,7 @@ backend/
   router/          Connection lifecycle, slot claiming, queueing, broadcast
   agent_runner/    SQS consumer, agent execution, token accounting, dispatch
   shared/          Slot scheduler, broadcast helper, memory tools, DynamoDB access
+  shared/agents.py The roster — who sits at each desk, and their system prompts
   shared/memory.py Team memory — MEMORY# rows, context loading, memory_updated
 frontend/
   src/useHive.js   WebSocket client — owns all board state, reconnect, re-sync
@@ -177,7 +181,7 @@ template.yaml      SAM — all AWS infrastructure
 
 ## Current MVP scope
 
-**Built and deployed:** shared token meter · agent slots · **fair queueing** with live position · auto-dispatch · shared team memory via **model-invoked tools** · **per-person spend ledger** · enforced budget ceiling · pixel workspace floor · team chat · public URL.
+**Built and deployed:** shared token meter · **named agents** at each desk · **fair queueing** with live position · auto-dispatch · shared team memory via **model-invoked tools** · **per-person spend ledger** with the agent that ran each task · enforced budget ceiling · pixel workspace floor · team chat · public URL.
 
 **Not built:** user accounts. Workspaces can be passphrase-protected and have an owner, but
 there is no identity behind a display name — administration hangs off a secret the creator

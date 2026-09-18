@@ -18,6 +18,8 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
+from . import agents
+
 # The team a client lands in when it does not name one. Teams are no longer
 # hardcoded — every row is partitioned by team and every function takes one —
 # but a bare connection still has to go somewhere, and that somewhere is the
@@ -33,7 +35,10 @@ TEAM_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,30}$")
 # themselves — requiring a seeding script before a name works would make
 # isolation a deployment step rather than a property of the product.
 DEFAULT_TEAM_BUDGET = int(os.environ.get("TOKEN_BUDGET", "1000000"))
-SLOT_IDS = ("coder", "researcher")
+
+# One slot row per agent on the roster. Derived rather than repeated: a third
+# agent should be one entry in `agents.AGENTS` and nothing else.
+SLOT_IDS = agents.IDS
 
 
 def clean_team(name):
@@ -607,6 +612,20 @@ def add_tokens(team, count, estimated=False):
 # --- Snapshot --------------------------------------------------------------
 
 
+def _desk_rank(slot_id):
+    """Position on the roster. Anything unknown sorts to the end by id.
+
+    A slot row can outlive the roster entry that created it — an agent removed
+    from `agents.py` leaves its `AGENT#` row behind in every workspace that
+    already existed — and a board that dropped or reordered on that would be
+    worse than one that shows it last.
+    """
+    try:
+        return (0, agents.IDS.index(slot_id))
+    except ValueError:
+        return (1, slot_id or "")
+
+
 def state_snapshot(team, is_admin=False):
     """One frame a cold client can render the entire workspace from.
 
@@ -618,7 +637,9 @@ def state_snapshot(team, is_admin=False):
     # shaping functions are used below, and this is their one caller.
     from . import history
 
-    metadata, agents, members, memory, waiting, tasks = {}, [], [], [], [], []
+    # `desks`, not `agents` — the module of that name is the roster, and the
+    # two would shadow each other in the loop below.
+    metadata, desks, members, memory, waiting, tasks = {}, [], [], [], [], []
 
     for item in query_team(team):
         sk = item["SK"]
@@ -627,12 +648,17 @@ def state_snapshot(team, is_admin=False):
         elif sk.startswith("QUEUE#"):
             waiting.append(item)
         elif sk.startswith("AGENT#"):
-            agents.append(
+            # The row carries only what varies at runtime; who sits there comes
+            # from the roster in `agents.py`. Joined here so a client never has
+            # to hold a second copy of the names — the board renders desks
+            # from this frame alone (CONTRACT.md).
+            desks.append(
                 {
                     "slot_id": item.get("slot_id"),
                     "agent_type": item.get("slot_id"),
                     "status": item.get("status"),
                     "current_user": item.get("current_user"),
+                    **agents.public(item.get("slot_id")),
                 }
             )
         elif sk.startswith("CONN#"):
@@ -661,7 +687,10 @@ def state_snapshot(team, is_admin=False):
     return {
         "event": "state_snapshot",
         "team": clean_team(team),
-        "agents": sorted(agents, key=lambda a: a["slot_id"] or ""),
+        # Roster order, not alphabetical: it is the order the desks sit in on
+        # the floor and the order a claim falls back through, and a client that
+        # renders them in a different order is showing a different room.
+        "agents": sorted(desks, key=lambda d: _desk_rank(d["slot_id"])),
         "tokens_used": used,
         "token_budget": budget,
         "pct_used": pct_used(used, budget),

@@ -319,6 +319,21 @@ async def run(url):
         == [("coder", "IDLE"), ("researcher", "IDLE")],
         str(snapshot["agents"]),
     )
+    # The desks are named agents, and the names live in `backend/shared/agents.py`
+    # rather than in the AGENT# rows. If the join were dropped the board would
+    # silently fall back to captioning the desks with their slot ids — which is
+    # exactly what they said before Phase 14, so nothing would look broken.
+    check(
+        "snapshot carries each desk's agent identity, in roster order",
+        [(a["slot_id"], a.get("name"), a.get("role")) for a in snapshot["agents"]]
+        == [("coder", "Ada", "Engineer"), ("researcher", "Iris", "Researcher")],
+        str([(a["slot_id"], a.get("name")) for a in snapshot["agents"]]),
+    )
+    check(
+        "the roster's system prompts never reach a client",
+        all("persona" not in a for a in snapshot["agents"]),
+        str(sorted(snapshot["agents"][0])),
+    )
     # Not hardcoded to 1,000,000: the demo is seeded with a smaller budget so
     # real token counts are visible on the meter (TOKEN_BUDGET=… ./scripts/seed.sh),
     # and this harness has to pass at whatever budget is actually seeded.
@@ -477,6 +492,30 @@ async def run_scheduler(url):
         and isinstance(done.get("estimated"), bool),
         f"tokens={done.get('tokens_used_this_call')} estimated={done.get('estimated')}",
     )
+    check(
+        "alice's answer is signed by the agent she asked for",
+        (done.get("agent_type"), done.get("agent_name"), done.get("requested_agent"))
+        == ("coder", "Ada", None),
+        str({k: done.get(k) for k in ("agent_type", "agent_name", "requested_agent")}),
+    )
+
+    # Bob asked for the coder and got the researcher, because a preference is
+    # not a reservation. Before Phase 14 the response and the ledger both
+    # reported the agent he *asked for*, which was a harmless label while the
+    # slots were interchangeable and a false statement once they were not.
+    substituted = await expect(bob, "agent_response", "bob",
+                               where=lambda f: f.get("user_id") == "bob")
+    check(
+        "bob's answer names the agent that actually ran it, and the one he asked for",
+        (
+            substituted.get("agent_type"),
+            substituted.get("agent_name"),
+            substituted.get("requested_agent"),
+            substituted.get("requested_name"),
+        ) == ("researcher", "Iris", "coder", "Ada"),
+        str({k: substituted.get(k) for k in
+             ("agent_type", "agent_name", "requested_agent", "requested_name")}),
+    )
 
     dispatched = await expect(carol, "agent_state_update", "carol",
                               where=lambda f: f.get("current_user") == "carol")
@@ -497,6 +536,29 @@ async def run_scheduler(url):
         "every slot returns to IDLE once the work drains",
         sorted(slots.values()) == [("IDLE", None), ("IDLE", None)],
         str(slots),
+    )
+
+    # The ledger, as a client actually receives it. Read off the snapshot
+    # rather than the raw TASK# rows because that is the copy every board
+    # renders from — a row that is right in DynamoDB and wrong on the wire is
+    # still a ledger that lies.
+    await alice.send(json.dumps({"action": "hello"}))
+    ledger = (await expect(alice, "state_snapshot", "alice")).get("history", [])
+    bobs_task = next((row for row in ledger if row.get("user_id") == "bob"), {})
+    check(
+        "the ledger records the agent that ran the task, not the one requested",
+        (bobs_task.get("agent_type"), bobs_task.get("agent_name"),
+         bobs_task.get("requested_agent")) == ("researcher", "Iris", "coder"),
+        str(bobs_task),
+    )
+    # Alice only. Carol's task was auto-dispatched into whichever slot happened
+    # to free first, so whether *she* was substituted is a race — asserting on
+    # it would be asserting on which of two model calls returned sooner.
+    check(
+        "a task that got the agent it asked for records no substitution",
+        all(row.get("requested_agent") is None
+            for row in ledger if row.get("user_id") == "alice"),
+        str([(r.get("user_id"), r.get("requested_agent")) for r in ledger]),
     )
 
     print("\n10. A failing task must never leak a slot — the Phase 2 gate")

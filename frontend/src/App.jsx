@@ -5,6 +5,7 @@ import Landing from './landing'
 import { AVATARS } from './sprites'
 import {
   ActivityPanel,
+  AgentPicker,
   CanvasPanel,
   Mark,
   QueuePanel,
@@ -193,7 +194,7 @@ function Gate({ onEnter }) {
 
 /* --- Request panel -------------------------------------------------------- */
 
-function hintFor({ connection, budgetExhausted, holding, queued }) {
+function hintFor({ connection, budgetExhausted, holding, queued, chosen }) {
   if (connection === 'refused') {
     return {
       text: 'This workspace is protected and the passphrase did not match. '
@@ -211,7 +212,10 @@ function hintFor({ connection, budgetExhausted, holding, queued }) {
     }
   }
   if (holding) {
-    return { text: `Your task is running on ${holding.slot_id}.`, alarm: false }
+    return {
+      text: `${holding.name || holding.slot_id} is running your task.`,
+      alarm: false,
+    }
   }
   if (queued) {
     return {
@@ -221,14 +225,34 @@ function hintFor({ connection, budgetExhausted, holding, queued }) {
       alarm: false,
     }
   }
-  return { text: 'If both slots are busy, your task joins the queue.', alarm: false }
+  // With an agent chosen, the useful thing to say is what that agent is for —
+  // and, if they are busy, that choosing them is a preference rather than a
+  // booking. Nobody waits behind an idle desk (CONTRACT.md).
+  if (chosen) {
+    return {
+      text:
+        chosen.status === 'BUSY'
+          ? `${chosen.name || chosen.slot_id} is busy — the first free desk takes this.`
+          : `${chosen.name || chosen.slot_id} — ${chosen.tagline || chosen.role}`,
+      alarm: false,
+    }
+  }
+  return {
+    text: 'Whichever desk frees first takes it. If both are busy, your task joins the queue.',
+    alarm: false,
+  }
 }
 
 function RequestPanel({ hive }) {
   const [prompt, setPrompt] = useState('')
+  // `null` is a real choice — "either agent" — so it is the initial value
+  // rather than an absent one. It is also what the server means by no
+  // preference, which keeps the two ends saying the same thing.
+  const [agentType, setAgentType] = useState(null)
 
-  const { connection, budgetExhausted, holding, queued, working } = hive
-  const hint = hintFor({ connection, budgetExhausted, holding, queued })
+  const { connection, budgetExhausted, holding, queued, working, board } = hive
+  const chosen = board.agents.find((a) => a.slot_id === agentType) ?? null
+  const hint = hintFor({ connection, budgetExhausted, holding, queued, chosen })
   const blocked = working || budgetExhausted || connection !== 'open'
 
   const submit = (event) => {
@@ -236,8 +260,10 @@ function RequestPanel({ hive }) {
     const text = prompt.trim().slice(0, MAX_PROMPT)
     if (!text || blocked) return
     // Only clear the box if the frame actually went out — otherwise the user
-    // loses what they typed to a socket that was not open.
-    if (hive.requestAgent(text)) setPrompt('')
+    // loses what they typed to a socket that was not open. The chosen agent
+    // deliberately survives the send: asking the same agent twice in a row is
+    // the common case.
+    if (hive.requestAgent(text, agentType)) setPrompt('')
   }
 
   return (
@@ -249,6 +275,13 @@ function RequestPanel({ hive }) {
       </div>
 
       <form className="request" onSubmit={submit}>
+        <AgentPicker
+          agents={board.agents}
+          value={agentType}
+          onChange={setAgentType}
+          disabled={blocked}
+        />
+
         <textarea
           className="field"
           rows={2}
@@ -270,7 +303,7 @@ function RequestPanel({ hive }) {
               type="button"
               onClick={() => hive.releaseAgent(holding.slot_id)}
             >
-              Release slot
+              Release {holding.name || holding.slot_id}
             </button>
           )}
 

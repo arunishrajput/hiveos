@@ -611,6 +611,7 @@ body {
  * that must never be decorative. */
 .field:focus-visible,
 .btn:focus-visible,
+.pick:focus-visible,
 .chip:focus-visible {
   outline: 2px solid var(--cool);
   outline-offset: 2px;
@@ -619,6 +620,96 @@ body {
 .field:disabled {
   color: var(--faint);
   background: var(--sand);
+}
+
+/* --- Agent picker ---------------------------------------------------------
+ *
+ * Which agent to ask for. That is a *preference*, not machine state — the same
+ * reading as the marker chips at the gate — so the chosen one is an amber fill
+ * and not a state hue. A busy agent still reports itself in the instrument
+ * blue that means "consuming the budget" everywhere else on this board.
+ */
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 92px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--text);
+  text-align: left;
+  padding: 7px 12px;
+  cursor: pointer;
+  border-radius: var(--r);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.pick:hover:not(:disabled) {
+  border-color: var(--rule-strong);
+}
+
+.pick:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Sans, sentence case, and the only text on this panel with weight on it. The
+ * desks are named after people now; a 10px uppercase mono label would read as
+ * a slot id again, which is the exact thing this phase undid. */
+.pick__name {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.pick__role {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.pick--busy .pick__role {
+  color: var(--cool);
+}
+
+.pick--on {
+  border-color: var(--amber-deep);
+  background: var(--amber);
+  color: var(--on-amber);
+}
+
+/* Except on the chosen one: instrument blue on brand amber is 2.6:1 and
+ * unreadable. Ink at reduced weight carries the sub-label there instead. */
+.pick--on .pick__role {
+  color: var(--on-amber);
+  opacity: 0.68;
+}
+
+/* In the single-column layout the picker lies down.
+ *
+ * That column is the demo format — three windows side by side — and every
+ * panel in it is competing for the same fold. Stacked, the picker costs 45px
+ * of it; on one baseline it costs 29 and reads no worse, because a name and a
+ * role next to each other is how a nameplate reads anyway. Above 1100px the
+ * rail has the room and the two-line form is the better shape.
+ */
+@media (max-width: 1099px) {
+  .pick {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 7px;
+  }
 }
 
 .request__actions {
@@ -1131,14 +1222,21 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* The nameplate. Two lines: who sits here, and what they do.
+ *
+ * The name is sans and sentence-case because it is a name — the desks used to
+ * be captioned `coder` and `researcher` in 9px uppercase mono, which is how a
+ * slot id looks, and that was accurate about what they were. The role keeps
+ * the mono caption voice, so the plate reads as "Ada, the Engineer" rather
+ * than as two labels stacked.
+ */
 .desk__label {
-  margin-bottom: 3px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--dim);
-  /* The floor is patterned and people walk over it, so the label needs its own
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+  /* The floor is patterned and people walk over it, so the plate needs its own
    * ground to stay readable. The halo is the floor colour, not the text
    * colour — it inverted with the theme, and an ink halo behind ink text on a
    * cream floor would black out the label entirely. */
@@ -1148,6 +1246,23 @@ body {
     0 0 6px var(--floor);
 }
 
+.desk__role {
+  margin-top: -1px;
+  margin-bottom: 3px;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-shadow:
+    0 1px 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+}
+
+/* The name takes the instrument hue while the desk is working; the role stays
+ * quiet. Turning the whole plate blue made the busy desk read as selected
+ * rather than as busy. */
 .desk--busy .desk__label {
   color: var(--cool);
 }

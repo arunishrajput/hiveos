@@ -17,7 +17,7 @@ to UUID order, i.e. random. The queue learned this the hard way in Phase 2.
 
 import uuid
 
-from . import state
+from . import agents, state
 
 # How much of the prompt to keep. Enough to recognise a task in a list, not so
 # much that the history rows become a second copy of everything ever asked.
@@ -32,13 +32,20 @@ FAILED = "failed"
 REFUSED = "refused"
 
 
-def record(team, user_id, agent_type, tokens, estimated, status, prompt=""):
+def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
+           requested_agent=None):
     """Write one task to the ledger. Never raises into the caller.
+
+    `agent_type` is the agent that **ran** the task — the desk it ran at, not
+    the one the requester asked for. `requested_agent` records the preference,
+    and only when it differed: a ledger that repeated the same id in both
+    columns on every row would make the one case that matters invisible.
 
     Deliberately swallowing failures: this is a record *about* work that has
     already happened, and losing a history row is a great deal better than
     failing a task that already ran and already charged the team for it.
     """
+    substituted = requested_agent if requested_agent and requested_agent != agent_type else None
     try:
         state.table().put_item(
             Item={
@@ -46,6 +53,7 @@ def record(team, user_id, agent_type, tokens, estimated, status, prompt=""):
                 "SK": f"TASK#{state.now_iso_micros()}#{uuid.uuid4().hex[:8]}",
                 "user_id": user_id or "unknown",
                 "agent_type": agent_type or "",
+                "requested_agent": substituted,
                 "tokens": int(tokens or 0),
                 "estimated": bool(estimated),
                 "status": status,
@@ -64,6 +72,10 @@ def view(rows):
         {
             "user_id": item.get("user_id"),
             "agent_type": item.get("agent_type"),
+            "agent_name": agents.name_of(item.get("agent_type")),
+            # Present only when somebody got a different agent than they asked
+            # for. Null on every ordinary row.
+            "requested_agent": item.get("requested_agent"),
             "tokens": int(item.get("tokens", 0)),
             "estimated": bool(item.get("estimated", False)),
             "status": item.get("status"),
@@ -89,7 +101,8 @@ def as_context(team, limit=8):
         return "The team has not run any agent tasks yet."
 
     lines = [
-        f"- {item.get('user_id')}: {item.get('prompt') or '(no prompt)'}"
+        f"- {item.get('user_id')} asked {agents.name_of(item.get('agent_type'))}:"
+        f" {item.get('prompt') or '(no prompt)'}"
         f" [{item.get('status')}, {int(item.get('tokens', 0))} tokens]"
         for item in rows[:limit]
     ]

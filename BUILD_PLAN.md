@@ -389,6 +389,14 @@ a system prompt; the requester picks one; the ledger records which agent ran the
 
 **Schema and protocol change** — `CONTRACT.md` in the same commit.
 
+> **Done, 2026-09-19.** `coder` and `researcher` are the desks of **Ada** and **Iris**. The
+> roster lives in `backend/shared/agents.py` rather than in DynamoDB — the `AGENT#` rows are
+> written conditionally, so names on the row would have needed a backfill for every existing
+> workspace. The phase's real find was in the ledger: the SQS message carried the *requested*
+> agent and the runner recorded it as the one that ran the task, which was a harmless mislabel
+> while the slots were interchangeable and a misattribution the moment they had names. See
+> `PROGRESS.md`.
+
 ### Phase 15 — Multi-room floor rebuild
 
 **Objective.** Replace the single open floor with a multi-room office — project rooms, a desk

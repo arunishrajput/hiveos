@@ -55,9 +55,12 @@ the deployed URL and run it again.**
 Then:
 
 - [ ] `rehearse.py --takes 2` passed within the last hour
-- [ ] Three browser windows, **640×950 each**, side by side. Still the right size after the
-      canvas-first rebuild — verified on the deployed URL, board 862 px into an 862 px viewport,
-      nothing clipped and no horizontal scroll.
+- [ ] Three browser windows, **640×950 each**, side by side. Verified on the deployed URL:
+      board **838 px** into an **862 px** viewport, nothing clipped and no horizontal scroll.
+      **Measure it in the browser you are actually recording in.** That 862 is what a 640×950
+      window gives with a plain toolbar; add a bookmarks bar and a couple of extensions and the
+      viewport drops to ~806, which puts the team-chat box below the fold. The board grew 41 px
+      in Phase 14 (the agent picker), so the slack is ~24 px where it used to be ~65.
       **The height is the part that matters.** The board is now capped to the viewport and the
       activity log scrolls inside itself, so a *shorter* window does not push panels off-screen
       any more — it squeezes the log instead, and at ~806 px of viewport the agent's answer
@@ -109,21 +112,24 @@ two screens. This is the cheapest possible proof that the three windows are one 
 much stronger than pointing at three identical numbers, which a viewer could assume were
 screenshots.
 
-> Three people, one workspace, one budget. Same meter, same slots, same queue — on every
-> screen, live. When I move here, it moves there.
+> Three people, one workspace, one budget. Two agents on the floor — Ada, who takes engineering
+> work, and Iris, who researches. Same meter, same queue, same desks — on every screen, live.
+> When I move here, it moves there.
 
-Keep it to one click each — the floor is the opening handshake, not the point of the demo.
+Keep it to one click each — the floor is the opening handshake, not the point of the demo. The
+nameplates are legible at recording size, so the agents introduce themselves; do not stop to
+read them out.
 
 ### 0:45–1:30 · The queue moment `[~1s of product time]`
 
-1. **Alice** requests an agent with the prompt:
+1. **Alice** picks **Ada** and requests an agent with the prompt:
    ```
    remember: deploy window = Friday 16:00 UTC
    ```
-   → `coder` goes BUSY on **all three** screens *(rehearsed: 282–310 ms)*
+   → Ada's desk goes BUSY on **all three** screens *(rehearsed: 282–310 ms)*
 
-2. **Bob** requests an agent — any prompt, e.g. `summarise yesterday's incident review`
-   → `researcher` goes BUSY. Both slots now full.
+2. **Bob** picks **Iris** — any prompt, e.g. `summarise yesterday's incident review`
+   → Iris's desk goes BUSY. Both desks now full.
 
 3. **Charlie** requests an agent with:
    ```
@@ -131,8 +137,13 @@ Keep it to one click each — the floor is the opening handshake, not the point 
    ```
    → Charlie gets **queue position 1**, and it is visible on Alice's and Bob's screens too.
 
-> Both slots are busy, so Charlie doesn't get a failure and he doesn't get a spinner — he gets
+> Both agents are busy, so Charlie doesn't get a failure and he doesn't get a spinner — he gets
 > a real position in line, and the whole team can see he's waiting.
+
+**Have Bob pick Iris deliberately, not "Either".** If both of them ask for Ada, the second
+request silently lands on Iris and the activity log says *"Iris → bob · Ada was busy"* — which
+is true and is a feature, but it is an extra thing to explain in a beat that is about the
+queue. Save the substitution for the Q&A.
 
 **Say this, it is the accurate wording:** *every agent task runs through a real SQS queue, and
 waiting tasks auto-dispatch the moment a slot frees.*

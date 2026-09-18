@@ -240,19 +240,22 @@ def _claim_agent(team, connection_id, body):
     if not prompt:
         return _error(connection_id, "claim_agent requires a prompt")
 
-    # agent_type is a preference, not a reservation: claim_any falls back to
-    # the other slot rather than queueing someone behind an idle agent.
-    agent_type = body.get("agent_type")
-    if agent_type not in scheduler.SLOTS:
-        agent_type = None
+    # The agent asked for — a preference, not a reservation. `claim_any` tries
+    # it first and falls back to the next desk rather than queueing someone
+    # behind an agent that is sitting idle. Now that the agents are named and
+    # genuinely different, the one that *runs* the task is recorded separately
+    # and reported back, so a substitution is visible rather than silent.
+    requested = body.get("agent_type")
+    if requested not in scheduler.SLOTS:
+        requested = None
 
     if _already_working(team, user_id):
         return _error(connection_id, "you already have an agent running or queued")
 
-    slot_id = scheduler.claim_any(team, agent_type, user_id)
+    slot_id = scheduler.claim_any(team, requested, user_id)
 
     if slot_id is None:
-        scheduler.enqueue(team, user_id, agent_type, prompt, connection_id)
+        scheduler.enqueue(team, user_id, requested, prompt, connection_id)
         scheduler.broadcast_queue(team)
         return OK
 
@@ -262,7 +265,7 @@ def _claim_agent(team, connection_id, body):
     # that sees BUSY arrive after the release is left showing a slot that never
     # goes idle again.
     scheduler.broadcast_slot(team, slot_id, "BUSY", user_id)
-    scheduler.dispatch(team, slot_id, user_id, agent_type or slot_id, prompt, connection_id)
+    scheduler.dispatch(team, slot_id, user_id, requested, prompt, connection_id)
     return OK
 
 

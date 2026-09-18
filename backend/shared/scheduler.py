@@ -22,10 +22,12 @@ import uuid
 import boto3
 from botocore.exceptions import ClientError
 
-from . import broadcast, state
+from . import agents, broadcast, state
 
-# Slot order is also the fallback order for a claim. CONTRACT.md.
-SLOTS = ("coder", "researcher")
+# Slot order is also the fallback order for a claim. CONTRACT.md. Taken from
+# the roster so the desks, the fallback order and the slot rows cannot disagree
+# about which agents exist.
+SLOTS = agents.IDS
 
 # Rough per-task duration used for the queue's estimated wait. A heuristic,
 # shown as such — the stub agent takes ~2.5s, a Bedrock call will take longer.
@@ -167,8 +169,17 @@ def requeue(team, item):
 # --- Dispatch --------------------------------------------------------------
 
 
-def dispatch(team, slot_id, user_id, agent_type, prompt, connection_id):
-    """Hand a running task to SQS. Format is CONTRACT.md's."""
+def dispatch(team, slot_id, user_id, requested_agent, prompt, connection_id):
+    """Hand a running task to SQS. Format is CONTRACT.md's.
+
+    `slot_id` is the agent that will actually run this — the desk whose row we
+    just won — and `requested_agent` is the one the user asked for, which may
+    be neither it nor anything at all. The message used to carry a single
+    `agent_type` holding the *preference*, which the runner then recorded in
+    the ledger as the agent that ran the task. With interchangeable slots that
+    was a harmless label; with named agents it is the ledger saying Ada did
+    work that Iris did.
+    """
     sqs().send_message(
         QueueUrl=os.environ["QUEUE_URL"],
         MessageBody=json.dumps(
@@ -176,14 +187,17 @@ def dispatch(team, slot_id, user_id, agent_type, prompt, connection_id):
                 "team_id": state.clean_team(team),
                 "slot_id": slot_id,
                 "user_id": user_id,
-                "agent_type": agent_type,
+                "requested_agent": requested_agent,
                 "prompt": prompt,
                 "connection_id": connection_id,
                 "enqueued_at": state.now_iso(),
             }
         ),
     )
-    print(f"[scheduler] dispatched slot={slot_id} user={user_id}")
+    print(
+        f"[scheduler] dispatched slot={slot_id} user={user_id} "
+        f"requested={requested_agent}"
+    )
 
 
 # --- Broadcasts ------------------------------------------------------------
@@ -253,6 +267,9 @@ def release_and_dispatch(team, slot_id):
         team,
         claimed,
         task["user_id"],
+        # The QUEUE# row's `agent_type` is what this person asked for when they
+        # joined the line — a preference, which is why waiting behind a busy
+        # agent never happens. `claimed` above is who actually takes it.
         task.get("agent_type"),
         task.get("prompt", ""),
         task.get("connection_id"),

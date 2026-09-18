@@ -39,9 +39,15 @@ const PREVIEW_MEMBERS = [
   { user_id: 'charlie', avatar: '🦉', x: 50, y: 74 },
 ]
 
+/* The roster, as the snapshot would deliver it. Duplicated from
+ * `backend/shared/agents.py` because this page has no socket to ask — the one
+ * place in the frontend that knows an agent's name without being told. If the
+ * roster changes, this is the line that has to change with it; nothing else
+ * in the app hardcodes a name.
+ */
 const PREVIEW_AGENTS = [
-  { slot_id: 'coder', status: 'BUSY', current_user: 'alice' },
-  { slot_id: 'researcher', status: 'BUSY', current_user: 'bob' },
+  { slot_id: 'coder', name: 'Ada', role: 'Engineer', status: 'BUSY', current_user: 'alice' },
+  { slot_id: 'researcher', name: 'Iris', role: 'Researcher', status: 'BUSY', current_user: 'bob' },
 ]
 
 const PREVIEW_QUEUE = [{ user_id: 'charlie', queue_position: 1 }]
@@ -78,9 +84,9 @@ function BoardPreview() {
       </div>
 
       <figcaption className="lp-preview__caption">
-        Both agents working, one person holding queue position 1, and 2,847 of
-        5,000 tokens spent. Every member sees this same frame at the same
-        instant.
+        Ada and Iris both working, one person holding queue position 1, and
+        2,847 of 5,000 tokens spent. Every member sees this same frame at the
+        same instant.
       </figcaption>
     </figure>
   )
@@ -115,11 +121,12 @@ const EVIDENCE = [
 const STEPS = [
   {
     n: '01',
-    title: 'Claim a slot',
+    title: 'Ask an agent',
     body:
-      'A workspace shares a pool of agent slots. Claiming one is a single '
-      + 'atomic conditional write in DynamoDB, so two people clicking in the '
-      + 'same moment cannot both win it.',
+      'A workspace shares two named agents — Ada, who takes engineering work, '
+      + 'and Iris, who researches. Claiming a desk is a single atomic '
+      + 'conditional write in DynamoDB, so two people clicking in the same '
+      + 'moment cannot both win it.',
   },
   {
     n: '02',

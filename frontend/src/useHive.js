@@ -101,10 +101,13 @@ function withEta(queue) {
   }))
 }
 
-function bySlot(agents) {
-  return [...agents].sort((a, b) =>
-    String(a.slot_id ?? '').localeCompare(String(b.slot_id ?? '')),
-  )
+/** Agents arrive in roster order — the order the desks sit in on the floor and
+ *  the order a claim falls back through (CONTRACT.md). This used to re-sort
+ *  them alphabetically, which agreed with the roster only by the accident of
+ *  `coder` preceding `researcher`; a third agent would have had the board
+ *  showing the desks in one order and the scheduler using another. */
+function keepOrder(agents) {
+  return [...agents]
 }
 
 /** The server's `members[]` is one entry per CONN# row, so a person with two
@@ -125,7 +128,7 @@ export function applyFrame(board, frame) {
     case 'state_snapshot':
       return {
         team: frame.team ?? board.team,
-        agents: bySlot(frame.agents ?? []),
+        agents: keepOrder(frame.agents ?? []),
         tokens_used: frame.tokens_used ?? 0,
         token_budget: frame.token_budget ?? 0,
         pct_used: frame.pct_used ?? 0,
@@ -144,6 +147,10 @@ export function applyFrame(board, frame) {
       if (!slotId) return board
 
       const known = board.agents.some((a) => a.slot_id === slotId)
+      // State only. The desk's identity — name, role, tagline — rides on
+      // `state_snapshot` and is merged *under* this patch, so an incremental
+      // frame can never blank out who sits there. A slot this client has never
+      // seen renders under its raw id until the 500 ms re-sync names it.
       const patch = {
         slot_id: slotId,
         agent_type: slotId,
@@ -152,7 +159,7 @@ export function applyFrame(board, frame) {
       }
       const agents = known
         ? board.agents.map((a) => (a.slot_id === slotId ? { ...a, ...patch } : a))
-        : bySlot([...board.agents, patch])
+        : [...board.agents, patch]
 
       // A user who just went BUSY has been dispatched, so they are no longer
       // waiting. This is the only removal signal the protocol gives us.
@@ -249,7 +256,14 @@ function activityFor(frame) {
     case 'agent_response':
       return {
         kind: 'response',
-        who: `${frame.agent_type ?? 'agent'} → ${frame.user_id ?? 'unknown'}`,
+        // The agent that actually answered, by name. `requested_name` is set
+        // only when somebody asked for a different one and it was busy —
+        // saying so is the honest version of a fallback the scheduler has
+        // always performed silently.
+        who:
+          `${frame.agent_name ?? frame.agent_type ?? 'agent'} → ` +
+          `${frame.user_id ?? 'unknown'}` +
+          (frame.requested_name ? ` · ${frame.requested_name} was busy` : ''),
         text: frame.text ?? '',
         cost: frame.tokens_used_this_call,
         // Normally false — the count is the usage the provider reported. True
