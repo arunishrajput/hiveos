@@ -14,6 +14,11 @@ who has waited longest rather than who arrived first, and that the position
 shown on the board is the one actually dispatched. 24-25 cover agent-to-agent
 handoff: one chain id across two desks, both legs on the one meter, a queue row
 pinned to the desk it was handed to, and a hop limit no prompt can argue past.
+26 covers staffing the floor: a desk hired, worked and dismissed in front of a
+second person who never reloaded — and, since 2026-09-20, that a dismissal is
+still true for the *next* person to connect. That last check exists because the
+rest of this section asserted the floor from the connection that did the
+dismissing, and `ensure_team` runs on every `$connect`: it put the desk back.
 
 The harness resets `tokens_used` and clears MEMORY# rows before and after, so
 it is re-runnable — tasks now genuinely spend (estimated) tokens and write
@@ -1259,6 +1264,43 @@ async def run_hiring(url):
         "no such desk" in (unknown.get("message") or ""),
         str(unknown.get("message")),
     )
+
+    # --- A dismissal survives the next person walking in --------------------
+    #
+    # The check above this one asserts the floor from *the same connection that
+    # did the dismissing*, and that is why this section passed over a real bug
+    # for a whole phase. `ensure_team` runs on every `$connect` and re-wrote the
+    # two seeded desks conditionally on the row being absent — which is exactly
+    # what a dismissal leaves behind — so Iris came back the moment anybody
+    # else joined, or the moment a dropped socket reconnected. Silently: no
+    # `agent_spawned` frame, nothing in the activity log.
+    #
+    # So the assertion has to be made from a connection that did not exist when
+    # the desk was dismissed.
+    #
+    # Compared against the floor as it actually stands rather than a hardcoded
+    # list, because *which* seeded desk survived the rules check above is a
+    # race: those two `dismiss_agent` frames go out back to back, whichever
+    # Lambda lands first wins, and the other is refused as the last desk. The
+    # first version of this check hardcoded `["researcher"]` and failed on a
+    # run where `coder` won — which is the invariant being stated wrong, not
+    # the product misbehaving. What is actually guaranteed is narrower and is
+    # the whole point: **connecting does not change the roster.**
+    await drain(alice)
+    await alice.send(json.dumps({"action": "hello"}))
+    before_join = await expect(alice, "state_snapshot", "alice")
+    standing = [a["slot_id"] for a in before_join["agents"]]
+
+    carol = await websockets.connect(f"{url}?user_id=carol&team={HIRE_TEAM}")
+    await carol.send(json.dumps({"action": "hello"}))
+    rejoined = await expect(carol, "state_snapshot", "carol")
+    arrived = [a["slot_id"] for a in rejoined["agents"]]
+    check(
+        "**a dismissed desk stays dismissed when the next person connects**",
+        arrived == standing,
+        f"before={standing} after={arrived}",
+    )
+    await carol.close()
 
     for ws in (alice, bob):
         await ws.close()

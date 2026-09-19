@@ -73,7 +73,8 @@ Measured against the deployed system, not localhost:
 | A claim reaching a second browser | **282 ms** |
 | Auto-dispatch visible after a desk frees | **187 ms** |
 | An avatar move painted on a second browser | **270–294 ms** |
-| End-to-end checks against real AWS | **108/112** (`scripts/ws_smoke.py`) |
+| End-to-end checks against real AWS | **109/113** (`scripts/ws_smoke.py`) |
+| Unit tests | **27/27** (`pytest tests/`) |
 | Rehearsed demo sequence | **15/15**, two consecutive unattended takes (`scripts/rehearse.py`) |
 
 The four non-passing checks are one check repeated: they assert the connection table is *empty*,

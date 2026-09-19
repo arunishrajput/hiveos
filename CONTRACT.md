@@ -99,7 +99,22 @@ per-workspace question.
 Order is meaningful and comes from `created_at`: it is both the fallback order
 for a claim and the order the desks sit in on the floor. The two seeded rows
 carry an index suffix on their timestamp so they cannot tie, and a hire always
-sorts after them — hiring never reshuffles a room somebody is watching.
+sorts after them — hiring never reshuffles a room somebody is watching. A hire's
+`created_at` is **microsecond** precision (`now_iso_micros`), for the same
+reason `QUEUE#` sort keys are: at second granularity two hires in the same
+second tie and fall through to the `slot_id` tiebreak, which is slugged from the
+name — so the floor would reorder itself alphabetically.
+
+**The starting roster is written once, when the workspace is created.**
+`ensure_team` runs on every `$connect`, and until 2026-09-20 it re-wrote the two
+seeded rows every time. The write is conditional on the row being absent, which
+is exactly what `dismiss_agent` leaves behind — so the next person to connect
+silently put the dismissed desk back, with no `agent_dismissed` reversal, no
+`agent_spawned` frame and nothing in the activity log. An automatic reconnect
+after a network blip was enough. The roster is now seeded only on the branch
+where the `METADATA` write actually succeeded, plus one repair case: a floor
+with **no** desks at all is re-seeded, because such a floor can never dispatch
+anything and is only reachable if a bootstrap died between the two writes.
 
 ### The fallback that means no board needs a migration
 
@@ -136,6 +151,9 @@ only while the desk is `IDLE` (deleting a row mid-task leaves the runner
 holding a desk that no longer exists, and its release would write the row back
 as a nameless ghost), and never the last desk (a floor with no desks accepts
 tasks it can never dispatch).
+
+**A dismissal is permanent**, including for the two seeded desks — see *The
+starting roster* above for the bootstrap rule that makes that true.
 
 ### Requested versus ran
 
@@ -406,6 +424,13 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `spawn_agent` | `{name, role, tagline, persona, character, project}` | Hire a desk onto this floor. **Any member may** — see *Hiring is not an admin action*. Every field is truncated server-side; refused with an error once the floor holds `MAX_AGENTS`. Broadcasts `agent_spawned` |
 | `dismiss_agent` | `{agent_type}` | Take a desk off the floor. Refused while it is `BUSY`, and refused for the last desk. Broadcasts `agent_dismissed` |
 
+**`action` must be a string.** A frame without one — or carrying a number, a
+list or `null` — is answered `error: "frame must carry a string action"`. It
+used to reach `action.startswith("admin_")` and raise `AttributeError` into the
+top-level handler, which replied the generic `"internal error"` and logged a
+stack trace: the wrong answer twice over, since it is the caller's frame that is
+malformed rather than the server. A malformed frame never closes the socket.
+
 **`agent_type` on `claim_agent` is a preference, not a reservation.** It is tried first, then the remaining slots in `SLOTS` order. Nobody queues behind an idle agent — and the agent that actually took it is named in the reply. Anything not in `SLOTS` becomes "no preference" rather than an error.
 
 **One active task per user.** A `claim_agent` from a user who already holds a slot or sits in the queue is refused with `error`. Without it a double-clicked button lets one person hold both slots — precisely the monopoly the product claims to prevent.
@@ -526,6 +551,19 @@ the meter a user is looking at. `TOKEN_BUDGET` supplies only the default
 On refusal the runner broadcasts `budget_exhausted`, replies `error` to the
 requester, spends nothing, and **still releases the slot** — the refusal path
 is subject to the same no-leak invariant as every other path.
+
+**Clients must clear the refused state from `token_update`, not only from
+`state_snapshot`.** `budget_exhausted` latches the client into a blocked state,
+and the only two frames carrying the whole ceiling — used *and* budget — are
+`state_snapshot` and `token_update`. `admin_set_budget` broadcasts exactly the
+latter, so a client that recomputed on the snapshot alone went on refusing every
+task under a meter that had dropped to 12%: red banner, disabled send button, no
+way out but a reload. `token_update` is deliberately **not** in the frontend's
+`RESYNC_EVENTS` — re-reading the whole board after every completed task is the
+one thing that would make the meter expensive — so the frame has to answer the
+question itself. The server was never wrong here: it re-reads `METADATA` before
+every model call, so the ceiling was always enforced correctly. This was the
+board misreporting it.
 
 ### Frame ordering
 

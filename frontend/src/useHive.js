@@ -515,9 +515,25 @@ export function useHive(identity) {
         return
       }
 
-      if (frame.event === 'state_snapshot') {
-        const budget = frame.token_budget ?? 0
-        setBudgetExhausted(budget > 0 && (frame.tokens_used ?? 0) >= budget)
+      /* `budget_exhausted` latches this true, and the only frames that can
+       * honestly clear it are the two that carry the whole ceiling — used and
+       * budget together. `token_update` is one of them, and leaving it out was
+       * a bug with a very visible shape: an admin raising the budget broadcasts
+       * exactly that frame, so the meter dropped to 14% while the board went on
+       * refusing every task under a red "Quota reached" banner and a disabled
+       * send button. Nothing cleared it, either — `token_update` is
+       * deliberately not in RESYNC_EVENTS, because re-reading the whole board
+       * after every completed task is the one thing that would make the meter
+       * expensive. So the frame has to answer the question itself.
+       *
+       * Guarded on the field being present rather than defaulting to 0: a frame
+       * that somehow omitted the budget would otherwise read as "no ceiling"
+       * and clear a refusal that is still in force. */
+      if (frame.event === 'state_snapshot' || frame.event === 'token_update') {
+        const budget = frame.token_budget
+        if (typeof budget === 'number') {
+          setBudgetExhausted(budget > 0 && (frame.tokens_used ?? 0) >= budget)
+        }
       }
 
       // `avatar_moved` is deliberately NOT in RESYNC_EVENTS. It is the only

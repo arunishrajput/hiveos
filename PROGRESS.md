@@ -3,7 +3,7 @@
 > Current execution state. A fresh Claude Code session reads this to know exactly where things stand.
 > Keep it operational and short. Not a diary — history lives in git.
 
-**Last updated:** 2026-09-19
+**Last updated:** 2026-09-20
 
 ---
 
@@ -15,7 +15,7 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
 | **Current phase** | **Phase 6 — demo readiness** (Phase 17 landed on top of it) |
-| **Phase status** | `BLOCKED — WAITING FOR MANUAL ACTION`. **Phase 6 tasks 4 and 5 re-done against the Phase 17 office, 2026-09-19** — `rehearse.py` extended to cover hiring and passing **15/15 twice**, and every pixel figure in `DEMO.md` re-measured on the deployed build instead of estimated. Tasks 6, 7 and 9 (record, upload, submit) are the user's and are all that is left. |
+| **Phase status** | `BLOCKED — WAITING FOR MANUAL ACTION`. **A full-system QA pass ran against the deployed URL on 2026-09-20** and found four defects, all fixed, deployed and re-verified live — see *Completed*. Gates after the fixes: `pytest` **27/27**, `ws_smoke.py` **109/113** (four known stranger-connection false positives), `rehearse.py` **15/15 across two takes**. Tasks 6, 7 and 9 (record, upload, submit) are the user's and are all that is left. |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -77,6 +77,85 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Full-system QA pass — 2026-09-20 — everything exercised against the deployed URL**
+
+The whole product was driven end to end against `https://main.dbavt8jr66qxx.amplifyapp.com`
+with three simultaneous browser identities and the two harnesses, rather than read.
+
+Gates, before the fixes and again after them:
+
+| Gate | Before | After the fixes |
+|---|---|---|
+| `pytest tests/` | 22/22 | **27/27** — 5 new, in `tests/test_state_bootstrap.py` |
+| `scripts/ws_smoke.py` | 110/112 | **109/113** — 1 new check, in section 26 |
+| `scripts/rehearse.py` | 15/15 | **15/15 ×2 takes**, 14.1s of product time against a 110s allowance |
+
+**Every `ws_smoke` failure across all runs is the documented CONN#-leak false positive** — a
+real visitor, `dana`, sat on the public URL's default workspace throughout. One run caught two
+rather than four only because it overlapped less of their session. That was verified rather
+than assumed, two ways: the row carried a live `connected_at` and a connection id that changed
+between runs, and the invariant itself was then checked the way this file's standing note
+prescribes — open two connections, close them, confirm *our* `CONN#` rows **and their
+`CONN#/TEAM` index rows** are gone while the stranger's remain. Both were. No connection leaks.
+
+**`ws_smoke.py` gained the check that would have caught defect 1** (section 26): a dismissal is
+still true for the *next* person to connect. The rest of that section asserted the floor from
+the connection that did the dismissing, which is why 110 deployed checks passed over the bug.
+
+**What was confirmed working, on the deployed build, by watching it happen:** the landing page
+cold; the entry gate and self-bootstrapping workspaces; a real model round trip with
+provider-reported tokens into the meter, the stream and the ledger; three identities with
+per-connection membership deduped to one marker per person; hiring, broadcast to every floor
+with no refresh; dismissal; the queue and auto-dispatch onto a freed desk; shared memory
+crossing between users; the admin panel; and **the agent-to-agent handoff, which `PROGRESS.md`
+still called an unrehearsed beat** — Ada judged a literature review to be Iris's, the envelope
+crossed, and the ledger recorded one `task_id` across two desks at 1,197 + 936 tokens.
+
+The ceiling was tested the way it actually matters — by bypassing the UI. With the send button
+disabled and the banner up, a raw `claim_agent` frame over the socket was refused with
+`budget_exhausted` and **`tokens_used` did not move by one**. The control is real.
+
+**Four defects found and fixed. Three were invisible to every existing test**, because all
+three harnesses build state up and never take it away:
+
+1. **A dismissed starting desk came back on the next `$connect`** (`state.ensure_team`).
+   `ensure_team` runs on every connection and re-wrote Ada and Iris conditionally on the row
+   being absent — which is exactly what `dismiss_agent` leaves behind. So dismissing Iris held
+   only until the next person joined, or until your own socket reconnected after a blip, and
+   the desk returned with no `agent_spawned` frame, nothing in the activity log and no way to
+   tell from the board that anything had happened. Reproduced on the deployed stack
+   (`resurrect1`), fixed, re-verified (`resurrect2`). The roster is now seeded only on the
+   branch where the `METADATA` write actually succeeded, plus a repair clause for a floor with
+   zero desks — unreachable through the product, but permanently dead if it ever happened.
+   Five regression tests in `tests/test_state_bootstrap.py`; two of them fail on the old code.
+2. **Raising the budget did not unblock the board** (`useHive.js`). `budget_exhausted` latches
+   the client, and only `state_snapshot` cleared it. `admin_set_budget` broadcasts
+   `token_update`, which is deliberately *not* in `RESYNC_EVENTS`, so nothing pulled a
+   snapshot: the meter fell to 14.2% while the red "Quota reached" banner stayed up and the
+   send button stayed disabled, with no way out but a reload. The admin's one lever for the
+   ceiling appeared not to work. `token_update` now recomputes the flag — it carries used and
+   budget together, which is the whole question.
+3. **Any frame whose `action` was not a string answered `"internal error"`** and logged a stack
+   trace (`router/app.py`). `action.startswith("admin_")` was the first thing to touch it.
+   Now answered `"frame must carry a string action"`; the socket was never at risk either way.
+4. **Two hires in the same second could reorder the floor** (`state.hire_agent`). `created_at`
+   was second-granularity, so a tie fell through to the `slot_id` tiebreak, which is slugged
+   from the name — the desks would come back alphabetical. `now_iso_micros()`, the same fix
+   `QUEUE#` sort keys already carry.
+
+**The general shape of (1), worth keeping:** a bootstrap that runs on every request is an
+idempotent *write*, and an idempotent write is an undo for anything that legitimately deletes
+what it writes. Anything self-healing needs to ask whether the state it restores was lost or
+given up.
+
+**One thing deliberately not changed, and it needs a decision — see *Manual actions pending*.**
+`DEFAULT_TEAM_BUDGET` is 1,000,000, so a judge who types their own workspace name gets a meter
+that does not visibly move: a 666-token task is 0.1% and paints no bar at all. The recording
+path is unaffected — `reset-demo.sh` seeds `alpha` at 5,000 and `DEMO.md` records there — so
+this is about the judge who explores rather than the video. At 8,000 the same board reads
+81.2% in vivid red and the mechanic is unmistakable. Changing it is a one-line
+`parameter_overrides` edit plus a redeploy, but it is a spend-policy call, so it is the user's.
 
 **Documentation pass — 2026-09-19 — the judge-facing files catch up with the office**
 
@@ -1679,6 +1758,21 @@ buildable is done, deployed and rehearsed.
 
 Housekeeping, not blocking:
 
+3b. **Decide the default token budget for self-created workspaces.** `DEFAULT_TEAM_BUDGET`
+   is 1,000,000, which makes the headline mechanic invisible to a judge who types their own
+   workspace name: a real 666-token task moves the meter 0.1% and paints no bar. **The
+   recording is not affected** — `reset-demo.sh` seeds `alpha` at 5,000 and `DEMO.md` records
+   there — so this only touches the judge who explores after watching. Measured on the
+   deployed build 2026-09-20: the same board at a 8,000 ceiling reads 81.2% in vivid red.
+   Not changed unilaterally because it is a spend-policy call. If you want it:
+
+   ```bash
+   # samconfig.toml → parameter_overrides, NOT template.yaml's Default:
+   # (CloudFormation keeps existing parameter values on update — see Known issues)
+   #   TokenBudget=25000        # ~35 tasks, ~2.6% per task, clearly visible
+   sam deploy
+   ```
+
 4. **Confirm AWS Budget notification email** — check `arunishrajput7@gmail.com` for the
    `hiveos-guardrail` subscription confirmation.
 5. **Optional, post-hackathon: open an AWS Support case** about the account-level Bedrock
@@ -1691,6 +1785,48 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
 
 ## Known issues and discoveries
 
+- **A bootstrap that runs on every request is an undo for anything that legitimately deletes
+  what it writes.** `ensure_team` re-created Ada and Iris on every `$connect`, conditional on
+  the row being absent — which is precisely the state `dismiss_agent` leaves behind, so a
+  dismissal survived only until the next person connected. The conditional write looked like
+  the careful choice and was the bug: "only write if it is missing" and "put back whatever
+  somebody removed" are the same code. Anything self-healing has to ask whether the state it
+  restores was *lost* or *given up*. Found by dismissing a desk in one browser and watching it
+  reappear when a second client connected — no test caught it, because all three harnesses
+  build state up and never take it away.
+- **Two client frames sent back to back are not ordered.** `ws_smoke.py` section 26 sends
+  `dismiss_agent coder` then `dismiss_agent researcher` to prove a floor cannot be emptied.
+  Whichever Lambda lands first wins and the other is refused as the last desk — so *which*
+  seeded desk survives is genuinely nondeterministic, and it has been observed both ways. The
+  existing check is fine because it only asserts that one of them was refused. The new
+  dismissal-persistence check hardcoded `["researcher"]` and failed on the first run against
+  the fixed code: the invariant was stated wrong, not violated. It now compares the roster
+  before and after a join, which is what is actually guaranteed — connecting does not change
+  the roster — and is order-independent.
+- **A latched UI flag needs every frame that can honestly clear it, not just the cheapest
+  one.** `budget_exhausted` blocks the client; only `state_snapshot` cleared it. An admin
+  raising the budget broadcasts `token_update`, which is deliberately outside `RESYNC_EVENTS`
+  (re-reading the board after every task is the one thing that would make the meter
+  expensive) — so the meter dropped to 14.2% while the red banner stayed up and the send
+  button stayed disabled, with no way out but a reload. The rule: if a frame carries enough to
+  answer the question, it must answer it; do not rely on a re-sync that was tuned away for
+  good reasons. Same family as the `estimated` flag riding only on `token_update`.
+- **A bug in the one direction the tests never go is invisible however many tests there are.**
+  110 smoke checks, 15 rehearsal checks and 22 unit tests all passed over the dismissal bug —
+  and `ws_smoke.py` section 26 *does* dismiss a desk and assert it is off the floor. It passes
+  because it asserts on the same connection that did the dismissing, and the resurrection
+  needs a **new** `$connect` to happen. The gap was never "dismissal is untested"; it was that
+  nothing dismissed and then kept using the board. Coverage of the *happy expansion* is not
+  coverage.
+- **`isinstance(x, str)` before `x.startswith(...)`, on anything off the wire.**
+  `body.get("action")` reached `.startswith("admin_")` unchecked, so `{}`, `{"action": null}`
+  and `{"action": 7}` all became `AttributeError` → `"internal error"` → a stack trace per
+  frame. The generic handler did its job; it just answered for the wrong party.
+- **The default token budget makes the product's headline mechanic invisible.**
+  `DEFAULT_TEAM_BUDGET` is 1,000,000 and a real task costs ~600, so a self-created workspace
+  shows 0.1% and an unpainted bar. Not a bug — `reset-demo.sh` owns the demo default of
+  5,000 and the recording is unaffected — but it is what a judge sees if they open the URL
+  and make their own room. See *Manual actions pending* item 3b for the one-line change.
 - **A reasoning model's thinking is charged against `max_tokens`, and a cap sized for the answer
   buys nothing.** `gpt-oss-120b` spent 398 of a 400-token output cap on `reasoning_tokens` and
   returned empty content. Every layer above read that correctly and still produced the wrong

@@ -63,9 +63,9 @@ an owner who can set the budget or delete it.
 ### Status
 
 Everything above is live, deployed and verified against real AWS. Last recorded full runs:
-**108/112** end-to-end checks (`scripts/ws_smoke.py`) and the demo sequence **15/15**, twice
-unattended (`scripts/rehearse.py`). The agents are real and the token counts are the provider's
-reported usage, not estimates.
+**109/113** end-to-end checks (`scripts/ws_smoke.py`), **27/27** unit tests, and the demo
+sequence **15/15**, twice unattended (`scripts/rehearse.py`). The agents are real and the token
+counts are the provider's reported usage, not estimates.
 
 > The four non-passing checks are all the same one: they assert the connection table is *empty*,
 > and the public URL now has real visitors on it during a run. The invariant itself is verified

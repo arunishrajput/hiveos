@@ -392,6 +392,7 @@ def ensure_team(team, passphrase=None, admin_token=None):
         secret["admin_salt"] = admin_salt
         secret["admin_hash"] = _derive(admin_token, admin_salt)
 
+    created = False
     try:
         table().put_item(
             Item={
@@ -405,12 +406,33 @@ def ensure_team(team, passphrase=None, admin_token=None):
             },
             ConditionExpression="attribute_not_exists(PK)",
         )
+        created = True
         print(f"[state] bootstrapped new team {clean_team(team)!r}")
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
             raise
 
-    # The starting roster, written with its identity on the row.
+    # The starting roster belongs to *creating* a workspace, not to joining
+    # one — and this runs on every `$connect`.
+    #
+    # Writing it unconditionally silently undid `dismiss_agent`. The seed rows
+    # below are conditional on the item being absent, which is exactly what a
+    # dismissal makes them, so the next person to connect put Iris back: no
+    # `agent_spawned` frame, no trace in the log, a desk simply returning to a
+    # floor somebody had just cleared it from. A reconnect after a network blip
+    # was enough to do it.
+    #
+    # The second clause is a repair rather than a re-seed. A floor with no
+    # desks at all can never dispatch anything — every claim fails and the
+    # queue never drains — which is why `fire_agent` refuses to remove the last
+    # one. It is only reachable if a bootstrap died between the two writes
+    # above, and leaving such a workspace permanently dead would be the worse
+    # trade. One query, on the handshake path only, and only for a floor that
+    # is already broken.
+    if not created and roster(team):
+        return
+
+    # The seeded desks, written with their identity on the row.
     #
     # Still conditional, so a workspace that already exists is never rewritten
     # — which is why `agents.from_row` falls back by slot id. Every board
@@ -632,7 +654,14 @@ def hire_agent(team, fields):
             else agents.CHARACTERS[len(existing) % len(agents.CHARACTERS)]
         ),
         "project": agents.clean(fields.get("project"), agents.MAX_PROJECT),
-        "created_at": now_iso(),
+        # Microseconds, for the same reason `QUEUE#` sort keys use them: this
+        # value orders the floor, and `now_iso()` is second-granularity. Two
+        # people hiring in the same second tied and fell through to the
+        # `slot_id` tiebreak in `_desk_rank` — which is derived from the name,
+        # so the desks would come back in alphabetical order rather than in the
+        # order they were hired. That is the room reshuffling itself, which is
+        # exactly what ordering by `created_at` exists to prevent.
+        "created_at": now_iso_micros(),
     }
 
     # Conditional on the id being free. The suffix in `new_slot_id` makes a

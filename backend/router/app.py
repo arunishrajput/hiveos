@@ -121,6 +121,15 @@ def _on_message(event, connection_id):
         return _error(connection_id, "frame must be a JSON object")
 
     action = body.get("action")
+    # Checked before anything reads it as a string. `startswith` below is the
+    # first thing that touches it, and on a frame with no action — or one
+    # carrying a number or a list — it raised AttributeError into the top-level
+    # handler, which answered "internal error". That is the wrong thing twice
+    # over: it is the caller's frame that is malformed, not the server, and a
+    # stack trace per bad frame is noise in the log that matters.
+    if not isinstance(action, str):
+        return _error(connection_id, "frame must carry a string action")
+
     # Resolved from the stored index row, never from the frame. A team the
     # client could name per-message is a team the client could read.
     team = state.connection_team(connection_id)
