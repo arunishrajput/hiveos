@@ -118,10 +118,20 @@ def _identity(agent):
     """
     if not agent:
         return SHARED_ROLE
-    return (
-        f"You are {agent['name']}, the {agent['role']} at one of HiveOS's "
-        "agent desks — a workspace where an entire team draws on one pooled "
-        f"AI token budget. {agent['persona']}"
+    # A hired agent may have been given no briefing at all — the form allows
+    # it, because "Jim, the Editor" is already a useful instruction. Joined on
+    # the non-empty parts so an empty persona leaves a clean sentence rather
+    # than a trailing space.
+    role = f", the {agent['role']}" if agent.get("role") else ""
+    return " ".join(
+        part
+        for part in (
+            f"You are {agent['name']}{role} at one of HiveOS's agent desks — "
+            "a workspace where an entire team draws on one pooled AI token "
+            "budget.",
+            agent.get("persona") or "",
+        )
+        if part
     )
 
 
@@ -224,7 +234,8 @@ def handoff_tool(targets):
         return None
 
     roles = "; ".join(
-        f"{agent['id']} is {agent['name']}, the {agent['role']} — {agent['tagline']}"
+        f"{agent['slot_id']} is {agent['name']}, the {agent['role']}"
+        f" — {agent['tagline']}"
         for agent in targets
     )
     return {
@@ -243,7 +254,7 @@ def handoff_tool(targets):
                 "properties": {
                     "agent": {
                         "type": "string",
-                        "enum": [agent["id"] for agent in targets],
+                        "enum": [agent["slot_id"] for agent in targets],
                         "description": "Which desk takes it from here.",
                     },
                     "note": {

@@ -141,7 +141,22 @@ class TestReleaseAgentRoute:
     def _run(self, holder, requester, is_admin=False, body=None):
         from router import app as router
 
-        with patch("shared.state.slot_holder", return_value=holder), \
+        # One GetItem now answers both "does this desk exist on this floor"
+        # and "who is sitting at it". It replaced a roster membership test
+        # against a module constant, which stopped meaning anything once the
+        # roster became per-workspace data. A desk this floor does not have
+        # reads back as None, which is what keeps the unknown-agent case an
+        # error rather than a dispatch poke.
+        def desk_row(_team, slot_id):
+            if slot_id != SLOT:
+                return None
+            return {
+                "slot_id": SLOT,
+                "status": "BUSY" if holder else "IDLE",
+                "current_user": holder,
+            }
+
+        with patch("shared.state.agent_row", side_effect=desk_row), \
              patch("shared.state.connection_user", return_value=requester), \
              patch("shared.state.connection_is_admin", return_value=is_admin), \
              patch("shared.broadcast.send_to_connection") as send, \
@@ -226,7 +241,14 @@ class TestRunnerRelease:
 
         # Refusing on budget returns early and still runs `finally`, which is
         # the block under test, without reaching a model call.
-        with patch.object(runner, "_refuse_over_budget", return_value=True), \
+        #
+        # `_handle` reads the roster up front now — the desks are per workspace,
+        # so who Ada is depends on which board this is — hence the stub. It is
+        # only used to resolve display names here; the release path under test
+        # does not touch it.
+        with patch("shared.state.roster", return_value=[
+                    {"slot_id": SLOT, "name": "Ada", "role": "Engineer"}]), \
+             patch.object(runner, "_refuse_over_budget", return_value=True), \
              patch("shared.scheduler.release_and_dispatch") as release:
             runner._handle(task)
 
