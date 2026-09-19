@@ -92,6 +92,281 @@ export function StatusRail({ team, members, connection }) {
   )
 }
 
+/* The application chrome, along the top of the shell.
+ *
+ * `auto mode on` is a readout, not a switch. The scheduler has dispatched off
+ * the front of the queue by itself since Phase 2, so the line is simply true —
+ * and a toggle here would be a control with nothing behind it, which is the
+ * one thing a board about honest state cannot ship.
+ *
+ * `StatusRail` is what this replaces and is still exported: the landing page's
+ * canned preview uses it, and it is the right shape for a panel stack.
+ */
+export function AppBar({ team, connection, members, agents, version, onSettings }) {
+  const working = agents.filter((a) => a.status === 'BUSY').length
+
+  return (
+    <header className="appbar">
+      <Mark className="appbar__mark" />
+      <span className="appbar__name">HiveOS</span>
+      <span className="appbar__version">{version}</span>
+      <span className="appbar__mode">auto mode on</span>
+
+      <span className="appbar__spacer" />
+
+      <span className="appbar__stat">
+        {working}/{agents.length} working
+      </span>
+      <span className="appbar__team">{team}</span>
+      <span className="appbar__stat">
+        {members.length} {members.length === 1 ? 'person' : 'people'}
+      </span>
+      <Lamp connection={connection} />
+
+      {/* Only an administrator gets the gear, because it opens the only panel
+          whose actions the server would accept from them. Hiding it from
+          everyone else is convenience — the refusal is server-side. */}
+      {onSettings && (
+        <button
+          type="button"
+          className="appbar__gear"
+          onClick={onSettings}
+          aria-label="Workspace settings"
+        >
+          <span aria-hidden="true">⚙</span>
+        </button>
+      )}
+    </header>
+  )
+}
+
+/* One agent's portrait, from the same sprite system as the people.
+ *
+ * `character` is undefined until an agent can be hired with one, and `lookFor`
+ * already falls back to hashing the second argument — so every desk gets a
+ * stable, distinct face today and the field simply starts being honoured the
+ * moment the backend carries it.
+ */
+export function AgentFace({ agent, className = '' }) {
+  const look = lookFor(agent.character, agent.slot_id)
+  return (
+    <span
+      className={`agentface ${className}`}
+      style={{ '--art': look.art, '--sp-hair': look.hair }}
+      aria-hidden="true"
+    />
+  )
+}
+
+/* What an agent is doing right now, in a few words.
+ *
+ * One function, three consumers — the speech bubble over the desk, the roster
+ * card along the bottom, and the inspector header. Phase 8's fairness bug was
+ * exactly this shape: the same state derived independently in two places and
+ * allowed to disagree on camera.
+ */
+export function agentStatus(agent, note, short = false) {
+  // Busy wins over the note, always. A note is the afterglow of the *last*
+  // thing this desk finished, and letting it outrank live state would put
+  // "done · 549 tokens" over a desk that is mid-task for somebody else.
+  if (agent.status === 'BUSY') {
+    if (!agent.current_user) return 'working'
+    // `short` is for the speech bubble, which has a room's width to live in
+    // and shares it with whoever is standing at the desk. Same fact, fewer
+    // words — still one function, so the bubble and the roster card can never
+    // end up reporting different things.
+    return short
+      ? `for ${agent.current_user}`
+      : `working for ${agent.current_user}`
+  }
+  return note || 'idle'
+}
+
+/* The roster along the bottom: every desk on this floor, at a glance.
+ *
+ * Selecting a card is what the inspector on the right is bound to, so this is
+ * navigation as well as status. The progress bar is deliberately indeterminate
+ * — the server knows a task is running but not how far through it is, and a bar
+ * that implied otherwise would be inventing a number.
+ */
+export function RosterStrip({ agents, selected, onSelect, onAdd, noteFor }) {
+  return (
+    <section className="roster" aria-label="Agents on this floor">
+      <div className="roster__cards">
+        {agents.map((agent) => {
+          const busy = agent.status === 'BUSY'
+          const on = selected === agent.slot_id
+          const note = noteFor?.(agent)
+          return (
+            <button
+              type="button"
+              key={agent.slot_id}
+              onClick={() => onSelect(agent.slot_id)}
+              aria-pressed={on}
+              className={
+                `agentcard ${on ? 'agentcard--on' : ''} ` +
+                `${busy ? 'agentcard--busy' : ''}`
+              }
+            >
+              <AgentFace agent={agent} className="agentcard__face" />
+
+              <span className="agentcard__head">
+                <span className="agentcard__name">{agent.name || agent.slot_id}</span>
+                <span className={`chip ${busy ? 'chip--busy' : 'chip--idle'}`}>
+                  <span className="chip__dot" aria-hidden="true" />
+                  {busy ? 'working' : 'idle'}
+                </span>
+              </span>
+
+              {/* The chip beside the name already says "idle", so an idle card
+                  spends its second line on what this desk is *for* instead of
+                  saying it twice. The moment there is something to report —
+                  running, or just finished — the live line takes over. */}
+              <span className="agentcard__sub">
+                {busy || note
+                  ? agentStatus(agent, note)
+                  : agent.role || agent.slot_id}
+              </span>
+
+              <span className="agentcard__track" aria-hidden="true">
+                <span className="agentcard__fill" />
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {onAdd && (
+        <button type="button" className="roster__add" onClick={onAdd}>
+          + add agent
+        </button>
+      )}
+    </section>
+  )
+}
+
+/* One agent's terminal.
+ *
+ * Styled as a live PTY because that is the thing it stands in for, but it is
+ * not pretending to be a shell: every line is an event this board actually
+ * broadcast, and the glyph names the kind rather than decorating it. Newest at
+ * the bottom, scrolled to, the way a terminal behaves.
+ */
+const STREAM_MARK = {
+  response: '✓',
+  handoff: '→',
+  memory: '★',
+  chat: '·',
+  error: '!',
+}
+
+export function StreamPane({ entries, label, empty }) {
+  const ref = useRef(null)
+
+  // Pinned to the bottom on every new line. The pane is short and the newest
+  // answer is the one being read, so following the tail is right here — unlike
+  // the old activity panel, which was the whole board's log and was read by
+  // scrolling back.
+  useEffect(() => {
+    const node = ref.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [entries.length])
+
+  return (
+    <div className="stream">
+      <div className="stream__head">
+        <span className="stream__live" aria-hidden="true" />
+        <span className="stream__label">{label}</span>
+      </div>
+
+      <div className="stream__body" ref={ref} role="log" aria-live="polite">
+        {entries.length === 0 ? (
+          <p className="stream__empty">{empty}</p>
+        ) : (
+          // `activity` is newest-first everywhere else in the app; a terminal
+          // reads the other way, so it is reversed here rather than stored
+          // twice. `slice()` because `reverse()` mutates.
+          entries
+            .slice()
+            .reverse()
+            .map((entry, index) => (
+              <div
+                className={`streamline streamline--${entry.kind}`}
+                key={`${entry.ts.getTime()}-${index}`}
+              >
+                <span className="streamline__mark" aria-hidden="true">
+                  {STREAM_MARK[entry.kind] ?? '>'}
+                </span>
+                <span className="streamline__body">
+                  <span className="streamline__who">
+                    {entry.who}
+                    {entry.cost ? (
+                      <span className="streamline__cost">
+                        {entry.estimated ? '~' : ''}
+                        {NUM.format(entry.cost)} tokens
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="streamline__text">{entry.text}</span>
+                </span>
+              </div>
+            ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* What one agent has actually done, and what each task cost.
+ *
+ * This is the product's evidence rather than a log: a **refused** task records
+ * zero tokens, which is the clearest thing in the whole app that the ceiling is
+ * a control and not a gauge. Filtered to one desk here; the board-wide version
+ * rides on `state_snapshot` and feeds `SpendPanel`.
+ */
+const LEDGER_STATE = {
+  done: 'done',
+  refused: 'refused at the ceiling',
+  failed: 'failed',
+}
+
+export function LedgerPane({ rows }) {
+  if (!rows.length) {
+    return <p className="stream__empty">No tasks yet at this desk.</p>
+  }
+
+  return (
+    <div className="ledger">
+      {rows.map((row, index) => {
+        const status = row.status || 'done'
+        return (
+          <article
+            className={`ledrow ledrow--${status}`}
+            key={`${row.task_id ?? 'row'}-${index}`}
+          >
+            <span className="ledrow__top">
+              <span className="ledrow__who">{row.user_id}</span>
+              <span className="ledrow__state">{LEDGER_STATE[status] ?? status}</span>
+              <span className="ledrow__cost">
+                {row.estimated ? '~' : ''}
+                {NUM.format(row.tokens ?? 0)}
+              </span>
+            </span>
+
+            {row.prompt && <p className="ledrow__prompt">{row.prompt}</p>}
+
+            {row.handoff_from_name && (
+              <span className="ledrow__tag">
+                handed over by {row.handoff_from_name}
+              </span>
+            )}
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
 export function QuotaPanel({ tokensUsed, tokenBudget, pctUsed, exhausted, estimated }) {
   const pct = Math.max(0, Math.min(100, pctUsed ?? 0))
   const tone = toneFor(pct)
@@ -632,6 +907,21 @@ const HOT_DESKS = [
  * desk coordinate, so the seat is roughly a third of that stack below it. */
 const SEAT_DROP = 13
 
+/* How far to the side of a desk the person who asked for the work stands.
+ *
+ * This is the floor catching up with what the product now is. The chair
+ * belongs to the *agent* — it is their desk, they are the one working — so the
+ * human who requested the task stands beside it and watches, rather than
+ * sitting in it. Before hireable agents the two were the same thing and the
+ * holder took the seat; drawing both there now would stack two characters on
+ * one coordinate.
+ *
+ * 11 rather than something roomier: a room is 34% wide, so the desk's centre
+ * has 17% of clearance either side, and the name label under a pawn needs the
+ * rest of it.
+ */
+const VISITOR_DX = 11
+
 /* How long the envelope takes to cross the floor. Must match the `left`/`top`
  * transition on `.envelope` in styles.css, for the same reason WALK_MS must
  * match the pawn's — and it is deliberately slower than a walk, because the
@@ -710,6 +1000,7 @@ export function CanvasPanel({
   queue = [],
   onMove,
   handoff = null,
+  noteFor,
 }) {
   const rooms = roomsFrom(agents)
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
@@ -731,24 +1022,25 @@ export function CanvasPanel({
         }
       : null
 
-  /* Who is sitting where. A slot holder is drawn at that slot's desk rather
-   * than at their own coordinate — and crucially the coordinate itself is left
-   * alone, so releasing the slot walks them back to wherever they were
-   * standing. Writing the seat into their position instead would strand them
-   * at the desk afterwards, and would mean the room quietly editing state the
-   * server owns. */
+  /* Who is standing where. Whoever asked for the running task is drawn beside
+   * that agent's desk rather than at their own coordinate — and crucially the
+   * coordinate itself is left alone, so the task ending walks them back to
+   * wherever they were standing. Writing the spot into their position instead
+   * would strand them at the desk afterwards, and would mean the room quietly
+   * editing state the server owns. */
   const seatOf = new Map()
   rooms.forEach((room) => {
     const holder = room.busy ? room.agent?.current_user : null
     if (holder) seatOf.set(holder, room)
   })
 
-  /* Three places a person can be, in this order of precedence: at an agent's
-   * desk because they hold that slot, on a waiting spot because they are in
-   * the queue, or wherever they last walked to. The first two are the board
-   * showing scheduler state; only the third is the coordinate the server
-   * keeps. Somebody dispatched off the front of the queue moves from the
-   * second to the first, which is the walk the room exists to show. */
+  /* Three places a person can be, in this order of precedence: beside an
+   * agent's desk because that agent is running their task, on a waiting spot
+   * because they are in the queue, or wherever they last walked to. The first
+   * two are the board showing scheduler state; only the third is the
+   * coordinate the server keeps. Somebody dispatched off the front of the
+   * queue moves from the second to the first, which is the walk the room
+   * exists to show. */
   const placed = members.map((member, index) => {
     const desk = seatOf.get(member.user_id)
     const position = desk ? null : queuedBy.get(member.user_id)
@@ -760,7 +1052,7 @@ export function CanvasPanel({
       desk,
       waiting: Boolean(waiting),
       left: desk
-        ? desk.deskX
+        ? desk.deskX + VISITOR_DX
         : waiting
           ? waiting.x
           : Math.max(0, Math.min(100, Number(member.x) || 0)),
@@ -912,22 +1204,56 @@ export function CanvasPanel({
           </div>
         ))}
 
+        {/* The agents themselves, seated at their own desks with a bubble over
+            each saying what they are doing.
+
+            This is the half of the floor that makes the office an office. A lit
+            monitor already said "this desk is BUSY"; a character sitting at it
+            saying "working for alice" says *who* is doing it and for whom,
+            which is the thing a stranger watching a 3-minute video has to pick
+            up without narration. Drawn before the people so somebody walking up
+            to a desk passes in front of its occupant. */}
+        {rooms.map((room) => {
+          if (!room.agent) return null
+          const look = lookFor(room.agent.character, room.slot_id)
+          return (
+            <div
+              key={`agent-${room.slot_id}`}
+              className={`pawn pawn--agent pawn--seated ${room.busy ? 'pawn--busy' : ''}`}
+              style={{ left: `${room.deskX}%`, top: `${room.deskY + SEAT_DROP}%` }}
+            >
+              <span className="bubble">
+                {agentStatus(room.agent, noteFor?.(room.agent), true)}
+              </span>
+              <span
+                className="sprite"
+                style={{
+                  '--art': look.seat,
+                  '--art-step': look.step,
+                  '--sp-hair': look.hair,
+                }}
+                aria-hidden="true"
+              />
+            </div>
+          )
+        })}
+
         {placed.map(({ id, member, index, desk, waiting, left, top }) => {
           const mine = id === me
           const busy = busyUsers.has(id)
           const position = queuedBy.get(id)
           const isWalking = walking.has(id)
           const look = lookFor(member.avatar, id)
-          // Seated only once they have actually arrived. Tucking the legs away
-          // at the moment the slot is claimed would have them glide to the
-          // desk with nothing to walk on.
-          const seated = Boolean(desk) && !isWalking
+          // Standing, not seated — the chair belongs to the agent. A visitor
+          // keeps their legs, which is also what distinguishes them from the
+          // seated character at the same desk.
+          const visiting = Boolean(desk) && !isWalking
           return (
             <div
               key={id}
               className={
                 `pawn ${mine ? 'pawn--mine' : ''} ${busy ? 'pawn--busy' : ''} ` +
-                `${isWalking ? 'pawn--walking' : ''} ${seated ? 'pawn--seated' : ''} ` +
+                `${isWalking ? 'pawn--walking' : ''} ${visiting ? 'pawn--visiting' : ''} ` +
                 `${waiting && !isWalking ? 'pawn--waiting' : ''}`
               }
               style={{ left: `${left}%`, top: `${top}%` }}
@@ -938,7 +1264,7 @@ export function CanvasPanel({
               <span
                 className="sprite"
                 style={{
-                  '--art': seated ? look.seat : look.art,
+                  '--art': look.art,
                   '--art-step': look.step,
                   '--sp-hair': look.hair,
                 }}

@@ -4,22 +4,27 @@ import { useHive } from './useHive'
 import Landing from './landing'
 import { AVATARS } from './sprites'
 import {
-  ActivityPanel,
-  AgentPicker,
+  AgentFace,
+  AppBar,
   CanvasPanel,
+  LedgerPane,
   Mark,
-  QueuePanel,
   QuotaBar,
   MemberBar,
-  MemoryPanel,
+  RosterStrip,
   SpendPanel,
-  SlotsPanel,
-  StatusRail,
+  StreamPane,
   ToastStack,
+  agentStatus,
   formatEta,
 } from './components'
 
 const STORAGE_KEY = 'hiveos.identity'
+
+/* Shown in the app bar. Hand-set rather than read from package.json: the
+ * frontend is built by Amplify from a checkout, and a version that quietly
+ * tracked a dependency file would drift from what the recording says. */
+const VERSION = 'v1.0'
 
 // The Router truncates both of these server-side; matching the limits here
 // keeps what you typed and what arrives the same thing.
@@ -243,44 +248,178 @@ function hintFor({ connection, budgetExhausted, holding, queued, chosen }) {
   }
 }
 
-function RequestPanel({ hive }) {
-  const [prompt, setPrompt] = useState('')
-  // `null` is a real choice — "either agent" — so it is the initial value
-  // rather than an absent one. It is also what the server means by no
-  // preference, which keeps the two ends saying the same thing.
-  const [agentType, setAgentType] = useState(null)
+/* --- Inspector ------------------------------------------------------------
+ *
+ * One agent at a time, in depth: who they are, what they are doing, the stream
+ * of what they have done, and the box that gives them work.
+ *
+ * The reference this is modelled on puts a live PTY here, attached to a CLI
+ * running on the developer's own machine. HiveOS has no terminal to attach to
+ * and will not pretend it does — so the four tabs are bound to the four things
+ * this board genuinely knows: this agent's stream, this agent's ledger, the
+ * room's chat, and the facts the floor has saved. Every tab has real data on a
+ * cold load, because all four ride on `state_snapshot`.
+ */
 
-  const { connection, budgetExhausted, holding, queued, working, board } = hive
-  const chosen = board.agents.find((a) => a.slot_id === agentType) ?? null
-  const hint = hintFor({ connection, budgetExhausted, holding, queued, chosen })
+const TABS = [
+  { id: 'stream', label: 'Stream' },
+  { id: 'ledger', label: 'Ledger' },
+  { id: 'msgs', label: 'Msgs' },
+  { id: 'memory', label: 'Memory' },
+  { id: 'spend', label: 'Spend' },
+]
+
+function Inspector({ hive, agent, me, note }) {
+  const [tab, setTab] = useState('stream')
+  const [prompt, setPrompt] = useState('')
+
+  const { board, connection, budgetExhausted, holding, queued, working, activity } = hive
+
+  if (!agent) {
+    return (
+      <aside className="inspect">
+        <p className="empty">This floor has no agents yet.</p>
+      </aside>
+    )
+  }
+
+  const label = agent.name || agent.slot_id
+  const busy = agent.status === 'BUSY'
+  const mine = busy && agent.current_user === me
   const blocked = working || budgetExhausted || connection !== 'open'
+  const hint = hintFor({ connection, budgetExhausted, holding, queued, chosen: agent })
+
+  /* May this connection free this desk? The server decides it the same way —
+   * the holder, or an administrator when nobody else can (see the release
+   * guard merged in PR #1). The button only mirrors that rule; it does not
+   * enforce it, and un-disabling it in devtools buys an error frame. */
+  const canHalt = busy && (mine || board.is_admin)
+
+  // A handoff belongs to both desks, hence the second match: the crossing
+  // shows up in the sender's terminal and the receiver's.
+  const stream = activity.filter(
+    (entry) => entry.agent === agent.slot_id || entry.agentTo === agent.slot_id,
+  )
+  const ledger = board.history.filter((row) => row.agent_type === agent.slot_id)
+  const chat = activity.filter((entry) => entry.kind === 'chat')
 
   const submit = (event) => {
     event.preventDefault()
     const text = prompt.trim().slice(0, MAX_PROMPT)
     if (!text || blocked) return
     // Only clear the box if the frame actually went out — otherwise the user
-    // loses what they typed to a socket that was not open. The chosen agent
-    // deliberately survives the send: asking the same agent twice in a row is
-    // the common case.
-    if (hive.requestAgent(text, agentType)) setPrompt('')
+    // loses what they typed to a socket that was not open.
+    if (hive.requestAgent(text, agent.slot_id)) setPrompt('')
   }
 
   return (
-    <section className="panel panel--request" aria-labelledby="request-label">
-      <div className="panel__head">
-        <span className="panel__label" id="request-label">
-          Request an agent
+    <aside className="inspect" aria-label={`${label} — agent inspector`}>
+      <header className="inspect__head">
+        <AgentFace agent={agent} className="inspect__face" />
+        <span className="inspect__id">
+          <span className="inspect__name">{label}</span>
+          <span className="inspect__role">{agent.role || agent.slot_id}</span>
         </span>
+        <span className={`chip ${busy ? 'chip--busy' : 'chip--idle'}`}>
+          <span className="chip__dot" aria-hidden="true" />
+          {busy ? 'working' : 'idle'}
+        </span>
+      </header>
+
+      <div className="inspect__control">
+        <span className="inspect__ctrl">Control</span>
+        <button
+          type="button"
+          className="btn btn--danger btn--sm"
+          disabled={!canHalt}
+          onClick={() => hive.releaseAgent(agent.slot_id)}
+          title={
+            !busy
+              ? 'This desk is already free'
+              : canHalt
+                ? 'Free this desk now and dispatch the next waiting task'
+                : `${agent.current_user} holds this desk`
+          }
+        >
+          halt
+        </button>
+        {/* Only when there is something to say. The chip in the header already
+            reports idle, and repeating it here is the panel talking to itself. */}
+        {(busy || note) && (
+          <span className="inspect__doing">{agentStatus(agent, note)}</span>
+        )}
       </div>
 
-      <form className="request" onSubmit={submit}>
-        <AgentPicker
-          agents={board.agents}
-          value={agentType}
-          onChange={setAgentType}
-          disabled={blocked}
-        />
+      <div className="tabs" role="tablist" aria-label="Inspector view">
+        {TABS.map((entry) => (
+          <button
+            type="button"
+            key={entry.id}
+            role="tab"
+            aria-selected={tab === entry.id}
+            className={`tab ${tab === entry.id ? 'tab--on' : ''}`}
+            onClick={() => setTab(entry.id)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="inspect__pane">
+        {tab === 'stream' && (
+          <StreamPane
+            entries={stream}
+            label={`live · ${agent.slot_id}@${board.team}`}
+            empty={`Nothing yet. Give ${label} a task below.`}
+          />
+        )}
+
+        {tab === 'ledger' && <LedgerPane rows={ledger} />}
+
+        {tab === 'msgs' && (
+          <StreamPane
+            entries={chat}
+            label={`team chat · ${board.team}`}
+            empty="No messages yet."
+          />
+        )}
+
+        {tab === 'memory' && (
+          board.memory.length === 0 ? (
+            <p className="stream__empty">
+              Nothing saved yet. Ask an agent to remember something for the team.
+            </p>
+          ) : (
+            <div className="memory">
+              {board.memory.map((fact) => (
+                <span className="fact" key={fact.key}>
+                  <span className="fact__key">{fact.key}</span>
+                  <span className="fact__val"> — {fact.val}</span>
+                </span>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Board-level, not agent-level, and deliberately so: the meter says
+            the floor has spent 2,847 tokens and this says who spent them.
+            Everyone on the board can open it — a governance panel only the
+            owner could read would be the opposite of the product. */}
+        {tab === 'spend' && (
+          board.spend.length === 0 ? (
+            <p className="stream__empty">Nothing spent yet on this floor.</p>
+          ) : (
+            <SpendPanel
+              spend={board.spend}
+              members={board.members}
+              tokenBudget={board.token_budget}
+            />
+          )
+        )}
+      </div>
+
+      <form className="compose" onSubmit={submit}>
+        <span className="compose__label">Queue</span>
 
         <textarea
           className="field"
@@ -288,31 +427,20 @@ function RequestPanel({ hive }) {
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           maxLength={MAX_PROMPT}
-          placeholder="Summarise the incident report and list the follow-ups"
-          aria-label="Task for the agent"
+          placeholder={`Message ${label}`}
+          aria-label={`Task for ${label}`}
         />
 
-        <div className="request__actions">
-          <button className="btn" type="submit" disabled={blocked || !prompt.trim()}>
-            Request agent
-          </button>
-
-          {holding && (
-            <button
-              className="btn btn--ghost"
-              type="button"
-              onClick={() => hive.releaseAgent(holding.slot_id)}
-            >
-              Release {holding.name || holding.slot_id}
-            </button>
-          )}
-
-          <p className={`request__hint ${hint.alarm ? 'request__hint--alarm' : ''}`}>
+        <div className="compose__actions">
+          <p className={`compose__hint ${hint.alarm ? 'compose__hint--alarm' : ''}`}>
             {hint.text}
           </p>
+          <button className="btn" type="submit" disabled={blocked || !prompt.trim()}>
+            send →
+          </button>
         </div>
       </form>
-    </section>
+    </aside>
   )
 }
 
@@ -471,13 +599,41 @@ function Deleted() {
   )
 }
 
+/* How long a finished task keeps its afterglow over the desk that ran it. */
+const NOTE_MS = 6000
+
+/* Re-render once the newest note goes stale.
+ *
+ * Without this, `done · 549 tokens` sits over a desk for the rest of the
+ * session — the board claiming something just happened when it happened four
+ * minutes ago, which is the one failure this product cannot afford. One
+ * timeout, armed only while a note is actually fresh, rather than an interval
+ * running for the whole demo.
+ */
+function useNoteExpiry(activity) {
+  const [, tick] = useState(0)
+  const newest = activity[0]?.ts?.getTime() ?? 0
+
+  useEffect(() => {
+    if (!newest) return undefined
+    const left = NOTE_MS - (Date.now() - newest)
+    if (left <= 0) return undefined
+    const timer = setTimeout(() => tick((n) => n + 1), left)
+    return () => clearTimeout(timer)
+  }, [newest])
+}
+
 function Workspace({ identity }) {
   const hive = useHive(identity)
   const { board } = hive
 
-  // Terminal state, checked before anything else renders: there is no board
-  // left to draw and nothing to reconnect to.
-  if (hive.deleted) return <Deleted />
+  /* Which desk the inspector is bound to. Held as an id rather than an object
+   * so a re-synced snapshot — which replaces every agent object — does not
+   * leave the panel pointing at a stale copy. */
+  const [selected, setSelected] = useState(null)
+  const [showAdmin, setShowAdmin] = useState(false)
+
+  useNoteExpiry(hive.activity)
 
   // Who is mid-task, so the floor can mark them working. Derived from the slot
   // table rather than tracked separately — the slots are the authority on who
@@ -491,6 +647,36 @@ function Workspace({ identity }) {
       ),
     [board.agents],
   )
+
+  /* The afterglow line for one desk: what it just finished, for a few seconds.
+   * `agentStatus` gives live BUSY state precedence over this, so a fresh note
+   * can never sit over a desk that has already started something else. */
+  const noteFor = useCallback(
+    (agent) => {
+      const entry = hive.activity.find((item) => item.agent === agent.slot_id)
+      if (!entry || Date.now() - entry.ts.getTime() > NOTE_MS) return null
+      if (entry.kind === 'response') {
+        return entry.cost
+          ? `done · ${entry.estimated ? '~' : ''}${entry.cost} tokens`
+          : 'done'
+      }
+      if (entry.kind === 'handoff') return 'handed it on'
+      return null
+    },
+    [hive.activity],
+  )
+
+  /* Falling back to the first desk rather than to nothing, so the inspector is
+   * never blank: an agent dismissed while you were looking at it, or a cold
+   * load before any click, both land on a real desk. */
+  const agent =
+    board.agents.find((item) => item.slot_id === selected) ?? board.agents[0] ?? null
+
+  // Terminal state: there is no board left to draw and nothing to reconnect
+  // to. Checked *after* the hooks above, never before — an early return ahead
+  // of a `useMemo` changes the hook count between renders and React throws on
+  // the very frame this is meant to handle gracefully.
+  if (hive.deleted) return <Deleted />
 
   if (hive.configError) {
     return (
@@ -509,59 +695,83 @@ function Workspace({ identity }) {
   }
 
   return (
-    <div className="board">
-      <StatusRail
+    <div className="app">
+      <AppBar
         team={board.team}
         members={board.members}
-        connection={hive.connection}
-      />
-
-      <QuotaBar
-        tokensUsed={board.tokens_used}
-        tokenBudget={board.token_budget}
-        pctUsed={board.pct_used}
-        exhausted={hive.budgetExhausted}
-        estimated={hive.usageEstimated}
-      />
-
-      <CanvasPanel
-        members={board.members}
-        me={identity.userId}
-        busyUsers={busyUsers}
         agents={board.agents}
-        queue={board.queue}
-        onMove={hive.moveAvatar}
-        handoff={hive.handoff}
+        connection={hive.connection}
+        version={VERSION}
+        onSettings={board.is_admin ? () => setShowAdmin((open) => !open) : null}
       />
 
-      {/* No SlotsPanel and no QueuePanel here any more. Both said exactly what
-          the room now says — a lit monitor *is* the slot being BUSY, and a
-          "queued #1" label under a person *is* their queue position. Keeping
-          the cards would have been the same state rendered twice, and they
-          cost 266px of a viewport the floor needs. `SlotsPanel` and
-          `QueuePanel` are still exported; nothing else changed about them. */}
-      {board.memory.length > 0 && <MemoryPanel memory={board.memory} />}
+      {/* The floor, and the two readouts that belong to the room rather than
+          to any one desk: the quota above it and who is present below it. */}
+      <main className="app__floor">
+        <QuotaBar
+          tokensUsed={board.tokens_used}
+          tokenBudget={board.token_budget}
+          pctUsed={board.pct_used}
+          exhausted={hive.budgetExhausted}
+          estimated={hive.usageEstimated}
+        />
 
-      <SpendPanel
-        spend={board.spend}
-        members={board.members}
-        tokenBudget={board.token_budget}
-      />
+        <CanvasPanel
+          members={board.members}
+          me={identity.userId}
+          busyUsers={busyUsers}
+          agents={board.agents}
+          queue={board.queue}
+          onMove={hive.moveAvatar}
+          handoff={hive.handoff}
+          noteFor={noteFor}
+        />
 
-      <AdminPanel hive={hive} />
+        <div className="app__foot">
+          <span className="memchip">
+            <span aria-hidden="true">🧠</span> memory ·{' '}
+            {board.memory.length} {board.memory.length === 1 ? 'fact' : 'facts'}
+          </span>
 
-      <RequestPanel hive={hive} />
+          <MemberBar
+            members={board.members}
+            me={identity.userId}
+            busyUsers={busyUsers}
+            queue={board.queue}
+          />
 
-      <ActivityPanel activity={hive.activity}>
-        <ChatComposer hive={hive} />
-      </ActivityPanel>
+          <ChatComposer hive={hive} />
+        </div>
+      </main>
 
-      <MemberBar
-        members={board.members}
+      <Inspector
+        hive={hive}
+        agent={agent}
         me={identity.userId}
-        busyUsers={busyUsers}
-        queue={board.queue}
+        note={agent ? noteFor(agent) : null}
       />
+
+      <RosterStrip
+        agents={board.agents}
+        selected={agent?.slot_id ?? null}
+        onSelect={setSelected}
+        noteFor={noteFor}
+      />
+
+      {showAdmin && (
+        <div className="drawer" role="dialog" aria-label="Workspace settings">
+          <div className="drawer__panel">
+            <AdminPanel hive={hive} />
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setShowAdmin(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <ToastStack toasts={hive.toasts} />
     </div>

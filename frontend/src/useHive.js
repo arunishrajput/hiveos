@@ -263,6 +263,11 @@ function activityFor(frame) {
     case 'agent_response':
       return {
         kind: 'response',
+        // Which desk this line belongs to. The inspector shows one agent at a
+        // time, so every entry has to say whose stream it is — and it must be
+        // the desk that *ran* the task, not the one that was asked for, or a
+        // substituted task would appear in the wrong agent's terminal.
+        agent: frame.agent_type ?? null,
         // The agent that actually answered, by name. `requested_name` is set
         // only when somebody asked for a different one and it was busy —
         // saying so is the honest version of a fallback the scheduler has
@@ -286,6 +291,12 @@ function activityFor(frame) {
     case 'agent_handoff':
       return {
         kind: 'handoff',
+        // A handoff belongs to *both* desks: it is the last thing the sender
+        // did and the first thing the receiver is told about. The inspector
+        // matches on either, so the crossing shows up in both terminals rather
+        // than vanishing from one of them.
+        agent: frame.from_agent ?? null,
+        agentTo: frame.to_agent ?? null,
         who: `${frame.from_name ?? frame.from_agent ?? 'an agent'} → ${
           frame.to_name ?? frame.to_agent ?? 'another desk'
         }`,

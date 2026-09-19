@@ -3110,3 +3110,857 @@ a.btn {
     margin-left: 0;
   }
 }
+
+/* ==========================================================================
+   THE OFFICE SHELL
+   ==========================================================================
+
+   Three regions and a title bar, after Munder Difflin: the floor on the left,
+   one agent in depth on the right, and every desk on this floor along the
+   bottom. It replaces the single 760px column the board used to be.
+
+   The column was right while the product was "a team queues for two slots" —
+   a stack of readouts, floor included. It is wrong now that the product is a
+   floor you staff: the office has to be the biggest thing on screen, and the
+   agent you are talking to has to be beside it rather than under it.
+
+   Everything below is scoped under `.app`. `.board` and its wide-layout grid
+   are left exactly as they were — the landing page's canned preview renders
+   the real `CanvasPanel` and `QuotaBar`, and retuning shared rules underneath
+   it would break the front page to tidy the back one.
+   ========================================================================== */
+
+.app {
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'bar    bar'
+    'floor  inspect'
+    'roster roster';
+  background: var(--cream);
+}
+
+/* --- Title bar ------------------------------------------------------------ */
+
+.appbar {
+  grid-area: bar;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  height: 44px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--rule);
+}
+
+.appbar__mark {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.appbar__name {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.appbar__version,
+.appbar__stat {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A readout, not a switch — the scheduler has dispatched off the front of the
+ * queue by itself since Phase 2. Set in the dim ink rather than amber for the
+ * usual reason: amber is a fill and cannot carry a word. */
+.appbar__mode {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  padding-left: 10px;
+  border-left: 1px solid var(--rule);
+}
+
+.appbar__spacer {
+  flex: 1;
+}
+
+.appbar__team {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  background: var(--sand);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.appbar__gear {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--panel-raised);
+  color: var(--dim);
+  border-radius: var(--r-sm);
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.appbar__gear:hover {
+  border-color: var(--rule-strong);
+  color: var(--text);
+}
+
+.appbar__gear:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
+/* --- The floor region ----------------------------------------------------- */
+
+.app__floor {
+  grid-area: floor;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px 12px;
+  gap: 10px;
+  border-right: 1px solid var(--rule);
+}
+
+/* The room fills whatever is left after the quota strip and the foot. Its
+ * contents are all positioned in percentages, so it simply gets bigger — which
+ * is the entire reason the shell exists. */
+.app .panel--floor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+
+.app .floor {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The camera. The room is now several times the size it was in the column, so
+ * the characters and the furniture have to grow with it or 36px people stand
+ * in a 900px hall looking lost. Scoped to `.app` so the landing preview — which
+ * renders the same floor at postcard size — keeps its own scale. */
+.app .floor {
+  --px-n: 5;
+  --tile-size: 52px;
+  --furn: 1.5;
+}
+
+.app__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-width: 0;
+}
+
+.app__foot .memberbar {
+  position: static;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.app__foot .chat {
+  flex: none;
+  width: min(300px, 36%);
+}
+
+/* The memory badge, after the reference's own. Ambient: it says how much this
+ * floor remembers, and the Memory tab says what. A count is not a duplicate of
+ * the contents — it is the thing you can read without looking away from the
+ * room. */
+.memchip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  background: var(--sand);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+/* --- Speech bubbles ------------------------------------------------------- */
+
+/* What an agent is doing, over its own head.
+ *
+ * Absolutely positioned rather than laid out in the pawn's flex column: the
+ * pawn is centred on its coordinate with translate(-50%, -50%), so a bubble
+ * that took part in the column's height would push the character off its own
+ * chair by half the bubble.
+ */
+.bubble {
+  position: absolute;
+  bottom: calc(100% - 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  /* Above every pawn, not just its own.
+   *
+   * The person who asked for the task stands beside this desk and is drawn
+   * after the agent — without this, their sprite paints straight over the
+   * right-hand end of the bubble and it reads as truncated text. Found on the
+   * landing preview, where the room is small enough that the overlap covered
+   * four characters. */
+  z-index: 3;
+  /* Capped so a long display name degrades to an ellipsis instead of growing
+   * out through the room's wall. 18ch at 10px mono is ~108px, which fits the
+   * ~150px room the landing preview renders at — the narrowest this floor is
+   * ever drawn. */
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  padding: 3px 7px;
+  /* Two layers, and the tight one is the load-bearing half — the same finding
+   * the handoff envelope produced in Phase 16. A soft warm shadow alone reads
+   * as the room's own lighting; the 1px contact line is what lifts the paper
+   * off whatever it is over. */
+  box-shadow: 0 1px 0 var(--rule), 0 3px 8px var(--shadow);
+  pointer-events: none;
+}
+
+.pawn--agent.pawn--busy .bubble {
+  border-color: var(--screen-on);
+  color: var(--cool);
+}
+
+/* --- Inspector ------------------------------------------------------------ */
+
+.inspect {
+  grid-area: inspect;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--panel);
+  padding: 12px;
+  gap: 10px;
+}
+
+.inspect__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.agentface {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 36px;
+  height: 40px;
+  image-rendering: pixelated;
+  /* The art is baked at 4px per cell; this is the portrait scale. */
+  --px-n: 4;
+}
+
+.agentface::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  box-shadow: var(--art);
+}
+
+.inspect__face {
+  width: 36px;
+  height: 40px;
+}
+
+.inspect__id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.inspect__name {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspect__role {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Status chip — shared by the inspector header and the roster cards, so the
+ * two can never report a desk differently. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  background: var(--panel-raised);
+  color: var(--dim);
+}
+
+.chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--faint);
+}
+
+.chip--busy {
+  color: var(--cool);
+  border-color: var(--screen-on);
+}
+
+.chip--busy .chip__dot {
+  background: var(--screen-on);
+}
+
+.inspect__control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-width: 0;
+}
+
+.inspect__ctrl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.inspect__doing {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.btn--sm {
+  padding: 5px 11px;
+  font-size: 11px;
+}
+
+/* --- Tabs ----------------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: 6px 9px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab--on {
+  color: var(--text);
+  background: var(--sand);
+  border-color: var(--rule);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: -2px;
+}
+
+.inspect__pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* --- Stream --------------------------------------------------------------- */
+
+.stream {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.stream__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding-bottom: 6px;
+}
+
+.stream__live {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--safe);
+}
+
+.stream__label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stream__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+}
+
+.stream__empty {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  padding: 10px 2px;
+}
+
+.streamline {
+  display: flex;
+  gap: 7px;
+  font-size: 12px;
+}
+
+.streamline__mark {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--faint);
+  flex: none;
+  line-height: 1.6;
+}
+
+.streamline__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.streamline__who {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.streamline__cost {
+  color: var(--cool);
+  font-variant-numeric: tabular-nums;
+}
+
+.streamline__text {
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.streamline--response .streamline__mark { color: var(--safe); }
+.streamline--handoff .streamline__mark { color: var(--cool); }
+.streamline--memory .streamline__mark { color: var(--honey); }
+.streamline--error .streamline__mark { color: var(--alarm); }
+.streamline--error .streamline__text { color: var(--alarm); }
+
+/* --- Ledger --------------------------------------------------------------- */
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ledrow {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  background: var(--cream);
+}
+
+/* A refused task is the clearest evidence in the app that the ceiling is a
+ * control rather than a gauge: it records zero tokens. Marked in the alarm
+ * hue because that is exactly what it is reporting. */
+.ledrow--refused { border-left-color: var(--alarm); }
+.ledrow--failed { border-left-color: var(--honey); }
+.ledrow--done { border-left-color: var(--safe); }
+
+.ledrow__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ledrow__who { color: var(--text); }
+.ledrow__state { color: var(--faint); flex: 1; }
+
+.ledrow__cost {
+  color: var(--cool);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledrow__prompt {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+
+.ledrow__tag {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cool);
+}
+
+/* --- Compose -------------------------------------------------------------- */
+
+.compose {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+}
+
+.compose__label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.compose__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compose__hint {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.compose__hint--alarm {
+  color: var(--alarm);
+}
+
+/* --- Roster strip --------------------------------------------------------- */
+
+.roster {
+  grid-area: roster;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+
+.roster__cards {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.agentcard {
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+  flex: none;
+  width: 210px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 9px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 9px 11px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+}
+
+.agentcard:hover {
+  border-color: var(--rule-strong);
+}
+
+.agentcard--on {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.agentcard:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
+.agentcard__face {
+  grid-row: 1 / 4;
+  width: 32px;
+  height: 36px;
+}
+
+.agentcard__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.agentcard__name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentcard__sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Indeterminate on purpose. The server knows a task is running; it does not
+ * know how far through it is, and a bar that implied otherwise would be the
+ * board inventing a number. Empty while idle, animated while busy. */
+.agentcard__track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--tick);
+  overflow: hidden;
+}
+
+.agentcard__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--screen-on);
+}
+
+.agentcard--busy .agentcard__fill {
+  width: 40%;
+}
+
+.roster__add {
+  appearance: none;
+  cursor: pointer;
+  flex: none;
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  background: var(--sand);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+
+.roster__add:hover {
+  background: var(--amber);
+  border-style: solid;
+  border-color: var(--amber-deep);
+  color: var(--on-amber);
+}
+
+.roster__add:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
+/* --- Settings drawer ------------------------------------------------------ */
+
+.drawer {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 19, 32, 0.32);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 54px 12px 12px;
+  z-index: 40;
+}
+
+.drawer__panel {
+  width: min(380px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 12px;
+  box-shadow: 0 10px 40px var(--shadow);
+}
+
+/* --- Wide ----------------------------------------------------------------- */
+
+@media (min-width: 1500px) {
+  .app .floor {
+    --px-n: 6;
+    --tile-size: 62px;
+    --furn: 1.9;
+  }
+}
+
+/* --- Narrow --------------------------------------------------------------- */
+
+/* Below the shell's natural width the three regions stack and the page scrolls
+ * normally. The demo is recorded wide now, so this is the graceful case rather
+ * than the primary one — but a public URL is opened on phones, and a shell
+ * that overflowed horizontally there would be a real defect rather than a
+ * cosmetic one. */
+@media (max-width: 899px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      'bar'
+      'floor'
+      'inspect'
+      'roster';
+  }
+
+  .app__floor {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* No column left to fill, so the room goes back to a measured height. */
+  .app .floor {
+    height: 260px;
+    flex: none;
+    --px-n: 4;
+    --tile-size: 44px;
+    --furn: 1.1;
+  }
+
+  .inspect__pane {
+    min-height: 240px;
+  }
+
+  .app__foot {
+    flex-wrap: wrap;
+  }
+
+  .app__foot .chat {
+    width: 100%;
+  }
+
+  .appbar__mode,
+  .appbar__version {
+    display: none;
+  }
+}
