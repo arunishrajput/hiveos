@@ -193,7 +193,7 @@ def enqueue(team, user_id, agent_type, prompt, connection_id, task_id=None,
             "agent_type": agent_type,
             "prompt": prompt,
             "connection_id": connection_id,
-            "task_id": task_id,
+            "task_id": task_id or sk,
             "pinned_slot": pinned_slot,
             "hops": int(hops),
             "handoff_from": handoff_from,
@@ -389,17 +389,29 @@ def dispatch_next(team):
     # Same ordering rule as claim_agent: the BUSY frame must reach clients
     # before the task that could complete and release the slot.
     broadcast_slot(team, claimed, "BUSY", task["user_id"])
-    dispatch(
-        team,
-        claimed,
-        task["user_id"],
-        task.get("agent_type"),
-        task.get("prompt", ""),
-        task.get("connection_id"),
-        task_id=task.get("task_id"),
-        hops=int(task.get("hops", 0) or 0),
-        handoff_from=task.get("handoff_from"),
-    )
+    try:
+        dispatch(
+            team,
+            claimed,
+            task["user_id"],
+            task.get("agent_type"),
+            task.get("prompt", ""),
+            task.get("connection_id"),
+            task_id=task.get("task_id"),
+            hops=int(task.get("hops", 0) or 0),
+            handoff_from=task.get("handoff_from"),
+        )
+    except Exception as exc:
+        print(
+            f"[scheduler] SQS dispatch failed for "
+            f"{task.get('task_id')!r}: {exc!r} -- requeueing and releasing slot"
+        )
+        requeue(team, task)
+        broadcast_queue(team)
+        set_idle(team, claimed, expected_holder=task["user_id"])
+        broadcast_slot(team, claimed, "IDLE", None)
+        return None
+
     broadcast_queue(team)
     return claimed
 
