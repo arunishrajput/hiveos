@@ -393,6 +393,62 @@ separate work and it is Post-Hackathon.
 
 ---
 
+**PR #3 — 2026-09-19 — dispatch recovers when the send to SQS fails
+(Phantom9869 / Kamal Choubey)**
+
+Second outside contribution, same author, and a real hole on the other
+half of the scheduler. `take_next_task` deletes the `QUEUE#` row first
+— that delete *is* the exactly-once gate, so it cannot come second —
+and `dispatch` then hands the task to SQS. Between those two the task
+exists nowhere but in memory and the desk is already claimed and
+already announced `BUSY`. A failed send lost both: no DLQ message to
+redrive (nothing ever reached the queue), and a desk sitting `BUSY`
+with nothing in it until someone freed it by hand. `dispatch` is now
+wrapped; the desk is released, the row restored at its original SK,
+and the `BUSY` frame corrected.
+
+**What review changed, and why:**
+
+- **The `task_id` half was dropped.** The PR also changed `enqueue` to
+  store `task_id or sk`, on the stated grounds that "`enqueue()` stored
+  `task_id` as `None` for ordinary tasks". It does not —
+  `router/app.py` mints one with `new_task_id()` before it ever calls
+  `enqueue`, and `hand_off` carries the parent's through. The branch
+  was unreachable, it fixed nothing about the dispatch failure (nothing
+  dedupes or recovers on `task_id`), and where it *did* fire it would
+  have written a `QUEUE#<ts>#<uuid>` string into the ledger column that
+  otherwise holds 12-hex chain ids — two id formats in the one column
+  the ledger joins a handoff's two rows on.
+- **The `IDLE` broadcast is now conditional on the release.** The PR
+  ignored `set_idle`'s return value and announced `IDLE` regardless.
+  That is the exact defect PR #1 was merged to close, reintroduced two
+  functions away: an `IDLE` frame must only ever follow a write that
+  actually happened.
+- **The desk is freed before the requeue, not after.** If the requeue
+  also fails, one person has lost one task; a desk left `BUSY` with
+  nothing running in it deadlocks the floor for everyone. Ordering the
+  two writes by which failure is worse costs nothing.
+
+**The reason this is worth more than the PR claimed.** `dispatch_next`
+runs inside the Agent Runner's `finally`, and `lambda_handler` lets
+exceptions propagate on purpose. So a failed send did not merely strand
+a desk — it failed the invocation of a task that had **already
+completed and already charged the team**, SQS redelivered it, and the
+model ran a second time. A real second charge against the ceiling the
+whole product is built around. The release half of that `finally` is
+still deliberately unwrapped, for the opposite reason recorded there: a
+leaked desk *is* worth a redelivery. A failed dispatch is not, because
+this path frees the desk itself.
+
+**Tests.** `tests/test_scheduler_dispatch_atomicity.py`, 8 tests, same
+`unittest.mock`-only arrangement as PR #1. Rewritten from the PR's six,
+which asserted by substring (`SLOT_ID in str(call)`) rather than on
+arguments, and one of which only covered the dropped `task_id` change.
+Verified by mutation: against the pre-fix `scheduler.py` the six
+recovery tests fail and the two success-path tests pass. Suite is 22.
+
+---
+
 **Phase 16 — 2026-09-19 — agent-to-agent handoff**
 
 An agent can now pass work to another desk. Ada decides a fact-finding

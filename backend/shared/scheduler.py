@@ -215,7 +215,7 @@ def enqueue(team, user_id, agent_type, prompt, connection_id, task_id=None,
             "agent_type": agent_type,
             "prompt": prompt,
             "connection_id": connection_id,
-            "task_id": task_id or sk,
+            "task_id": task_id,
             "pinned_slot": pinned_slot,
             "hops": int(hops),
             "handoff_from": handoff_from,
@@ -380,6 +380,13 @@ def dispatch_next(team):
     desk it is pinned to freed in the window between the failed claim and the
     row existing. Both paths must make the same decision, so there is one
     function that makes it.
+
+    Returns the desk the task was started on, or None — which now covers three
+    cases rather than two: nothing was waiting, no desk could be claimed, or the
+    send to SQS failed and the task was put back. In the third the desk is freed
+    and the queue row restored at its original position before returning, so a
+    caller that sees None is always looking at a floor with nothing stranded on
+    it.
     """
     idle = state.idle_slots(team)
     if not idle:
@@ -424,14 +431,33 @@ def dispatch_next(team):
             handoff_from=task.get("handoff_from"),
         )
     except Exception as exc:
+        # The QUEUE# row is already deleted and the desk is already BUSY, so a
+        # failed send loses the task *and* strands the desk. Nothing downstream
+        # can repair either: the DLQ never saw a message, and the desk stays
+        # occupied with nothing in it until somebody frees it by hand.
+        #
+        # This is also the one exception here that must not reach the caller.
+        # `dispatch_next` runs in the Agent Runner's `finally`, so raising out
+        # of it fails the invocation of a task that has already run and already
+        # charged the team — SQS redelivers it and the model is called a second
+        # time. The release half is deliberately left unwrapped for the opposite
+        # reason (a leaked desk *is* worth a redelivery); a failed dispatch is
+        # not, because the desk is freed right here.
         print(
-            f"[scheduler] SQS dispatch failed for "
-            f"{task.get('task_id')!r}: {exc!r} -- requeueing and releasing slot"
+            f"[scheduler] SQS dispatch failed for {task['SK']}: {exc!r} "
+            f"— releasing {claimed} and requeueing"
         )
+        # The desk first. If the requeue then fails too, one person has lost one
+        # task; a desk left BUSY with nothing running in it deadlocks the whole
+        # floor, which is much the worse half of this failure.
+        freed = set_idle(team, claimed, expected_holder=task["user_id"])
         requeue(team, task)
+        if freed:
+            # Same rule as `release_and_dispatch`: an IDLE frame only ever
+            # follows a write that actually happened, never one that was
+            # refused. The board does not get to lie about the scheduler.
+            broadcast_slot(team, claimed, "IDLE", None)
         broadcast_queue(team)
-        set_idle(team, claimed, expected_holder=task["user_id"])
-        broadcast_slot(team, claimed, "IDLE", None)
         return None
 
     broadcast_queue(team)
