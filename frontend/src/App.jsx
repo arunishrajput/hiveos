@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useHive } from './useHive'
 import Landing from './landing'
+import AddAgentModal from './addagent'
 import { AVATARS } from './sprites'
 import {
   AgentFace,
@@ -25,6 +26,11 @@ const STORAGE_KEY = 'hiveos.identity'
  * frontend is built by Amplify from a checkout, and a version that quietly
  * tracked a dependency file would drift from what the recording says. */
 const VERSION = 'v1.0'
+
+/* Mirrors `agents.MAX_AGENTS` server-side. Used only to disable the hire
+ * button and say why — the refusal itself is the server's, and an error frame
+ * is what a client that ignored this would get. */
+const MAX_AGENTS = 4
 
 // The Router truncates both of these server-side; matching the limits here
 // keeps what you typed and what arrives the same thing.
@@ -343,6 +349,26 @@ function Inspector({ hive, agent, me, note }) {
         >
           halt
         </button>
+
+        {/* Dismissing is refused server-side while a desk is working, and for
+            the last desk on a floor. Disabled here for the same two cases, so
+            the button says what the server would rather than offering an
+            action that comes back as an error frame. */}
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={busy || board.agents.length <= 1}
+          onClick={() => hive.dismissAgent(agent.slot_id)}
+          title={
+            busy
+              ? 'Halt this desk before dismissing it'
+              : board.agents.length <= 1
+                ? 'A floor needs at least one agent'
+                : `Take ${label} off the floor`
+          }
+        >
+          dismiss
+        </button>
         {/* Only when there is something to say. The chip in the header already
             reports idle, and repeating it here is the panel talking to itself. */}
         {(busy || note) && (
@@ -632,6 +658,7 @@ function Workspace({ identity }) {
    * leave the panel pointing at a stale copy. */
   const [selected, setSelected] = useState(null)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [hiring, setHiring] = useState(false)
 
   useNoteExpiry(hive.activity)
 
@@ -756,7 +783,16 @@ function Workspace({ identity }) {
         selected={agent?.slot_id ?? null}
         onSelect={setSelected}
         noteFor={noteFor}
+        onAdd={() => setHiring(true)}
       />
+
+      {hiring && (
+        <AddAgentModal
+          full={board.agents.length >= MAX_AGENTS}
+          onSpawn={hive.spawnAgent}
+          onClose={() => setHiring(false)}
+        />
+      )}
 
       {showAdmin && (
         <div className="drawer" role="dialog" aria-label="Workspace settings">

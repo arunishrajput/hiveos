@@ -1422,9 +1422,22 @@ body {
  * its old spot at (88, 22) is inside Iris's room now, and a water cooler in
  * somebody's office is a different claim than one in the corridor. Next to the
  * people who are waiting is also simply where a cooler goes. */
+/* Moved off the right margin, which is now somebody's desk.
+ *
+ * It sat at 90%/68% since Phase 15, when the lower-right corner was empty
+ * floor. The second open desk goes there, and at 91%/78% its nameplate landed
+ * straight through the bottle. The cooler is decor and the desk reports
+ * scheduler state, so the decor moves.
+ *
+ * Into the corridor, high up — which is where a cooler belongs anyway, and the
+ * one part of this floor nothing static occupies. People and the handoff
+ * envelope both cross it, and both are drawn after the fixtures, so they pass
+ * in front of it rather than through it. A moment of overlap while somebody
+ * walks past a water cooler is what walking past a water cooler looks like;
+ * a nameplate permanently through a bottle is not. */
 .fixture--cooler {
-  left: 90%;
-  top: 68%;
+  left: 50%;
+  top: 28%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3400,6 +3413,14 @@ a.btn {
   width: 4px;
   height: 4px;
   box-shadow: var(--art);
+  /* The same trick `.sprite::before` uses, and it has to be repeated because
+   * that rule is scoped to `.sprite`. The art is baked at 4px per cell
+   * (sprites.js SCALE), so scaling the single real pixel scales every shadow
+   * offset with it. Without this, `--px-n` on a portrait is inert — which it
+   * silently was: the character picker set 6 and kept rendering at 4. */
+  transform: scale(calc(var(--px-n) / 4));
+  transform-origin: 0 0;
+  filter: drop-shadow(0 0 1px rgba(26, 19, 32, 0.8));
 }
 
 .inspect__face {
@@ -3962,5 +3983,298 @@ a.btn {
   .appbar__mode,
   .appbar__version {
     display: none;
+  }
+}
+
+/* --- Open-plan desks ------------------------------------------------------
+
+   Agents three to six. The same desk as the ones in the project rooms — same
+   nameplate, same monitor that lights while the slot is BUSY — without walls.
+   An office does not give every hire a private office, and six walled rooms in
+   a floor this short would read as a spreadsheet rather than a plan.
+
+   Positioned by the desk's own centre rather than by a room's corner, because
+   there is no room to be local to. `.desk` inside is otherwise untouched, which
+   is the point: a desk is a desk wherever it stands. */
+
+/* Scaled down, and that is geometry rather than taste.
+ *
+ * The lower band of the floor is 38% tall (62-100) with the waiting-area rug
+ * across the middle of it, and a full-size desk stack — nameplate, role,
+ * monitor, surface, chair, plus the character seated below — is about 26% of
+ * the floor. Two rows of those do not fit in 38, and the first attempt put a
+ * hired agent's nameplate through the bottom wall of Ada's room.
+ *
+ * 0.72 brings the stack to ~19%, which fits two rows at y=72 and y=90 with the
+ * top of the first clear of the rooms. It reads correctly too: an open-plan
+ * desk *should* be a smaller thing than a private office. Move this and
+ * OPEN_DESKS moves with it. */
+.opendesk {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(0.72);
+  pointer-events: none;
+}
+
+.opendesk .desk {
+  position: static;
+  transform: none;
+  left: auto;
+  top: auto;
+}
+
+/* --- Hiring --------------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 19, 32, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.hire {
+  width: min(760px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-lg);
+  box-shadow: 0 18px 60px var(--shadow);
+  overflow: hidden;
+}
+
+.hire__head {
+  padding: 14px 18px;
+  background: var(--sand);
+  border-bottom: 1px solid var(--rule);
+}
+
+.hire__title {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hire__body {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The four steps. Navigation, not a wizard — every field stays editable from
+   every step and nothing is sent until `spawn`, so jumping back to Identity
+   after writing a briefing costs nothing. */
+.hire__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.railstep {
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 9px;
+  padding: 9px 11px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+}
+
+.railstep:hover {
+  border-color: var(--rule-strong);
+}
+
+.railstep--on {
+  background: var(--sand);
+  border-color: var(--ink);
+}
+
+.railstep:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
+.railstep__n {
+  grid-row: 1 / 3;
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.railstep__title {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.railstep__sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+}
+
+.hire__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hire__legend {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+.hire__hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.hire__readout {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+
+/* The character grid. Faces only — you type the name yourself, so labelling
+   them would be naming the same agent twice. */
+.faces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.face {
+  appearance: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 66px;
+  height: 74px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+}
+
+/* Bigger than anywhere else the art appears, and that is the point.
+ *
+ * At the portrait scale of 4px per cell these are eight near-identical shapes
+ * separated only by a thin band of hair colour — the three silhouettes the art
+ * actually has (long, cropped, topknot) do not read at all. You are picking a
+ * character here rather than recognising one you already know, so the picker
+ * is the one place the sprite has to be legible on its own. */
+.face .agentface {
+  --px-n: 6;
+  width: calc(9 * var(--px-n) * 1px);
+  height: calc(10 * var(--px-n) * 1px);
+}
+
+.face:hover {
+  border-color: var(--rule-strong);
+}
+
+.face--on {
+  background: var(--sand);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.face:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
+.hire__presets {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 12px;
+  flex-wrap: wrap;
+}
+
+.hire__presetrow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hire__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: var(--cream);
+  border-top: 1px solid var(--rule);
+}
+
+.hire__spacer {
+  flex: 1;
+}
+
+.hire__full {
+  margin: 0;
+  font-size: 12px;
+  color: var(--alarm);
+}
+
+/* The commit button. Ink rather than amber, because it is the one control in
+   this dialog that changes the floor — and on a board where amber is every
+   ordinary button, the irreversible one should not look like them. */
+.btn--ink {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
+}
+
+.btn--ink:hover:not(:disabled) {
+  background: #2b2233;
+  border-color: #2b2233;
+}
+
+/* --- Hire events in a stream ---------------------------------------------- */
+
+.streamline--hire .streamline__mark { color: var(--honey); }
+
+@media (max-width: 899px) {
+  .hire__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Four steps across the top instead of down the side. */
+  .hire__rail {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .railstep {
+    flex: none;
   }
 }

@@ -32,10 +32,19 @@ import secrets
 # How many desks one workspace may hold.
 #
 # A floor limit, not a cost limit — the ceiling is what governs spend, and it
-# is per workspace no matter how many agents share it. This is the room: six
-# desks is what the plan in `components.jsx` has places for, and a seventh
-# agent would be hired into a floor with nowhere to sit.
-MAX_AGENTS = 6
+# is per workspace no matter how many agents share it.
+#
+# **Four, because that is how many places the floor plan actually has**: two
+# project rooms and two open desks, one either side of the waiting area. The
+# number was measured rather than picked (see `OPEN_DESKS` in
+# `components.jsx`) — a second row of open desks puts one agent's character on
+# the next one's nameplate and the last one off the bottom of the floor.
+#
+# Capping at the room rather than above it is the point. A higher limit would
+# let someone hire an agent the roster strip lists and the floor cannot show,
+# and a board whose whole claim is that it shows real state cannot have a desk
+# that exists but is not drawn.
+MAX_AGENTS = 4
 
 # What a hired agent may carry. Truncated server-side, like `user_id` already
 # is — a client that sends more gets a shorter agent, not an error.
