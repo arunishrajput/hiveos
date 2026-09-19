@@ -21,6 +21,8 @@ on the first frame after the socket opens.
 import json
 import traceback
 
+from botocore.exceptions import ClientError
+
 from shared import broadcast, scheduler, state
 
 OK = {"statusCode": 200}
@@ -280,12 +282,42 @@ def _claim_agent(team, connection_id, body):
 
 def _release_agent(team, connection_id, body):
     """Manual release. The Agent Runner also releases automatically when a
-    task ends — this exists so a wedged demo slot can be freed from the UI."""
+    task ends — this exists so a wedged demo slot can be freed from the UI.
+
+    Requires that the requesting user currently holds the slot. Any other
+    caller receives an error; the slot is not modified.
+    """
     agent_type = body.get("agent_type")
     if agent_type not in scheduler.SLOTS:
         return _error(connection_id, f"unknown agent_type: {agent_type!r}")
 
-    scheduler.release_and_dispatch(team, agent_type)
+    # Resolve who is asking.
+    conn = state.table().get_item(
+        Key={"PK": state.team_pk(team), "SK": f"CONN#{connection_id}"}
+    ).get("Item", {})
+    requesting_user = conn.get("user_id")
+
+    # Resolve who currently holds the slot.
+    slot = state.table().get_item(
+        Key={"PK": state.team_pk(team), "SK": f"AGENT#{agent_type}"}
+    ).get("Item", {})
+    current_holder = slot.get("current_user")
+
+    if not requesting_user or requesting_user != current_holder:
+        return _error(connection_id, "you do not hold this slot")
+
+    try:
+        scheduler.release_and_dispatch(
+            team,
+            agent_type,
+            expected_holder=requesting_user,
+        )
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") == (
+            "ConditionalCheckFailedException"
+        ):
+            return _error(connection_id, "slot changed before it could be released")
+        raise
     return OK
 
 

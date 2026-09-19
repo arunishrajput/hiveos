@@ -13,6 +13,9 @@ Ordering rules that matter (ARCHITECTURE.md decision 1):
   - SQS carries tasks that are RUNNING. Waiting tasks live in DynamoDB.
   - The QUEUE# delete is the exactly-once gate. Whoever wins the delete owns
     the task, so two runners finishing together cannot dispatch it twice.
+  - A release names the holder it expects. Claiming and releasing are both
+    conditional writes, so a slot can only ever be freed by the task that is
+    actually sitting in it.
 
 An agent may also hand its work to another desk (`hand_off`). That is a
 scheduling request like any other — it claims or queues, it is bounded by
@@ -78,8 +81,8 @@ def _is_conditional_failure(error):
 def try_claim(team, slot_id, user_id):
     """Atomically take one slot. False means somebody else already had it.
 
-    The ConditionExpression is the whole point: this is the only correct way
-    to claim, and a read-then-write here would hand both users the same slot
+    The ConditionExpression is the whole point: this is the only correct way to
+    claim, and a read-then-write here would hand both users the same slot
     under exactly the load the demo creates.
     """
     try:
@@ -118,12 +121,20 @@ def claim_any(team, preferred, user_id):
     return None
 
 
-def set_idle(team, slot_id):
+def set_idle(team, slot_id, expected_holder):
     state.table().update_item(
         Key={"PK": state.team_pk(team), "SK": f"AGENT#{slot_id}"},
         UpdateExpression="SET #s = :idle, #u = :null REMOVE claimed_at",
-        ExpressionAttributeNames={"#s": "status", "#u": "current_user"},
-        ExpressionAttributeValues={":idle": "IDLE", ":null": None},
+        ConditionExpression="#u = :expected_holder",
+        ExpressionAttributeNames={
+            "#s": "status",
+            "#u": "current_user",
+        },
+        ExpressionAttributeValues={
+            ":idle": "IDLE",
+            ":null": None,
+            ":expected_holder": expected_holder,
+        },
     )
     print(f"[scheduler] released slot={slot_id}")
 
@@ -299,13 +310,13 @@ def broadcast_queue(team):
 # --- The release path ------------------------------------------------------
 
 
-def release_and_dispatch(team, slot_id):
+def release_and_dispatch(team, slot_id, expected_holder):
     """Free a slot, then start the next waiting task. Returns the slot used.
 
     This runs in the Agent Runner's finally block, so it must work even when
     the task it follows blew up. A slot that leaks here deadlocks the demo.
     """
-    set_idle(team, slot_id)
+    set_idle(team, slot_id, expected_holder)
     broadcast_slot(team, slot_id, "IDLE", None)
     return dispatch_next(team)
 
