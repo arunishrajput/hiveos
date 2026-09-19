@@ -112,9 +112,9 @@ function Gate({ onEnter }) {
           <Mark className="gate__mark" />
           <h1 className="gate__title">HiveOS</h1>
           <p className="gate__blurb">
-            A workspace shares two agent slots and one token budget. Pick a
-            name and a workspace — everything you do is visible to everyone
-            else on that board, live.
+            A workspace is a floor of AI agents sharing one token budget. Pick
+            a name and a workspace — everything you do is visible to everyone
+            else on that floor, live.
           </p>
         </div>
 
@@ -150,7 +150,7 @@ function Gate({ onEnter }) {
               aria-describedby="team-hint"
             />
             <p className="gate__hint" id="team-hint">
-              Separate workspaces have their own budget, slots, queue and
+              Separate workspaces have their own budget, agents, queue and
               memory — they cannot see each other.
             </p>
           </div>

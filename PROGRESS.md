@@ -78,6 +78,65 @@ a fresh session reads first.
 
 ## Completed
 
+**Documentation pass — 2026-09-19 — the judge-facing files catch up with the office**
+
+The Phase 17 doc commit (`aaced4e`) updated `CLAUDE.md`, `CONTRACT.md`, `DEMO.md` and `PRD.md`
+and **skipped the two files a judge actually opens**: `README.md` and `SUBMISSION.md` both still
+led with *"The OS scheduler for your team's shared AI budget"*, described "two named agents" as
+a fixed roster, and never mentioned hiring. `ARCHITECTURE.md` had not been touched since
+2026-09-18 and so recorded neither Phase 16 nor Phase 17.
+
+**What was wrong, and is now corrected:**
+
+- **`README.md`** — rewritten around the office. Its screenshot, `docs/hud.png`, was the
+  single-column pre-pivot HUD showing "AGENT SLOTS", `coder`/`researcher` and the line *"the
+  agent is stubbed"*, which has been false since Phase 3 closed. Replaced with three captures
+  of the deployed build: `docs/office.png`, `docs/working.png`, `docs/hire.png`. Stale counts
+  fixed (`94/98` → `108/112`, `12/12` → `15/15`, "79 checks" removed); repo layout updated for
+  `addagent.jsx`, `landing.jsx`, `sprites.js` and `tests/`.
+- **`SUBMISSION.md`** — pitch, feature list and three stale numbers (`85/85`, `12/12`,
+  "49 checks"). Its "What I learned" section was accurate and was left alone.
+- **`ARCHITECTURE.md`** — decisions **11** (the roster is per-workspace data, `MAX_AGENTS`,
+  no migration, hiring open to any member, the engine step as a readout) and **12** (handoff
+  bounded to one hop, guarded by tool availability) added. Data-flow diagrams for hiring and
+  handoff added. Decision 8 had said *"the HUD is the product; the canvas is the wrapper"* —
+  the pivot inverted exactly that, so it now records the inversion **and** why a game engine is
+  still rejected even though the floor became load-bearing.
+- **`BUILD_PLAN.md`** — Phase 17 was missing entirely; the plan stopped at Phase 16.
+- **`DEPLOYMENT.md`** — **two different sections were both numbered `MANUAL ACTION 2b`**, and a
+  cross-reference pointed at the ambiguous pair. The key-provisioning one is now `2c`. One
+  remaining `python scripts/…` fixed to `python3`.
+
+**Two things found by running rather than reading:**
+
+1. **The unit tests do not run on this machine.** `PROGRESS.md` claims 14/14, and that is true —
+   but only with `boto3` installed, and system Python 3.14 here has no `botocore`, so collection
+   fails before a single test executes. Verified in a throwaway venv: **14 passed**. The claim
+   was right and the instructions were incomplete; `README.md` and `SUBMISSION.md` now give the
+   venv line. **Anything asserting "the tests pass" must say what they need to pass.**
+2. **The entry gate still described the old product.** `App.jsx` told every arriving visitor
+   *"A workspace shares two agent slots and one token budget"* — the pre-pivot sentence, on the
+   first screen of the deployed app, contradicting the floor behind it. Also *"their own budget,
+   slots, queue and memory"*. Both corrected, rebuilt, deployed as Amplify **job 26**, and
+   verified live by reading the strings back out of the deployed DOM. Product copy is
+   documentation that ships; the doc sweep did not look at it, and it was the most-read sentence
+   of all of them.
+
+**Verified:** `vite build` clean · Amplify job 26 `SUCCEED` · both gate strings read back from
+the deployed page · console **0 errors, 0 warnings** · unit tests **14/14** in a venv · a real
+task end to end on the deployed URL (1,234 provider-reported tokens, memory fact saved, desk
+lit and released) — which is also where `docs/office.png` and `docs/working.png` come from.
+
+**Not re-run:** `ws_smoke.py` and `rehearse.py`. No backend file changed, and the frontend change
+was two sentences of copy in the entry gate — neither script asserts on that text. The `108/112`
+and `15/15` figures quoted above are the last recorded runs, not new ones.
+
+**`p17live` now holds Jim and ~1,234 spent tokens** from the screenshot session. Inert, like the
+other test partitions — Phase 9 partitions every row by team, so `alpha` and `p6stage` cannot
+see it.
+
+---
+
 **Phase 6 tasks 4–5 — 2026-09-19 — the run sheet catches up with the office**
 
 Phase 17 changed what is on screen and left `DEMO.md` describing a board that no longer
@@ -1770,6 +1829,11 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
   **Model catalog** page, not Model access. `DEPLOYMENT.md` Manual Action 2 reflects this.
 - **Local Python is 3.14**, newer than any Lambda runtime. Compiled dependencies would get
   wrong-platform wheels if built locally. **Always `sam build --use-container`.**
+- **`pytest tests/` fails to collect on this machine** — system Python 3.14 has no `botocore`,
+  and `scheduler.py` imports it, so the failure is a `ModuleNotFoundError` at *collection*, not
+  a test failure. Nothing is wrong with the tests: `python3 -m venv .venv && .venv/bin/pip
+  install boto3 pytest && .venv/bin/python -m pytest tests/` is **14/14**. The `.venv/` is
+  gitignored. Do not "fix" the tests in response to this error.
 - **npm global prefix `~/.local/lib` does not exist** — `npm install -g` may fail. Use `npx`.
 - **AWS CLI `configure` cannot run** through the `!` prefix in Claude Code (no TTY). Interactive
   AWS commands must be run in a normal terminal.

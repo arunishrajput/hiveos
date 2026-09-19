@@ -444,6 +444,49 @@ past the ceiling one leg at a time. That check is the reason this phase is last.
 
 ---
 
+## Phase 17 — The office *(added 2026-09-19, user decision)*
+
+**Not a feature — a pivot.** The product was *a team queues for two shared agent slots*, and the
+scheduler was the headline. It is now *a floor you staff*: agents are hired, named, briefed and
+given a character, and they sit at desks people can watch. The scheduler, the fair queue and the
+enforced ceiling did not go anywhere — they stopped being the pitch and became the governance
+layer inside the office, which is a better pitch and was ~80% already built.
+
+**What was settled before building, because it is not negotiable.** Munder Difflin spawns local
+PTY processes running your own CLI agents against folders on your disk. A Lambda behind a public
+URL cannot attach to a judge's terminal. This phase takes the reference's *interaction model* and
+never its mechanism: every inspector tab is bound to data this board actually holds, and there is
+no fake terminal anywhere.
+
+**Shipped as two slices**, each deployed and verified before the next — the Phase 8 precedent, so
+there was a submittable deliverable at every point.
+
+1. **The shell** (`ff6a723`, frontend only). The 760 px panel column became a three-region app:
+   title bar, floor filling the left at full height, one agent in depth on the right, every desk
+   along the bottom. Zero backend files, so `ws_smoke.py` and `rehearse.py` stayed valid.
+2. **The roster is data** (`edea677`, `77053e4`). `agents.py` was a fixed tuple, identical in
+   every workspace; it is an `AGENT#` row per agent now, carrying identity beside the `status`
+   and `current_user` it already held. `spawn_agent` / `dismiss_agent` are real actions any
+   member may take, capped at `MAX_AGENTS`.
+
+> **Done, 2026-09-19.** Deployed and verified against real AWS: hiring is live for everyone on
+> the public URL (a second socket hired Dwight; a browser that never reloaded drew him seated and
+> moved its app bar to `0/3 working`), a hired agent runs a real task credited by name, a
+> dismissed agent's finished work stays attributed to it, and a floor cannot be emptied of every
+> agent. `ws_smoke.py` **108/112** with 14 new hiring checks — the four failures are the
+> documented live-visitor case. The Phase 16 handoff still crosses.
+>
+> **Five decisions are recorded in `ARCHITECTURE.md` 11 and 12**, including why `MAX_AGENTS` is
+> 4 (measured against what the floor can draw, not chosen), why there is no migration, and why
+> the engine step is a readout rather than a model picker.
+>
+> **This phase invalidated the demo framing.** Three 640×950 portrait windows, earned over Phases
+> 7–15, cannot hold a landscape app shell — at 640 px it renders its stacked mobile layout.
+> `DEMO.md` was re-measured and re-rehearsed against the deployed office in `d670fb2`, and
+> `rehearse.py` gained the hiring beat: **15/15**, twice.
+
+---
+
 ## If you are behind schedule
 
 Cut in this order:

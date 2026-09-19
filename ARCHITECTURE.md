@@ -16,10 +16,11 @@ Intended system design and the decisions behind it. Interfaces that must not dri
 ┌──────────────────┐        ┌─────────────────────────────────────┐
 │  API Gateway     │        │           Router Lambda             │
 │  WebSocket API   │◄──────►│  $connect / $disconnect / $default  │
-│                  │        │  slot claim (atomic)                │
-│  $connect        │        │  enqueue + queue position           │
-│  $disconnect     │        │  broadcast + GoneException handler   │
-│  $default        │        └───────────┬─────────────────┬───────┘
+│                  │        │  desk claim (atomic)                │
+│  $connect        │        │  hire / dismiss agents              │
+│  $disconnect     │        │  enqueue + queue position           │
+│  $default        │        │  broadcast + GoneException handler  │
+│                  │        └───────────┬─────────────────┬───────┘
 └──────────────────┘                    │                 │
        ▲                                ▼                 ▼
        │                        ┌──────────────┐   ┌─────────────┐
@@ -28,16 +29,18 @@ Intended system design and the decisions behind it. Interfaces that must not dri
        │                        │              │   │   + DLQ     │
        │                        │ team meta    │   └──────┬──────┘
        │                        │ connections  │          │
-       │                        │ agent slots  │          ▼
+       │                        │ agent roster │          ▼
        │                        │ queue items  │   ┌──────────────────┐
        │                        │ team memory  │◄──┤  Agent Runner    │
-       │                        └──────────────┘   │  Lambda          │
+       │                        │ task ledger  │   │  Lambda          │
+       │                        └──────────────┘   │                  │
        │                                           │                  │
        └───────────────────────────────────────────┤  load memory     │
                                                    │  call the model  │
-                                                   │  token accounting │
-                                                   │  release slot     │
-                                                   │  dispatch next    │
+                                                   │  token accounting│
+                                                   │  release the desk│
+                                                   │  dispatch next   │
+                                                   │  or hand off     │
                                                    └────────┬─────────┘
                                                             ▼ HTTPS
                                                    ┌──────────────────┐
@@ -55,10 +58,10 @@ Intended system design and the decisions behind it. Interfaces that must not dri
 | Service | Role | Why this service |
 |---|---|---|
 | **API Gateway WebSocket** | Persistent browser connections; routes `$connect`, `$disconnect`, `$default` | The only AWS service providing persistent WebSocket connections with a serverless backend. No alternative. |
-| **Router Lambda** | Connection lifecycle, message routing, atomic slot claiming, enqueue, broadcast, GoneException handling | Serverless, scales to zero, direct DynamoDB and SQS access |
-| **DynamoDB** (single table) | All state: team metadata, connection IDs, slot states, queue entries, team memory | Serverless, fast, PK/SK pattern fits every access pattern; single table means fewer IAM grants and simpler debugging |
+| **Router Lambda** | Connection lifecycle, message routing, atomic desk claiming, hiring and dismissing agents, enqueue, broadcast, GoneException handling | Serverless, scales to zero, direct DynamoDB and SQS access |
+| **DynamoDB** (single table) | All state: team metadata, connection IDs, the agent roster, queue entries, team memory, the task ledger | Serverless, fast, PK/SK pattern fits every access pattern; single table means fewer IAM grants and simpler debugging |
 | **SQS** (+ DLQ) | Durable at-least-once handoff of every agent task to the runner | Makes task execution survive Lambda restarts, with retry and a dead-letter queue |
-| **Agent Runner Lambda** | Consumes SQS, loads team memory, calls the model, accounts tokens, broadcasts, releases the slot, dispatches the next queued task | Isolated from the Router so model latency never blocks connection handling |
+| **Agent Runner Lambda** | Consumes SQS, loads team memory, calls the model, accounts tokens, broadcasts, releases the desk, and then either dispatches the next queued task or forwards a handoff to another desk | Isolated from the Router so model latency never blocks connection handling |
 | **Groq** (`openai/gpt-oss-120b`) | Foundation model inference — **the only component not on AWS** | Bedrock is blocked account-wide on this account (decision 7). Reached with one stdlib `urllib` POST; the key is an SSM SecureString read at runtime |
 | **Amplify Hosting** | Static React frontend, public HTTPS URL | Fastest path to an HTTPS URL a judge can open cold; deployable from the CLI |
 
@@ -92,6 +95,49 @@ Browser ──claim_agent──► Router Lambda
                     ├─ set slot IDLE
                     └─ claim slot for oldest QUEUE# item → SQS → broadcast
 ```
+
+### Hiring an agent
+
+```
+Browser ──spawn_agent──► Router Lambda
+                           │
+                           ├─ count AGENT# rows → refuse at MAX_AGENTS
+                           ├─ slug the name into a free slot id
+                           ├─ PutItem AGENT#<id>  (identity + status IDLE)
+                           └─ broadcast agent_spawned
+```
+
+`dismiss_agent` is the mirror, and refuses to remove the last agent — a floor with no
+desks cannot be recovered from through the UI. Finished `TASK#` rows keep the
+`agent_name` they were written with, so a dismissed agent's past work stays attributed.
+
+### Handing work to another desk
+
+```
+Agent Runner (first leg, hops=0)
+       │
+       ├─ model calls handoff_to_agent(target, note)
+       ├─ release this desk FIRST, then act on the handoff
+       ▼
+   claim the target desk ──► SQS ──► Agent Runner (second leg, hops=1)
+       │  busy? queue the row                     │
+       │  pinned to that desk                     ├─ ADD tokens_used (same budget)
+       ▼                                          └─ agent_response, same task_id
+   broadcast agent_handoff
+```
+
+Both legs bill to one budget under one `task_id`, so the ledger shows one request that cost
+what both agents spent, as two rows sharing that id.
+
+**The loop guard is tool availability, not a refusal.** `MAX_HANDOFF_HOPS` is 1, and the runner
+simply leaves `handoff_to_agent` out of the request once the hop budget is spent — the second
+leg is never offered the tool, so there is no instruction for a model to disregard. The release
+comes before the handoff always, for the frame-ordering reason in `CONTRACT.md`: a handoff is a
+scheduling request, and the desk it came from must already be free when it is made.
+
+**A queued handoff is pinned to its target desk** rather than falling back to any free agent.
+Ordinary work prefers a named agent but will take an open one; falling back on a handoff would
+hand the work straight back to the desk that just gave it away.
 
 ### Broadcasting
 
@@ -160,7 +206,9 @@ Lambda is stateless. When a browser closes, its connection ID stays in DynamoDB 
 
 ### 8. DOM/CSS for the workspace canvas — never a game engine
 
-Hackathon teams routinely lose two to three days to tilemaps, collision, and sprite animation. The canvas is a fixed-size div with absolutely positioned character divs; movement is x/y updates with CSS transitions. The HUD is the product; the canvas is the wrapper. **Final.**
+Hackathon teams routinely lose two to three days to tilemaps, collision, and sprite animation. The floor is a fixed-size div with absolutely positioned character divs; movement is x/y updates with CSS transitions. **Final.**
+
+**The 2026-09-19 pivot inverted which half is the product, and not the technique.** This decision used to end "the HUD is the product; the canvas is the wrapper." It is now the other way round: the floor is what you look at and the panels are the governance layer inside it. That made the canvas load-bearing, which is an argument *for* a game engine — and it is still rejected, because everything the floor does is a div moving to a coordinate, and none of it is collision, physics or z-ordered tile rendering. The cost of an engine did not change; the reason to pay it still has not appeared.
 
 ### 9. No authentication for the MVP
 
@@ -172,6 +220,26 @@ Cognito costs roughly a day of setup, and it is still not built — it remains o
 
 All stack resources live in `template.yaml`. CloudFormation owns the inventory, which is what prevents a fresh session after `/clear` from recreating resources it has forgotten about. Lambdas are **arm64** — cheaper, faster, and building natively under `--use-container` on Apple Silicon.
 
+### 11. The roster is per-workspace data, not deploy-time configuration (2026-09-19)
+
+`agents.py` used to be the roster: one tuple, fixed at deploy time, identical in every workspace. It is now an `AGENT#` row per agent, carrying identity — name, role, character, project, tagline, persona — beside the `status` and `current_user` it already held. Hiring writes a row; dismissing deletes one.
+
+**No migration, and that is the design.** `ensure_team` writes roster rows conditionally, so every workspace created before the change still has a bare `AGENT#coder` row with no identity fields. `agents.from_row` falls back field by field to `STARTING_ROSTER`, so all of them read as Ada and Iris with no backfill and no scan-and-update against a live table. `seed.sh` and `ws_smoke.py` write those bare rows **on purpose**, so the compatibility path is exercised on every seed and every smoke run rather than assumed.
+
+**Hiring is open to any member, not just the owner.** Hiring costs nothing; *running* an agent spends the budget, and the ceiling governs that identically however many desks share it. A permissions wall in front of the one interaction this product is about would be governing the wrong thing.
+
+**`MAX_AGENTS` is 4, and the number was measured rather than chosen.** The plan was six. The floor's lower band is 38% tall with the waiting-area rug across the middle, so the only free places are the left and right margins; two rows per side fails *on screen* — row one's character lands on row two's nameplate and row two's character falls off the bottom edge. A cap above what the floor can draw would let someone hire an agent the roster strip lists and the room cannot show, and a board whose whole claim is that it shows real state cannot have a desk that exists but is not drawn.
+
+**The ledger writes `agent_name` at run time** rather than joining it on at read time. With a fixed roster the two were equivalent; with hiring they are not — a dismissed agent's rows would otherwise report a raw slot id, or be credited to whoever holds that id next.
+
+**The engine step in the hire form is a readout, not a picker.** One model is configured per deployment. A per-agent model picker would let one hire quietly change what the team spends per call, which is the opposite of what this product is for.
+
+### 12. An agent may hand work to another desk, bounded to one hop (2026-09-19)
+
+An agent that judges a task a better fit for another desk can forward it. The envelope crosses the floor, the receiving agent answers, and **both legs bill to the same budget under one task id** — one request, two agents, one bill.
+
+The bound is the load-bearing part: a handoff is a model decision, and an unbounded chain of model decisions is an unbounded way to spend a shared budget. One hop means the worst case is two calls, which is bounded by the same ceiling as everything else. The alternative — letting agents negotiate until they settle — is a more impressive demo and a governance hole in a product whose entire claim is governance.
+
 ---
 
 ## Intentionally simplified for the MVP
@@ -180,7 +248,7 @@ All stack resources live in `template.yaml`. CloudFormation owns the inventory, 
 |---|---|
 | ~~Single hardcoded team~~ — **built 2026-09-18**: every row is team-partitioned and teams self-bootstrap on first join | Team *administration* — ownership, invites, renaming, deletion |
 | No authentication | Cognito user pools |
-| Fixed 2 agent slots | Configurable per-team capacity |
+| ~~Fixed 2 agent slots~~ — **built 2026-09-19**: a workspace opens with two and any member may hire up to `MAX_AGENTS` (4), capped by what the floor can draw | Capacity bounded by budget and licensing rather than by pixels; per-agent model selection |
 | FIFO only | Priority queues, fair-share scheduling |
 | Team memory never expires | TTL, relevance ranking, embeddings |
 | Estimated wait is a rough constant | Historical task duration modelling |
@@ -198,4 +266,6 @@ All stack resources live in `template.yaml`. CloudFormation owns the inventory, 
 | Multiple DynamoDB tables | More IAM surface, more latency, harder to debug |
 | Cognito (for MVP) | Roughly a day of setup; a login wall hurts a cold-open demo |
 | In-memory task queue | Lost on Lambda restart; would make the queue a fiction |
+| A per-agent model picker in the hire form | Would let one hire quietly change what the team spends per call — the opposite of what this product governs. The engine step is a readout |
+| Unbounded agent-to-agent negotiation | A handoff is a model decision; an unbounded chain of them is an unbounded way to spend a shared budget. Capped at one hop |
 | Any AWS service not listed above | Every service must do real work or it does not belong |

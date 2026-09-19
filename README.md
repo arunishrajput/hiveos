@@ -1,41 +1,71 @@
 # HiveOS
 
-**The OS scheduler for your team's shared AI budget.** Queue management for AI agents, visible to everyone in real time.
+**A cloud-deployed office where a team hires and runs a floor of AI agents together.** You
+watch them work at their desks in real time, and the whole office runs on one shared,
+server-enforced token budget.
 
-Teams sharing AI agents have no visibility into usage, no fairness mechanism for access, and no real-time governance over token spend — one heavy agentic task can drain a monthly budget in minutes and nobody sees it happen. Operating systems solved this for CPU fifty years ago with scheduling, quotas, and fair queueing. HiveOS applies that abstraction to team AI compute.
+> HiveOS is Munder Difflin for teams, in the cloud — hire a floor of AI agents, watch them
+> work, and the whole office runs on one enforced budget.
+
+Teams sharing AI agents have no visibility into usage, no fairness mechanism for access, and no
+real-time governance over token spend — one heavy agentic task can drain a monthly budget in
+minutes and nobody sees it happen. Operating systems solved this for CPU fifty years ago with
+scheduling, quotas, and fair queueing. HiveOS applies that abstraction to team AI compute, and
+then puts it somewhere you can actually look at it: a floor, with desks, with agents at them.
 
 Built for the **First Commit** hackathon (WeMakeDevs × AWS), Ship It track.
 
 **Live URL:** **https://main.dbavt8jr66qxx.amplifyapp.com** — opens cold, no setup, no sign-in.
-The front page explains the product; the board itself is one click behind it, at
+The front page explains the product; the office itself is one click behind it, at
 [`/#/workspace`](https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace).
 
-![The HiveOS operator console](docs/hud.png)
+![The HiveOS office — three agents on the floor, one shared meter, a real answer priced in tokens](docs/office.png)
 
 ---
 
 ## What it does
 
-- Each **workspace** is fully isolated — its own budget, slots, queue, memory and ledger,
-  and can be **passphrase-protected**, with an owner who can set the budget or delete it
-- A team shares a **token budget** and two **named agents** — Ada, who takes engineering work,
-  and Iris, who researches — one at each desk, each with its own system prompt
-- The budget meter is **identical on every member's screen** and updates live
-- Asking for an agent is a **preference, not a booking** — if Ada is busy, Iris takes the work
-  and the reply and the ledger both say who actually ran it
-- When both desks are busy, further requests **queue** with a real position
-- A freed slot **auto-dispatches** the next queued task
-- Agents share **team memory** — a fact saved by one member is known to the next member's agent
-- An agent can **hand work to the other desk** when it is a better fit — the envelope crosses
-  the floor, the receiving agent answers, and both legs bill to the same budget under one
-  task id. Bounded to one hop, so a chain cannot ping-pong through the budget
-- The budget is an **enforced ceiling**, not a gauge — the server refuses to spend past it
-- A shared **workspace floor** shows who is present and who is mid-task, live on every screen
+**The floor.** A workspace is an office you walk into. Agents sit at desks; the people who
+asked for them stand beside them. A desk lights up when its agent is working, and the person
+who asked walks over to it — live, on every screen at once, not just the screen that clicked.
 
-**Status.** Everything above is live, deployed and verified against real AWS — 94/98 end-to-end
-checks (`scripts/ws_smoke.py`) and the full demo sequence 12/12 twice unattended
-(`scripts/rehearse.py`). The agent is real and the token counts are the provider's reported
-usage, not estimates.
+![Ada working for alice — her desk lit, alice walked over, a fact saved to team memory](docs/working.png)
+
+**Staffing it.** A new workspace opens with two agents — Ada, who takes engineering work, and
+Iris, who researches. Any member can hire more, up to four: name them, give them a role and a
+character, and brief them with a persona that becomes their system prompt. They walk onto the
+floor and take a desk. Dismiss them and the desk goes with them.
+
+![Hiring an agent — identity, workspace, engine, briefing](docs/hire.png)
+
+**The governance underneath.** This is the part that was the whole product before the office
+was built around it, and none of it went away:
+
+- A team shares one **token budget**, and the meter is **identical on every member's screen**
+- The budget is an **enforced ceiling, not a gauge** — the server refuses to call the model
+  once the workspace is at its limit, and not one token is spent past it
+- Asking for a specific agent is a **preference, not a booking** — if Ada is busy, another
+  free agent takes the work, and the reply and the ledger both say who actually ran it
+- When every desk is busy, further requests **queue** with a real position, visible team-wide
+- A freed desk **auto-dispatches** the next queued task — nobody has to re-ask
+- A **per-person spend ledger** records who spent what, and which agent ran it
+
+**What the agents share.** Team memory: a fact one member saves is loaded into the next
+member's agent before their task starts, via model-invoked tools rather than string-stuffing.
+An agent can also **hand work to another desk** when it is a better fit — the envelope crosses
+the floor, the receiving agent answers, and both legs bill to the same budget under one task
+id. Bounded to one hop, so a chain cannot ping-pong through the budget.
+
+**Per workspace.** Each is fully isolated — its own budget, agents, queue, memory and ledger —
+created on first join with no provisioning step, and optionally **passphrase-protected** with
+an owner who can set the budget or delete it.
+
+### Status
+
+Everything above is live, deployed and verified against real AWS. Last recorded full runs:
+**108/112** end-to-end checks (`scripts/ws_smoke.py`) and the demo sequence **15/15**, twice
+unattended (`scripts/rehearse.py`). The agents are real and the token counts are the provider's
+reported usage, not estimates.
 
 > The four non-passing checks are all the same one: they assert the connection table is *empty*,
 > and the public URL now has real visitors on it during a run. The invariant itself is verified
@@ -68,6 +98,8 @@ Browser ──wss──► API Gateway WebSocket ──► Router Lambda ──�
                                                SQS ──► Agent Runner Lambda ──► Groq
 ```
 
+One DynamoDB table holds everything, partitioned by workspace: the roster (`AGENT#`), the
+queue (`QUEUE#`), team memory (`MEMORY#`), the ledger (`TASK#`) and live connections (`CONN#`).
 React frontend on Amplify Hosting. Everything serverless, scaling to zero.
 
 Full detail and the reasoning behind each choice: **`ARCHITECTURE.md`**.
@@ -82,7 +114,7 @@ Read in this order:
 |---|---|
 | **`CLAUDE.md`** | How to work on this project. **Start here.** |
 | **`PROGRESS.md`** | Where things stand right now |
-| **`BUILD_PLAN.md`** | The seven phases and what each must deliver |
+| **`BUILD_PLAN.md`** | The phases and what each must deliver |
 | `PRD.md` | What the MVP is and is not |
 | `ARCHITECTURE.md` | System design and every rejected alternative |
 | `CONTRACT.md` | Schemas, protocols, and interfaces that must not drift |
@@ -103,7 +135,7 @@ brew install aws-sam-cli
 aws configure                 # see DEPLOYMENT.md, Manual Action 1
 ```
 
-The agent needs a model API key before it will answer. It is read at runtime from SSM
+The agents need a model API key before they will answer. It is read at runtime from SSM
 Parameter Store and never stored in this repository:
 
 ```bash
@@ -111,8 +143,8 @@ aws ssm put-parameter --name /hiveos/groq-api-key --type SecureString \
   --value 'gsk_...' --region us-east-1 --overwrite
 ```
 
-Get a free key at <https://console.groq.com> (no card required). Without it the workspace
-still runs — every task falls back to composed text flagged `estimated`.
+Get a free key at <https://console.groq.com> (no card required). Without it the office still
+runs — every task falls back to composed text flagged `estimated`.
 
 ---
 
@@ -147,18 +179,35 @@ aws cloudformation describe-stacks --stack-name hiveos \
   --query 'Stacks[0].Outputs' --output table
 ```
 
-Verify the deployed backend actually behaves — two live clients, fan-out, and stale-connection cleanup, all against real AWS:
+---
+
+## Verify
+
+Check that the deployed backend actually behaves — multiple live clients, fan-out, hiring,
+handoff, the ceiling, and stale-connection cleanup, all against real AWS:
 
 ```bash
 pip install websockets
-./scripts/reset-demo.sh               # clean board, SQS drained, Lambdas warm — and verified
-python scripts/ws_smoke.py            # 79 checks: backbone, scheduler, memory, ceiling, avatars, fairness, isolation, passphrases, admin
-python scripts/rehearse.py --takes 2  # the recorded demo sequence, 12 checks, unattended
+./scripts/reset-demo.sh                # clean floor, SQS drained, Lambdas warm — and verified
+python3 scripts/ws_smoke.py            # backbone, scheduler, memory, ceiling, fairness,
+                                       # isolation, passphrases, admin, hiring
+python3 scripts/rehearse.py --takes 2  # the recorded demo sequence, unattended, beat-timed
 ```
+
+The unit tests cover the desk-release path and need no AWS, but they do import `botocore`,
+so they need `boto3` present — which a bare system Python usually does not have:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install boto3 pytest
+.venv/bin/python -m pytest tests/      # 14 passed
+```
+
+> **`python3`, not `python`** — this machine has no `python` on `PATH`.
 
 Close any browser tab pointed at the deployed URL first — the connection-leak checks assert the
 table holds no `CONN#` rows, so a live browser fails four of them. `reset-demo.sh` warns you
-when it finds live rows.
+when it finds live rows. The public URL has real visitors, so this is no longer entirely in
+your control; when those four are the only failures, verify the invariant directly instead.
 
 `ws_smoke.py` asks whether the system is **correct**; `rehearse.py` asks whether the sequence
 about to be **recorded** works, in order, inside the time available, and times every beat.
@@ -171,31 +220,47 @@ Full procedure, verification steps, and troubleshooting: `DEPLOYMENT.md`.
 
 ```
 backend/
-  router/          Connection lifecycle, slot claiming, queueing, broadcast
-  agent_runner/    SQS consumer, agent execution, token accounting, dispatch
-  shared/          Slot scheduler, broadcast helper, memory tools, DynamoDB access
-  shared/agents.py The roster — who sits at each desk, and their system prompts
-  shared/memory.py Team memory — MEMORY# rows, context loading, memory_updated
+  router/            Connection lifecycle, claiming, queueing, hiring, broadcast
+  agent_runner/      SQS consumer, agent execution, token accounting, dispatch
+  shared/agents.py   The roster as data — hire, dismiss, personas, the MAX_AGENTS cap
+  shared/scheduler.py  Desk claiming, the fair queue, auto-dispatch
+  shared/memory.py   Team memory — MEMORY# rows, context loading, memory_updated
+  shared/llm.py      The one seam the model call lives behind
+  shared/            Broadcast helper, task history, DynamoDB access
 frontend/
-  src/useHive.js   WebSocket client — owns all board state, reconnect, re-sync
-  src/components.jsx  Quota strip, slot cards, run queue, workspace floor, toasts, activity log
-  src/App.jsx      Entry gate, request form, board layout
-scripts/           Seeding, demo reset, smoke test, demo rehearsal, frontend deploy
-template.yaml      SAM — all AWS infrastructure
+  src/useHive.js     WebSocket client — owns all board state, reconnect, re-sync
+  src/App.jsx        Entry gate, app shell, routing
+  src/components.jsx The floor, the quota strip, the inspector, the roster strip
+  src/addagent.jsx   The four-step hire form
+  src/landing.jsx    The front door at `/`
+  src/sprites.js     The pixel characters, derived from a marker string
+tests/               Unit tests for the slot-release path — no AWS, no moto
+scripts/             Seeding, demo reset, smoke test, demo rehearsal, frontend deploy
+template.yaml        SAM — all AWS infrastructure
 ```
 
 ---
 
 ## Current MVP scope
 
-**Built and deployed:** shared token meter · **named agents** at each desk · **fair queueing** with live position · auto-dispatch · shared team memory via **model-invoked tools** · **agent-to-agent handoff** billed as one job across two desks · **per-person spend ledger** with the agent that ran each task · enforced budget ceiling · pixel workspace floor · team chat · public URL.
+**Built and deployed:** a shared floor you staff · **hiring and dismissing agents** with names,
+characters and briefed personas · shared token meter · **fair queueing** with live position ·
+auto-dispatch · shared team memory via **model-invoked tools** · **agent-to-agent handoff**
+billed as one job across two desks · **per-person spend ledger** naming the agent that ran each
+task · enforced budget ceiling · workspace isolation and passphrases · team chat · public URL.
 
 **Not built:** user accounts. Workspaces can be passphrase-protected and have an owner, but
 there is no identity behind a display name — administration hangs off a secret the creator
 holds, not off who anyone claims to be. Also unbuilt: any retention policy on the task ledger.
-See `PRD.md` and `ARCHITECTURE.md` for what was deliberately excluded.
 
-**Deliberately excluded:** authentication, multiple teams, game-engine graphics, token-level preemption, calendar/email integrations. See `PRD.md` and `ARCHITECTURE.md` for why.
+**Deliberately excluded:** authentication, game-engine graphics, token-level preemption,
+calendar/email integrations, a per-agent model picker. See `PRD.md` and `ARCHITECTURE.md` for
+why each was rejected.
+
+> **On the reference.** Munder Difflin spawns local PTY processes running your own CLI agents
+> against folders on your disk. A Lambda behind a public URL cannot attach to a judge's
+> terminal, so HiveOS takes the *interaction model* and never the mechanism: the inspector's
+> tabs are bound to data this board actually holds, and there is no fake terminal anywhere.
 
 ---
 

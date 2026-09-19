@@ -1,11 +1,13 @@
 # HiveOS — First Commit (WeMakeDevs × AWS), Ship It track
 
-**The OS scheduler for your team's shared AI budget.**
+**A cloud-deployed office where a team hires and runs a floor of AI agents together** — you
+watch them work at their desks in real time, and the whole office runs on one shared,
+server-enforced token budget.
 
 | | |
 |---|---|
 | **Live URL** | <https://main.dbavt8jr66qxx.amplifyapp.com> — opens cold, no setup, no sign-in |
-| **Straight to the board** | <https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace> — skips the front page |
+| **Straight to the office** | <https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace> — skips the front page |
 | **Repository** | <https://github.com/arunishrajput/hiveos> |
 | **Video** | *(paste the YouTube link here before submitting)* |
 | **Track** | Ship It |
@@ -37,30 +39,46 @@ is shared, the queue is shared, and the ceiling is enforced server-side for ever
 
 ## What I built
 
-A deployed, public, multi-user workspace where:
+A deployed, public, multi-user office where:
 
-- **Workspaces are isolated**: type a different name and you get a different board — separate
-  budget, slots, queue, memory and ledger, created on first join with no provisioning step
-- One team shares a **token budget** and a pool of **agent slots**
-- The budget meter is **identical on every member's screen**, updating live over WebSocket
-- When every slot is busy, further requests **queue with a real position**, visible team-wide
-- A freed slot **auto-dispatches** the next queued task — nobody re-asks
-- Agents share **team memory**: a fact one member saves is loaded into the next member's agent
-  before their task starts
+- **You staff the floor.** A workspace opens with two agents — Ada, an engineer, and Iris, a
+  researcher. Any member can **hire more, up to four**: name them, give them a role and a
+  character, and brief them with a persona that becomes their system prompt. They walk onto the
+  floor and take a desk. Dismiss them and the desk goes with them
+- **You watch them work.** A desk lights up when its agent is running and the person who asked
+  walks over to it — live, on every screen at once, not just the screen that clicked
+- **Workspaces are isolated**: type a different name and you get a different office — separate
+  budget, roster, queue, memory and ledger, created on first join with no provisioning step,
+  and optionally **passphrase-protected** with an owner who can set the budget or delete it
+- One team shares a **token budget**, and the meter is **identical on every member's screen**,
+  updating live over WebSocket
 - The budget is an **enforced ceiling, not a gauge** — at 100% the server refuses to invoke the
-  agent, and not one token is spent
-- A shared **workspace floor** shows who is in the room and who is mid-task, so "three people,
-  one board" is something you can see rather than something the narrator claims
+  model, and not one token is spent
+- When every desk is busy, further requests **queue with a real position**, visible team-wide,
+  and a freed desk **auto-dispatches** the next one — nobody re-asks
+- Agents share **team memory**: a fact one member saves is loaded into the next member's agent
+  before their task starts, through tools the model chooses to call
+- An agent can **hand work to another desk** when it is a better fit — one request, two agents,
+  **one bill** under a single task id, bounded to one hop
+- A **per-person spend ledger** records who spent what, and which agent ran it
+
+The scheduler, the fair queue and the enforced ceiling were the original pitch. They did not go
+anywhere — they became the governance layer *inside* the office, because a queue is a thing you
+explain and an office is a thing you see, and a 3-minute video is the only judge touchpoint.
 
 Measured against the deployed system, not localhost:
 
 | | |
 |---|---|
 | A claim reaching a second browser | **282 ms** |
-| Auto-dispatch visible after a slot frees | **187 ms** |
+| Auto-dispatch visible after a desk frees | **187 ms** |
 | An avatar move painted on a second browser | **270–294 ms** |
-| End-to-end checks against real AWS | **85/85** (`scripts/ws_smoke.py`) |
-| Rehearsed demo sequence | **12/12**, two consecutive unattended takes (`scripts/rehearse.py`) |
+| End-to-end checks against real AWS | **108/112** (`scripts/ws_smoke.py`) |
+| Rehearsed demo sequence | **15/15**, two consecutive unattended takes (`scripts/rehearse.py`) |
+
+The four non-passing checks are one check repeated: they assert the connection table is *empty*,
+and the public URL now has real visitors on it during a run. The invariant itself is verified
+directly — connections opened by the harness are gone from DynamoDB the moment they close.
 
 Timings are click-to-paint across two separate browsers — a 20 ms DOM sampler in the *observing*
 browser compared against the acting browser's click — not a server-side round trip.
@@ -246,9 +264,12 @@ cold-client provenance bug were caught before they reached the recording instead
 sam build --use-container && sam deploy      # backend
 ./scripts/deploy-frontend.sh                 # frontend + public URL
 
-./scripts/reset-demo.sh                      # clean, warm, verified demo board
-python scripts/ws_smoke.py                   # 49 checks against deployed AWS
-python scripts/rehearse.py --takes 2         # the recorded sequence, unattended
+./scripts/reset-demo.sh                      # clean, warm, verified demo floor
+python3 scripts/ws_smoke.py                  # end-to-end checks against deployed AWS
+python3 scripts/rehearse.py --takes 2        # the recorded sequence, unattended
+
+python3 -m venv .venv && .venv/bin/pip install boto3 pytest
+.venv/bin/python -m pytest tests/            # 14 unit tests, no AWS needed
 ```
 
 `DEPLOYMENT.md` has the full procedure and troubleshooting. `DEMO.md` is the recording run sheet.
