@@ -531,6 +531,22 @@ def queue_items(team, served=None):
     return fair_order(team, query_team(team, "QUEUE#"), served)
 
 
+def idle_slots(team):
+    """Which desks are free right now, as a set of slot ids.
+
+    Read on the dispatch path because a *pinned* queue row — a handoff, which
+    may only run at the desk it was handed to — is dispatchable exactly when
+    that one desk is idle. Without this the scheduler would have to delete the
+    row to find out, then put it back, and a task would churn through the queue
+    every time any other desk released.
+    """
+    return {
+        item.get("slot_id")
+        for item in query_team(team, "AGENT#")
+        if item.get("status") == "IDLE"
+    }
+
+
 def queue_view(team, items=None):
     """The queue as clients see it: 1-based positions, next up first."""
     items = queue_items(team) if items is None else items

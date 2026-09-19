@@ -29,11 +29,19 @@ Parameters:
 
   MaxTokensPerCall:
     Type: Number
-    Default: 400
+    Default: 900
     Description: >
       Per-invocation output cap. Keeps a runaway loop cheap. A backstop, not a
       shaper — the system prompt is what keeps answers to three sentences, and
       a response truncated mid-word by this cap looks broken on camera.
+
+      Raised from 400 in Phase 16, and not for headroom's sake. `gpt-oss-120b`
+      is a reasoning model and its reasoning tokens are charged against this
+      cap: a call was observed spending 398 of 400 on reasoning and emitting
+      an empty answer, which the runner could only treat as a provider failure
+      and answer from the stub. Paying for 400 tokens and getting no answer is
+      the worst outcome available to a product about token spend. The cap is a
+      ceiling, not a budget — a call still bills only what it emits.
 
   GroqModel:
     Type: String

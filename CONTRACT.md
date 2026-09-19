@@ -55,7 +55,11 @@ Every other component is AWS. Only inference leaves.
 | Client | `backend/shared/llm.py` — one `urllib` POST, no SDK |
 | Credential | SSM SecureString `/hiveos/groq-api-key`, read at runtime, cached per container. **Never** in the template, the stack, an env var, or git |
 | Model | `GROQ_MODEL` env var, pinned in `samconfig.toml` |
-| Output cap | `MAX_TOKENS_PER_CALL` = 400 |
+| Output cap | `MAX_TOKENS_PER_CALL` = 900 |
+
+**This model's reasoning tokens are charged against the output cap.** `gpt-oss-120b` thinks before it answers, and that thinking counts as completion tokens. A cap sized for the *answer* can therefore be spent entirely on reasoning and return empty content — which the runner can only read as a provider failure, so the user gets a stubbed reply after the team has paid full price for the call. Observed at the old cap of 400: `completion_tokens: 400`, of which `reasoning_tokens: 398`. Raised to 900 in Phase 16. **The cap is a ceiling, not a budget** — a call still bills only what it emits, and measured per-task cost did not move when it was raised. Size it for reasoning *plus* the answer; the three-sentence limit is enforced by the system prompt, never by this.
+
+`llm._no_completion` names this case explicitly in the error, because in a bare usage dump it is indistinguishable from a generic provider failure and the two want opposite responses.
 
 **Never guess the model name.** Groq retires them: `llama-3.3-70b-versatile`, the name this was first written against, was already gone and failed at runtime rather than at deploy. List the current ids with `GET https://api.groq.com/openai/v1/models` before changing it.
 
@@ -251,12 +255,30 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   it** — `take_next_task`, `broadcast_queue`, and `state_snapshot`. If the
   board numbered positions by arrival while the runner picked by fairness, the
   position on screen would be wrong about who goes next.
+
+  **`pinned_slot` makes a row dispatchable at one desk only.** Set on a handoff
+  and on nothing else. `agent_type` on an ordinary row is a *preference* the
+  scheduler is right to fall back off — nobody should wait behind an idle
+  agent — but falling back on a handoff would return the work to the desk that
+  just decided it was not theirs. `take_next_task` therefore **skips** a pinned
+  row whose desk is not in the idle set rather than taking it and requeueing
+  it. A pinned row also carries `task_id`, `hops` and `handoff_from`. See
+  *Agent-to-agent handoff*.
 - **TASK#** — the ledger: one row per task that reached the runner, including
   the ones that never ran. `status` is `done`, `failed` or `refused`; a refused
   task records **zero** tokens, which is the clearest evidence that the ceiling
   is a control and not a gauge. `agent_type` is the agent that **ran** it —
   always the slot it ran on — and `requested_agent` is set only when that was
-  not the one asked for. See *Requested versus ran*. Sort key is microsecond-precision for the same
+  not the one asked for. See *Requested versus ran*.
+
+  **`task_id` is the job; the row is one leg of it.** A handed-over task runs
+  as two agent tasks and writes two rows, and they share one `task_id` — that
+  is what lets the ledger say "this piece of work cost the team 1,982 tokens
+  across two desks" rather than showing two unrelated tasks that happen to sit
+  next to each other. `handoff_from` is set on the receiving row only, and
+  names the desk that passed it on. Both are null on a task nobody handed over.
+
+  Sort key is microsecond-precision for the same
   reason `QUEUE#` is: at second granularity two tasks finishing together tie
   and fall back to UUID order, i.e. random. Cleared by `seed.sh` — the spend
   breakdown aggregates every row, so stale rows would open the board showing a
@@ -359,7 +381,8 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `agent_state_update` | `{agent_type, status, current_user, slot_id}` | Any slot state change. **State only — no name.** Identity rides on `state_snapshot`; a client merges this patch over what it already holds, so a desk keeps its nameplate, and a slot it has never seen renders under its raw id until the 500 ms re-sync names it |
 | `token_update` | `{tokens_used, token_budget, pct_used, estimated}` | After every agent call that spent tokens |
 | `queue_update` | `{user_id, queue_position, estimated_wait_seconds}` | Queue add or removal |
-| `agent_response` | `{user_id, agent_type, agent_name, requested_agent, requested_name, text, tokens_used_this_call, estimated}` | Agent task completes. `agent_type`/`agent_name` are the agent that **ran** it; the two `requested_*` fields are null unless a different one was asked for |
+| `agent_response` | `{user_id, agent_type, agent_name, requested_agent, requested_name, task_id, handoff_from, handoff_from_name, text, tokens_used_this_call, estimated}` | Agent task completes. `agent_type`/`agent_name` are the agent that **ran** it; the two `requested_*` fields are null unless a different one was asked for; the two `handoff_from_*` fields are null unless another desk handed this task over |
+| `agent_handoff` | `{task_id, user_id, from_agent, from_name, to_agent, to_name, note, queued}` | An agent chose to pass its task to another desk. `queued` is true when that desk was busy and the work is waiting for it |
 | `memory_updated` | `{key, val, updated_by}` | `set_team_memory` runs |
 | `budget_exhausted` | `{tokens_used, token_budget}` | Bedrock invocation refused at the ceiling |
 | `user_joined` | `{user_id, avatar, x, y}` | `$connect` |
@@ -401,7 +424,7 @@ the public URL.
 
 | Field | Shape | Notes |
 |---|---|---|
-| `history[]` | `{user_id, agent_type, agent_name, requested_agent, tokens, estimated, status, prompt, at}` | Newest first, capped at 12 — every client parses the snapshot on connect, and nobody reads the 40th most recent task off a board |
+| `history[]` | `{user_id, agent_type, agent_name, requested_agent, task_id, handoff_from, handoff_from_name, tokens, estimated, status, prompt, at}` | Newest first, capped at 12 — every client parses the snapshot on connect, and nobody reads the 40th most recent task off a board. Two rows sharing a `task_id` are the two legs of one handed-over job |
 | `spend[]` | `{user_id, tokens, tasks}` | Biggest spender first |
 
 **`spend[]` aggregates every task row, not the twelve in `history[]`.** The
@@ -507,13 +530,18 @@ def broadcast_to_team(team_id, payload, apigw, table):
   "requested_agent": "coder",
   "prompt": "Write a user creation function",
   "connection_id": "abc123=",
+  "task_id": "d6dd9a84eb6e",
+  "hops": 0,
+  "handoff_from": null,
   "enqueued_at": "2026-09-18T10:30:00Z"
 }
 ```
 
 `slot_id` is the desk that won the claim, and therefore the agent that will run this. `requested_agent` is the preference the user sent — here Ada was busy, so Iris took it — and is `null` when they asked for nobody in particular. **The runner reads the agent from `slot_id` and never from the preference.**
 
-This message used to carry `agent_type` instead, holding the preference; the runner then recorded it as the agent that ran the task. A message still in flight across a deploy is handled: the runner ignores the old field, and `requested_agent` reads as absent.
+`task_id` identifies the piece of work rather than this leg of it, and is minted by the Router where the work is *requested* — it survives a spell in the queue and a handoff unchanged. `hops` counts how many times the work has been passed between desks, and is what the runner checks before offering the handoff tool at all. `handoff_from` names the desk that passed it, and is `null` on a task nobody handed over.
+
+This message used to carry `agent_type` instead, holding the preference; the runner then recorded it as the agent that ran the task. A message still in flight across a deploy is handled: the runner ignores the old field, `requested_agent` reads as absent, and a message predating the handoff fields reads as `hops: 0` with no chain id.
 
 `connection_id` is the requester's connection, used for directed replies. It may be stale by the time the runner executes — handle `GoneException` and continue.
 
@@ -526,6 +554,7 @@ This message used to carry `agent_type` instead, holding the preference; the run
 | `get_team_memory` | `memory.facts()` / `memory.as_context()` | Read all `MEMORY#` rows; return a context block for the system prompt |
 | `set_team_memory` | `memory.remember(key, val, updated_by)` | Upsert a `MEMORY#` row; broadcast `memory_updated` |
 | `get_task_context` | `history.as_context()` | Recent tasks, who ran them and what each cost — read from `TASK#` |
+| `handoff_to_agent` | `scheduler.hand_off(team, task, target, note)` | Pass this task to another desk. **Offered only while `hops < MAX_HANDOFF_HOPS`** — see *Agent-to-agent handoff* |
 
 Memory is loaded **before** the model call, not on demand, so a queued user's agent already knows the team's facts the moment it starts.
 
@@ -549,6 +578,11 @@ Lambda holding an agent slot, and an unbounded loop is an unbounded bill. The
 second request is sent without the tool list so the model answers in prose
 rather than calling again.
 
+**The tool list is per-task, not constant** (`llm.tools_for`). It is a
+parameter because what an agent may do depends on the task in hand: a task that
+arrived by handoff is not offered `handoff_to_agent`. Tool *availability* is
+the loop guard — see *Agent-to-agent handoff*.
+
 **Tokens are summed across every round.** A tool call is two requests, and
 charging for one of them would under-report spend on the one product whose
 entire subject is spend. A task costs roughly 800 tokens with tools, against
@@ -570,6 +604,83 @@ unreachable; and saving first puts it in its own call's context. One
 consequence worth knowing: `memory_updated` now broadcasts at the *start* of a
 task rather than at the end, so it can overtake frames a client might expect to
 see first. Anything asserting on frame order has to buffer rather than assume.
+
+---
+
+## Agent-to-agent handoff
+
+One piece of work, two desks, one budget. Ada decides a task is research rather
+than engineering, calls `handoff_to_agent`, and Iris answers it — under the
+same `task_id`, on the same meter, through the same scheduler.
+
+**There is no client action for this.** A handoff is the *agent's* decision, so
+it arrives as a tool call and leaves as a broadcast. Nothing a browser can send
+initiates one, which is also why nothing a browser can send can be used to
+start a chain.
+
+### The sequence
+
+```
+claim_agent           → Ada's desk BUSY, task dispatched with hops=0
+  model calls handoff_to_agent(agent, note)
+  Ada answers in prose: "I've passed this to Iris"
+agent_response        → Ada's leg, its own token cost, handoff_from=null
+agent_state_update    → Ada's desk IDLE            ← released FIRST
+agent_handoff         → the envelope crosses the floor
+agent_state_update    → Iris's desk BUSY  (or queue_update, if Iris is busy)
+agent_response        → Iris's leg, handoff_from="coder", same task_id
+agent_state_update    → Iris's desk IDLE
+```
+
+**The release comes before the handoff, always.** A handoff is a scheduling
+request and must compete for a desk on the same terms as anyone in the queue.
+Dispatching it while the handing task still held its slot would let one chain
+occupy both desks at once — precisely the monopoly `_already_working` exists to
+prevent.
+
+### Rules
+
+- **`MAX_HANDOFF_HOPS = 1`**, and it is enforced by *absence*: the runner only
+  puts the handoff tool in the request while `hops < MAX_HANDOFF_HOPS`, so the
+  receiving leg has nothing to call. Verified adversarially — a prompt
+  explicitly instructing the two agents to pass the task back and forth
+  produced exactly two legs. A limit the model is merely *asked* to respect is
+  not a limit.
+- **The ceiling governs every leg.** Each leg meets `_refuse_over_budget`
+  immediately before its own model call, exactly like any other task. A chain
+  can therefore overshoot by at most one leg's worth — the same as a single
+  task — and a handoff is not a way to spend past the ceiling incrementally.
+  Deliberately *not* re-checked at handoff time: a handoff can sit in the queue
+  while the tasks ahead of it spend what was left, so the last moment is the
+  only honest one.
+- **A queued handoff is pinned** (`pinned_slot`). It runs at the desk it was
+  handed to or it waits. See the `QUEUE#` entity rules.
+- **`requested_agent` equals `slot_id` on a handoff leg**, so nothing is
+  reported as a substitution. The handoff is the story; a "Ada was busy" notice
+  on top of it would be two explanations for one event.
+- **A handoff recorded before a failed model call is dropped.** The fallback
+  has already answered the user from this desk, and spending a second leg on a
+  question that has a reply on screen is spending the team's budget twice.
+- **The note is capped at `MAX_HANDOFF_NOTE` (400 chars)** so it cannot grow
+  into a second copy of the prompt riding on every frame.
+
+### The leg-2 prompt
+
+Composed once, by `scheduler.handoff_prompt`, and carried as the leg's ordinary
+`prompt`. The receiving agent is a normal task in every other respect — same
+ceiling check, same memory load, same accounting — and the fewer special cases
+it has, the fewer ways the second leg can behave unlike the first.
+
+```
+This task was passed to you by Ada, the Engineer, who judged it a better fit
+for your desk.
+Their note: <the agent's own note>
+The original request, from alice: <the original prompt>
+Answer it directly. Do not hand it on again.
+```
+
+The last line restates a limit the tool list already enforces. Belt and braces:
+the structural guard is that the tool is absent.
 
 ---
 

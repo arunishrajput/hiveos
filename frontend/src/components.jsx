@@ -632,6 +632,56 @@ const HOT_DESKS = [
  * desk coordinate, so the seat is roughly a third of that stack below it. */
 const SEAT_DROP = 13
 
+/* How long the envelope takes to cross the floor. Must match the `left`/`top`
+ * transition on `.envelope` in styles.css, for the same reason WALK_MS must
+ * match the pawn's — and it is deliberately slower than a walk, because the
+ * crossing is the thing being read rather than a side effect of somebody
+ * moving. `HANDOFF_MS` in useHive.js is what decides how long it stays after
+ * arriving, and must stay comfortably larger than this. */
+const ENVELOPE_MS = 1100
+
+/* One handoff, drawn as an envelope travelling from the desk that passed the
+ * work to the desk that takes it.
+ *
+ * Mounted at the sender's desk and moved on the *second* animation frame. A
+ * single rAF is not enough: React can batch the state change into the same
+ * paint as the mount, and an element whose position is set before it has ever
+ * been painted simply appears at the destination with no transition to run.
+ *
+ * Remounted per handoff by its key in `CanvasPanel`, so a second handoff
+ * between the same two desks replays the crossing instead of React reusing an
+ * element that is already sitting at the target.
+ */
+function Envelope({ from, to, label }) {
+  const [at, setAt] = useState(from)
+
+  useEffect(() => {
+    let inner = 0
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setAt(to))
+    })
+    return () => {
+      cancelAnimationFrame(outer)
+      cancelAnimationFrame(inner)
+    }
+  }, [to])
+
+  return (
+    <div
+      className="envelope"
+      style={{ left: `${at.x}%`, top: `${at.y}%` }}
+      /* Announced rather than hidden: the crossing is a real scheduling event,
+         and the activity log entry it pairs with scrolls away. One short,
+         polite line is what a screen reader should get out of an animation. */
+      role="status"
+      aria-live="polite"
+    >
+      <span className="envelope__flap" aria-hidden="true" />
+      <span className="visually-hidden">{label}</span>
+    </div>
+  )
+}
+
 /* Fixed decor. Percentages for the same reason. Re-placed for the room plan:
  * the old positions sat where the project rooms now stand, and a potted plant
  * inside somebody's office is a different claim than one in the corridor. */
@@ -652,9 +702,34 @@ const PLANTS = [
  * lights up while that slot is BUSY, so "both agents are working and a third
  * person is waiting" is legible from the room itself.
  */
-export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], onMove }) {
+export function CanvasPanel({
+  members,
+  me,
+  busyUsers,
+  agents = [],
+  queue = [],
+  onMove,
+  handoff = null,
+}) {
   const rooms = roomsFrom(agents)
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
+
+  /* The envelope, if one is in flight. Resolved against the *room plan* rather
+   * than the agent list, so a handoff naming a desk this floor does not draw —
+   * a third agent with no room yet — simply shows nothing instead of flying an
+   * envelope to (0, 0). */
+  const byRoom = new Map(rooms.map((room) => [room.slot_id, room]))
+  const crossing =
+    handoff && byRoom.has(handoff.from) && byRoom.has(handoff.to)
+      ? {
+          key: handoff.id,
+          from: byRoom.get(handoff.from),
+          to: byRoom.get(handoff.to),
+          label:
+            `${handoff.fromName} passed this task to ${handoff.toName}` +
+            (handoff.queued ? ', who is busy — it is waiting in the queue.' : '.'),
+        }
+      : null
 
   /* Who is sitting where. A slot holder is drawn at that slot's desk rather
    * than at their own coordinate — and crucially the coordinate itself is left
@@ -878,6 +953,17 @@ export function CanvasPanel({ members, me, busyUsers, agents = [], queue = [], o
             </div>
           )
         })}
+
+        {/* Last, so the envelope passes in front of the rooms and whoever is
+            standing in the corridor rather than sliding behind a wall. */}
+        {crossing && (
+          <Envelope
+            key={crossing.key}
+            from={{ x: crossing.from.deskX, y: crossing.from.deskY }}
+            to={{ x: crossing.to.deskX, y: crossing.to.deskY }}
+            label={crossing.label}
+          />
+        )}
       </div>
     </section>
   )

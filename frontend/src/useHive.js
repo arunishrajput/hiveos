@@ -38,6 +38,13 @@ const MOVE_THROTTLE_MS = 100
  *  recording, short enough that it is gone before the next beat. */
 const TOAST_MS = 4500
 
+/** How long the handoff envelope stays on the floor: the crossing itself
+ *  (`ENVELOPE_MS` in components.jsx) plus a beat to read where it landed. A
+ *  purely visual lifetime — nothing about the scheduler depends on it, and the
+ *  receiving desk lights up from its own `agent_state_update` whether or not
+ *  the envelope is still there. */
+const HANDOFF_MS = 2600
+
 /** Events that can move the slot table, the queue or the member list, and
  *  therefore warrant an authoritative re-read. `state_snapshot` is
  *  deliberately absent — including it would make the re-sync feed itself. */
@@ -263,13 +270,34 @@ function activityFor(frame) {
         who:
           `${frame.agent_name ?? frame.agent_type ?? 'agent'} → ` +
           `${frame.user_id ?? 'unknown'}` +
-          (frame.requested_name ? ` · ${frame.requested_name} was busy` : ''),
+          (frame.requested_name ? ` · ${frame.requested_name} was busy` : '') +
+          // The second leg of a handoff. Said here because the answer arrives
+          // from a desk the requester never asked for and never queued at, and
+          // an unexplained name is the board looking wrong rather than honest.
+          (frame.handoff_from_name ? ` · handed over by ${frame.handoff_from_name}` : ''),
         text: frame.text ?? '',
         cost: frame.tokens_used_this_call,
         // Normally false — the count is the usage the provider reported. True
         // only when the model was unreachable and the answer was composed
         // locally. Carried through so the UI can prefix the cost with `~`.
         estimated: Boolean(frame.estimated),
+        ts,
+      }
+    case 'agent_handoff':
+      return {
+        kind: 'handoff',
+        who: `${frame.from_name ?? frame.from_agent ?? 'an agent'} → ${
+          frame.to_name ?? frame.to_agent ?? 'another desk'
+        }`,
+        // `queued` is the honest half. A handoff whose target desk was busy
+        // waits in the queue like anything else, and a log that read "passed
+        // to Iris" either way would have the board claiming work had started
+        // when it had not.
+        text:
+          (frame.note ? `${frame.note}\n` : '') +
+          (frame.queued
+            ? 'Waiting for that desk to free up — same task, same budget.'
+            : 'Picked up straight away — same task, same budget.'),
         ts,
       }
     case 'chat_message':
@@ -307,11 +335,17 @@ export function useHive(identity) {
   const [usageEstimated, setUsageEstimated] = useState(false)
 
   const [toasts, setToasts] = useState([])
+  /* The envelope currently crossing the floor, or null. Transient and purely
+   * visual: it is never read back from the server, and a client that joins
+   * mid-handoff simply does not see it — the desks and the queue it produced
+   * are on the snapshot, which is the state that matters. */
+  const [handoff, setHandoff] = useState(null)
 
   const socketRef = useRef(null)
   const resyncRef = useRef(null)
   const moveRef = useRef({ last: 0, timer: null, pending: null })
   const toastTimers = useRef(new Set())
+  const handoffTimer = useRef(null)
 
   const pushToast = useCallback((toast) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
@@ -327,9 +361,29 @@ export function useHive(identity) {
     () => () => {
       for (const timer of toastTimers.current) clearTimeout(timer)
       toastTimers.current.clear()
+      clearTimeout(handoffTimer.current)
     },
     [],
   )
+
+  /** Put one envelope on the floor for `HANDOFF_MS`.
+   *
+   *  Keyed on an id rather than on from/to so a second handoff between the same
+   *  two desks re-mounts the envelope and replays the crossing, instead of
+   *  React reusing the element and showing nothing at all. */
+  const showHandoff = useCallback((frame) => {
+    if (!frame.from_agent || !frame.to_agent) return
+    clearTimeout(handoffTimer.current)
+    setHandoff({
+      id: `${Date.now()}-${frame.task_id ?? ''}`,
+      from: frame.from_agent,
+      to: frame.to_agent,
+      fromName: frame.from_name ?? frame.from_agent,
+      toName: frame.to_name ?? frame.to_agent,
+      queued: Boolean(frame.queued),
+    })
+    handoffTimer.current = setTimeout(() => setHandoff(null), HANDOFF_MS)
+  }, [])
 
   const scheduleResync = useCallback(() => {
     clearTimeout(resyncRef.current)
@@ -357,6 +411,7 @@ export function useHive(identity) {
       if (entry) setActivity((prev) => [entry, ...prev].slice(0, MAX_ACTIVITY))
 
       if (frame.event === 'budget_exhausted') setBudgetExhausted(true)
+      if (frame.event === 'agent_handoff') showHandoff(frame)
 
       // Toasts are for the two things that happen to the *team* rather than to
       // you, and that you would otherwise only notice by watching a panel you
@@ -399,7 +454,7 @@ export function useHive(identity) {
       // costs nothing and is corrected by the next real re-sync anyway.
       if (RESYNC_EVENTS.has(frame.event)) scheduleResync()
     },
-    [scheduleResync, pushToast],
+    [scheduleResync, pushToast, showHandoff],
   )
 
   useEffect(() => {
@@ -614,6 +669,7 @@ export function useHive(identity) {
     board,
     activity,
     toasts,
+    handoff,
     budgetExhausted,
     usageEstimated,
     holding,

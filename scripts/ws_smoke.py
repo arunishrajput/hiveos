@@ -11,7 +11,9 @@ slot frees, and no slot leak when a task fails. Sections 13-18 cover shared
 memory, token accounting, and the enforced budget ceiling. 19 covers avatar
 presence and movement; 21 covers team isolation; 22 covers workspace passphrases; 23 covers administration; 20 covers fair queueing — that dispatch order follows
 who has waited longest rather than who arrived first, and that the position
-shown on the board is the one actually dispatched.
+shown on the board is the one actually dispatched. 24-25 cover agent-to-agent
+handoff: one chain id across two desks, both legs on the one meter, a queue row
+pinned to the desk it was handed to, and a hop limit no prompt can argue past.
 
 The harness resets `tokens_used` and clears MEMORY# rows before and after, so
 it is re-runnable — tasks now genuinely spend (estimated) tokens and write
@@ -803,6 +805,7 @@ async def run_memory_and_budget(url):
     await run_isolation(url)
     await run_passphrase(url)
     await run_admin(url)
+    await run_handoff(url)
 
 
 
@@ -1045,6 +1048,227 @@ async def run_isolation(url):
     for ws in (alice, zara):
         await ws.close()
     await asyncio.sleep(3)
+
+
+# --- Agent-to-agent handoff ------------------------------------------------
+
+# Its own workspace, and deliberately not `alpha`. A handoff chain is two agent
+# runs, two TASK# rows and a possible queue entry, and running it in the demo
+# partition would leave the fairness section's `last_served` ledger looking at
+# work that was never requested there.
+HANDOFF_TEAM = "smokehandoff"
+HANDOFF_PK = f"TEAM#{HANDOFF_TEAM}"
+
+# Phrased the way a person would actually phrase it, and *without* naming the
+# tool. The claim under test is that the agent decides — a prompt that said
+# "call handoff_to_agent" would be testing the plumbing while reading like it
+# tested the product.
+HANDOFF_PROMPT = (
+    "This is a fact-finding question rather than an engineering one — pass it "
+    "to the researcher. Which AWS region is closest to Mumbai?"
+)
+
+
+def handoff_rows(prefix):
+    page = aws(
+        "dynamodb", "query",
+        "--table-name", "hiveos-state",
+        "--key-condition-expression", "PK = :p AND begins_with(SK, :s)",
+        "--expression-attribute-values",
+        json.dumps({":p": {"S": HANDOFF_PK}, ":s": {"S": prefix}}),
+    )
+    return page["Items"]
+
+
+def handoff_reset():
+    """Empty the handoff workspace: no ledger, no queue, both desks IDLE."""
+    for prefix in ("TASK#", "QUEUE#", "MEMORY#"):
+        for item in handoff_rows(prefix):
+            aws(
+                "dynamodb", "delete-item",
+                "--table-name", "hiveos-state",
+                "--key", json.dumps({"PK": {"S": HANDOFF_PK},
+                                     "SK": {"S": item["SK"]["S"]}}),
+            )
+    for slot in ("coder", "researcher"):
+        handoff_set_slot(slot, "IDLE")
+    aws(
+        "dynamodb", "update-item",
+        "--table-name", "hiveos-state",
+        "--key", json.dumps({"PK": {"S": HANDOFF_PK}, "SK": {"S": "METADATA"}}),
+        "--update-expression", "SET tokens_used = :n",
+        "--expression-attribute-values", json.dumps({":n": {"N": "0"}}),
+    )
+
+
+def handoff_set_slot(slot, status, user=None):
+    """Drive one desk's row directly.
+
+    The only way to test the *queued* handoff deterministically: making a desk
+    genuinely busy means racing two real model calls against each other, and a
+    test whose setup depends on which of two HTTP requests returns first is a
+    test that fails for reasons that are not the code.
+    """
+    aws(
+        "dynamodb", "put-item",
+        "--table-name", "hiveos-state",
+        "--item", json.dumps({
+            "PK": {"S": HANDOFF_PK},
+            "SK": {"S": f"AGENT#{slot}"},
+            "slot_id": {"S": slot},
+            "status": {"S": status},
+            "current_user": {"S": user} if user else {"NULL": True},
+        }),
+    )
+
+
+async def run_handoff(url):
+    """Section 22: one piece of work crossing two desks — the Phase 16 gate.
+
+    Two independent claims are under test and they fail in different ways:
+
+      1. *The agent decides.* Whether the model chooses to hand over is a
+         property of the model and the tool description, and the first check
+         below is the one that catches a regression there.
+      2. *The scheduler holds.* One chain id across both legs, the second leg
+         billed to the same budget, a pinned queue row that will not fall back
+         to another desk, and a hop limit that no prompt can talk its way past.
+         These hold whatever the model does.
+    """
+    print("\n24. An agent hands work to another desk — the Phase 16 gate")
+    alice = await websockets.connect(f"{url}?user_id=alice&team={HANDOFF_TEAM}")
+    await alice.send(json.dumps({"action": "hello"}))
+    await expect(alice, "state_snapshot", "alice")
+    # After the first connect, so the workspace exists to be reset.
+    handoff_reset()
+    await drain(alice)
+
+    await alice.send(json.dumps({
+        "action": "claim_agent", "agent_type": "coder", "prompt": HANDOFF_PROMPT,
+    }))
+
+    crossing = await expect(alice, "agent_handoff", "alice", timeout=90)
+    check(
+        "**the engineer decides this is not her work and hands it to the researcher**",
+        (crossing.get("from_agent"), crossing.get("to_agent")) == ("coder", "researcher"),
+        str({k: crossing.get(k) for k in ("from_agent", "to_agent", "queued")}),
+    )
+    check(
+        "the handoff frame names both desks and carries the agent's own note",
+        (crossing.get("from_name"), crossing.get("to_name")) == ("Ada", "Iris")
+        and bool(crossing.get("note")),
+        str({k: crossing.get(k) for k in ("from_name", "to_name", "note")})[:200],
+    )
+
+    # The receiving leg. Filtered on `handoff_from` because Ada's own reply —
+    # "I have passed this to Iris" — is also an agent_response on this socket.
+    landed = await expect(alice, "agent_response", "alice",
+                          where=lambda f: f.get("handoff_from"), timeout=90)
+    check(
+        "the answer comes back from the desk it was handed to, and says who handed it",
+        (landed.get("agent_type"), landed.get("agent_name"),
+         landed.get("handoff_from"), landed.get("handoff_from_name"))
+        == ("researcher", "Iris", "coder", "Ada"),
+        str({k: landed.get(k) for k in
+             ("agent_type", "agent_name", "handoff_from", "handoff_from_name")}),
+    )
+    check(
+        "**both legs are one piece of work — same task id across two desks**",
+        landed.get("task_id") and landed.get("task_id") == crossing.get("task_id"),
+        f"handoff={crossing.get('task_id')} response={landed.get('task_id')}",
+    )
+
+    await asyncio.sleep(3)
+    await alice.send(json.dumps({"action": "hello"}))
+    snap = await expect(alice, "state_snapshot", "alice")
+    ledger = snap.get("history", [])
+    chain = [row for row in ledger if row.get("task_id") == landed.get("task_id")]
+    check(
+        "the ledger records both legs under that one task id",
+        len(chain) == 2
+        and sorted(row.get("agent_type") for row in chain) == ["coder", "researcher"],
+        str([(r.get("agent_type"), r.get("handoff_from"), r.get("tokens")) for r in chain]),
+    )
+    check(
+        "only the receiving leg is marked as handed over",
+        [row.get("handoff_from") for row in chain
+         if row.get("agent_type") == "researcher"] == ["coder"]
+        and [row.get("handoff_from") for row in chain
+             if row.get("agent_type") == "coder"] == [None],
+        str([(r.get("agent_type"), r.get("handoff_from")) for r in chain]),
+    )
+
+    # The whole reason this phase went last. A handoff is a second real model
+    # call, so it has to land on the same meter as the first — a chain that
+    # spent its second leg outside the counter would be a way around the
+    # ceiling, one leg at a time.
+    chain_cost = sum(int(row.get("tokens", 0)) for row in chain)
+    check(
+        "**both legs bill to the one team budget — the chain is on the meter**",
+        chain_cost > 0 and snap.get("tokens_used", 0) >= chain_cost,
+        f"chain={chain_cost} team total={snap.get('tokens_used')}",
+    )
+
+    # The loop guard. The tool is simply not in the second leg's request, so
+    # there is nothing for a prompt to talk its way into.
+    check(
+        "**a handed-over task cannot hand on again — the chain stops at two legs**",
+        len(chain) == 2 and handoff_rows("QUEUE#") == [],
+        f"{len(chain)} legs, {len(handoff_rows('QUEUE#'))} still queued",
+    )
+
+    print("\n25. A handoff waits for its own desk rather than falling back")
+    handoff_reset()
+    await drain(alice)
+    # Occupy the researcher so the handoff has nowhere to land, leaving the
+    # coder free — which is exactly the desk a fallback would wrongly pick.
+    handoff_set_slot("researcher", "BUSY", "someone-else")
+
+    await alice.send(json.dumps({
+        "action": "claim_agent", "agent_type": "coder", "prompt": HANDOFF_PROMPT,
+    }))
+    waiting = await expect(alice, "agent_handoff", "alice", timeout=90)
+    check(
+        "a handoff to a busy desk is reported as waiting, not silently dropped",
+        waiting.get("queued") is True and waiting.get("to_agent") == "researcher",
+        str({k: waiting.get(k) for k in ("to_agent", "queued")}),
+    )
+
+    await asyncio.sleep(4)
+    parked = handoff_rows("QUEUE#")
+    check(
+        "it is parked in the queue pinned to the desk it was handed to",
+        len(parked) == 1
+        and parked[0].get("pinned_slot", {}).get("S") == "researcher"
+        and parked[0].get("handoff_from", {}).get("S") == "coder",
+        str([{k: list(v.values())[0] for k, v in r.items()
+              if k in ("pinned_slot", "handoff_from", "hops")} for r in parked]),
+    )
+    desks = {i["SK"]["S"]: i["status"]["S"] for i in handoff_rows("AGENT#")}
+    check(
+        "**the freed coder desk does not take it — a handoff is not a preference**",
+        desks.get("AGENT#coder") == "IDLE" and len(parked) == 1,
+        str(desks),
+    )
+
+    # Free the target and give the scheduler a reason to look again.
+    handoff_set_slot("researcher", "IDLE")
+    await drain(alice)
+    await alice.send(json.dumps({"action": "release_agent", "agent_type": "coder"}))
+    resumed = await expect(alice, "agent_response", "alice",
+                           where=lambda f: f.get("handoff_from"), timeout=90)
+    check(
+        "once that desk frees, the waiting handoff runs there with its chain intact",
+        (resumed.get("agent_type"), resumed.get("handoff_from")) == ("researcher", "coder")
+        and resumed.get("task_id") == waiting.get("task_id"),
+        str({k: resumed.get(k) for k in ("agent_type", "handoff_from", "task_id")}),
+    )
+
+    await alice.close()
+    await asyncio.sleep(3)
+    handoff_reset()
+    leaked = [i for i in handoff_rows("CONN#")]
+    check("no CONN# rows leak after the handoff run", leaked == [], str(leaked))
 
 
 async def run_fairness(url):

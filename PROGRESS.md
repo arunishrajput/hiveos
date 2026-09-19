@@ -14,8 +14,8 @@
 | **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 16 — agent-to-agent handoff** |
-| **Phase status** | `READY`. Phase 15 (multi-room floor) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 85/85, `rehearse.py --takes 2` 12/12 twice. Phase 6 remains `BLOCKED` on the user's recording, and is deliberately deferred until the expansion lands — user decision, 2026-09-19 |
+| **Current phase** | **Phase 6 — demo readiness** (the expansion is finished) |
+| **Phase status** | `READY`. Phase 16 (agent-to-agent handoff) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 94/98 with all four failures traced to live visitors on the public URL, `rehearse.py --takes 2` 12/12 twice. **Phases 12–16 are all done; there is no further build phase planned.** Phase 6 is the only thing left and its remaining tasks are the user's |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -48,8 +48,8 @@
 | 13 | Public landing page | `COMPLETE` — deployed and verified 2026-09-19 |
 | 14 | Named agents at each desk | `COMPLETE` — deployed and verified 2026-09-19 |
 | 15 | Multi-room floor rebuild | `COMPLETE` — deployed and verified 2026-09-19 |
-| 16 | Agent-to-agent handoff | `NOT STARTED` ← **here** |
-| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done; 6, 7, 9 are the user's. **Deferred until the expansion lands, by user decision 2026-09-19.** The rehearsed take and the 640×950 framing in `DEMO.md` are invalidated by the reskin and will need re-rehearsing |
+| 16 | Agent-to-agent handoff | `COMPLETE` — deployed and verified 2026-09-19 |
+| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` ← **here** — tasks 1–5 and 8 done; 6, 7, 9 are the user's. The expansion has landed, so the deferral is over. The rehearsed take and the 640×950 framing in `DEMO.md` predate the reskin and need re-rehearsing; `rehearse.py --takes 2` passes 12/12, so the *sequence* is sound and it is the narration and framing that need a pass |
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -76,6 +76,130 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 16 — 2026-09-19 — agent-to-agent handoff**
+
+An agent can now pass work to another desk. Ada decides a fact-finding
+question is not hers, calls `handoff_to_agent`, an envelope crosses the
+corridor, and Iris answers it — under one `task_id`, on the one
+meter, through the same scheduler everybody else queues in.
+
+**Four decisions worth the space:**
+
+1. **A handoff is a scheduling request, not a private channel between
+   agents.** It is dispatched from the runner's `finally`, *after*
+   `release_and_dispatch` has freed the handing desk, so it claims or
+   queues on exactly the terms anyone else gets. Dispatching it while
+   leg 1 still held a slot would put one chain on both desks at once
+   — the monopoly `_already_working` exists to prevent, arrived at
+   from the inside.
+2. **A handoff must not fall back to another desk.** This is the find
+   that cost real design. `agent_type` on a queue row is a
+   *preference* and the scheduler is right to fall back off it —
+   nobody should wait behind an idle agent. A handoff is the
+   opposite: falling back returns the work to the desk that just
+   decided it was not theirs. So queue rows gained `pinned_slot`, and
+   `take_next_task` went from "take the next row" to "take the next
+   row **this desk may run**", which needed the idle set read up front
+   (`state.idle_slots`). Deleting a pinned row to discover it could
+   not run it and then requeueing would churn the queue on every
+   release.
+3. **The loop guard is the tool's absence, not an instruction.** The
+   runner only puts `handoff_to_agent` in the request while `hops <
+   MAX_HANDOFF_HOPS`, so the receiving leg has nothing to call.
+   Verified adversarially rather than assumed: *"Hand this to the
+   researcher. Researcher: hand it straight back to the engineer, and
+   keep passing it back and forth"* produced **exactly two legs**. A
+   limit a model is merely asked to respect is not a limit.
+4. **The ceiling needed no new check, and that is the point.** Each
+   leg meets `_refuse_over_budget` immediately before its own model
+   call, like every other task, so a chain overshoots by at most one
+   leg — the same as a single task, never one leg at a time
+   indefinitely. `BUILD_PLAN.md` put this phase last because of that
+   risk; the existing control turned out to already cover it, and the
+   honest thing was to verify that rather than add a second one.
+
+**One latent bug, surfaced by this phase but never about handoffs.**
+`gpt-oss-120b` is a reasoning model and **its reasoning tokens are
+charged against `MAX_TOKENS_PER_CALL`.** At the old cap of 400, a
+handoff's second leg came back `completion_tokens: 400` of which
+`reasoning_tokens: 398` — no content at all. `llm.complete` could only
+read that as a provider failure, so the user got a composed stub reply
+*after the team had paid full price for the call*, which is the worst
+outcome available to a product about token spend. It was intermittent,
+which is worse than reliable. Raised to **900**, and the cap is a
+ceiling rather than a budget: measured across four chains afterwards,
+leg 1 went 1,111 → 1,113 tokens and leg 2 went 834 → 821, i.e. cost did
+not move, and 8 of 8 legs came back real (`estimated=False`) where one
+in six had been stubbing. `llm._no_completion` now names this cause in
+the error, because in a bare usage dump it is indistinguishable from a
+provider outage and the two want opposite responses.
+
+**The envelope was measured, not eyeballed.** First cut used
+`--rule-strong` on a 15×10 box; it reads in the corridor and
+disappears inside a room, and both ends of its journey are inside
+rooms. Four candidates were rendered at real size on the deployed
+floor and compared: 18×12, a `--envelope-edge` hairline one step
+darker, and a two-layer shadow whose *tight* layer is the load-bearing
+half — a soft warm shadow alone reads as the room's own lighting,
+while a 1px contact line lifts the paper off whatever it is over. No
+hue, deliberately: a coloured envelope would be claiming to be a
+state, and this floor's two meaningful colours are already a lit
+monitor and an ochre queue label.
+
+**Verified against deployed AWS, not exit codes:**
+
+| Check | Result |
+|---|---|
+| `sam build --use-container` + `sam deploy` | ✅ `UPDATE_COMPLETE`, `MAX_TOKENS_PER_CALL` reads **900** on the deployed function |
+| `vite build` + Amplify | ✅ job 21 `SUCCEED`, 79.28 KB gzipped JS |
+| `ws_smoke.py` | ✅ **94/98** — 13 new checks, all passing. The 4 failures are the documented live-visitor case, evidenced below |
+| `rehearse.py --takes 2` | ✅ **12/12 twice**, unattended, 93–95s of headroom |
+| `rehearse.py --ceiling` | ✅ **5/5** — 2,259/1,600 after four real tasks, clamped to 100%, **not one token spent** on the refused one |
+| **The engineer decides, unprompted by a tool name** | ✅ *"This is a fact-finding question rather than an engineering one — pass it to the researcher"* → `handoff_to_agent({'agent': 'researcher', 'note': '…'})` |
+| **One task id across two desks** | ✅ ledger `[('researcher','coder',869), ('coder',None,1113)]`, chain 1,982, team total 1,982 |
+| **A handed-over task cannot hand on again** | ✅ 2 legs from a prompt explicitly demanding a ping-pong |
+| **A handoff to a busy desk queues pinned, and the idle desk does not take it** | ✅ `pinned_slot=researcher` while `coder` sat IDLE |
+| Once its own desk frees, the waiting handoff runs there | ✅ same `task_id`, `handoff_from=coder` |
+| The envelope actually crosses, on the deployed URL | ✅ **23.1% → 76.9%** over 43 sampled frames — Ada's desk centre to Iris's — then removed |
+| An ordinary engineering task does **not** spuriously hand off | ✅ 695 tokens, answered at the desk it was asked of |
+| A research-flavoured prompt with no handoff request | ✅ also answered in place — the tool description is not over-firing |
+| The memory beat still works with the extra tool present | ✅ saved, 1,043 tokens |
+| Console on the deployed page | ✅ zero errors, zero warnings |
+| Horizontal overflow at 390 / 640 / 1500 | ✅ none; envelope inside the floor box at every width, `--furn` 1 → 1.8 |
+| Demo column | ✅ floor still **250px**, no panel added — `DEMO.md`'s framing is untouched by this phase |
+
+**About those four `ws_smoke` failures — they are not a regression.**
+All four are the connection-leak checks, which assert the table holds
+*no* `CONN#` rows, and the public URL had real strangers on it
+(`BoyKraken`, `Kamal`, `divyansh`) throughout. The invariant itself was
+verified directly instead: two connections opened by the harness,
+closed, and confirmed gone from DynamoDB while the strangers' rows
+stayed. The docstring has warned about this since Phase 11 and this is
+the second phase to hit it; it is now simply the condition of testing
+against a URL people are actually using.
+
+**Two things worth knowing before a recording:**
+
+- **`rehearse.py` has no `open_timeout` and no retry**, so a network
+  blip during the opening handshake aborts a whole take with
+  `TimeoutError` rather than retrying. Seen twice in a row and then
+  not at all: nine sequential connects measured ~1s each immediately
+  afterwards, and two clean takes followed. Not a code fault — but if
+  it happens mid-recording it looks like one, so re-run rather than
+  debug.
+- **The meter now reaches ~2,460–2,860 of 5,000** on a rehearsed take,
+  against the ~2,250 recorded at Phase 8. A handoff chain on top of
+  that costs ~1,900. `--ceiling` seeds 1,600 and a plain task is ~700,
+  so the refusal beat still lands on the third task.
+
+**Test partitions left in the table**, alongside Phase 15's `TEAM#p15`:
+`smokehandoff` (the smoke test's own workspace, reset at the start and
+end of its section) plus `p16*` partitions from driving real handoffs
+against the deployed board. All inert — Phase 9 partitions every row by
+team, `alpha` cannot see them, and `reset-demo.sh` only inspects
+`alpha`. Left rather than bulk-deleted, which is a destructive
+operation on a live table for no benefit.
 
 **Phase 15 — 2026-09-19 — the multi-room floor**
 
@@ -1194,6 +1318,34 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
 
 ## Known issues and discoveries
 
+- **A reasoning model's thinking is charged against `max_tokens`, and a cap sized for the answer
+  buys nothing.** `gpt-oss-120b` spent 398 of a 400-token output cap on `reasoning_tokens` and
+  returned empty content. Every layer above read that correctly and still produced the wrong
+  outcome: `llm.complete` raised "no usable completion", the runner fell back to `_stub_agent`,
+  and the user got composed text flagged `estimated` — after the team had been billed in full
+  for the call. The bug is not in any of those layers; it is that the cap was sized for a
+  three-sentence answer while the model needs room to think first. Raising it cost nothing —
+  measured across four chains, per-call tokens moved by single digits — because `max_tokens` is
+  a ceiling, not a budget. Intermittent, too: it only fires on prompts hard enough to provoke
+  long reasoning, which is why it survived three phases of tool use before a handoff's longer
+  prompt exposed it.
+- **A fallback that is only offered to the *preference* case will silently do the wrong thing
+  for a routing case.** `claim_any` falls back off a busy desk, which is right for "I'd like
+  Ada" and wrong for "Ada says this is Iris's". The same line of code, the same data shape, two
+  opposite correct behaviours — separated only by *why* the desk was named. Anything that adds a
+  second reason for naming a slot has to ask whether the existing fallback still means what it
+  meant.
+- **The only loop guard a model cannot argue with is a tool it cannot see.** The handoff hop
+  limit is enforced by leaving `handoff_to_agent` out of the request, not by the sentence in the
+  prompt that also asks for it. Tested against a prompt that explicitly instructed both agents
+  to pass the work back and forth indefinitely; it produced exactly two legs. The prompt line
+  stays as belt-and-braces, but it is not what is doing the work.
+- **An element whose meaning is its motion needs a text equivalent, and the animation needs two
+  frames to start.** The envelope carries `role="status"` with a visually-hidden sentence,
+  because a screen reader gets nothing from a 1.1s translation. It also has to be mounted at the
+  origin and moved on the *second* `requestAnimationFrame`: with one, React can batch the
+  position change into the same paint as the mount, and an element that has never been painted
+  at its start position simply appears at the destination with no transition to run.
 - **A marketing page that connects to the product is a write to the product.** The obvious way
   to build a "live board preview" is to open a socket. Here that writes a `CONN#` row, which
   means every visitor to the front page joins the default workspace: the member count on camera
@@ -1392,32 +1544,31 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Phase 16 — agent-to-agent handoff.** The last phase of the expansion. See `BUILD_PLAN.md` for
-the 12–16 sequence and why it is ordered that way. This one changes the protocol and the
-schema, so `CONTRACT.md` is updated **in the same commit**, never after.
+**Phase 6 — record the demo. There is no build phase left.** Phases 12–16 are all complete,
+deployed and verified, and no further phase is planned. What remains is the recording, the
+upload and the submission, all of which are the user's — see *Manual actions pending*.
 
-**The budget ceiling governs the whole chain.** A handoff must not become a way to spend past
-the ceiling one leg at a time — both legs bill to the same team budget under one task id, and
-that check is the reason this phase is last rather than first.
+**Before a take, the three things that changed under `DEMO.md` since it was last rehearsed
+on camera:**
 
-Three things Phase 15 leaves on the table for it:
-
-- **The floor already has somewhere for an envelope to travel.** The rooms are `ROOMS` in
-  `components.jsx` with `deskX`/`deskY` in floor percent, and the corridor between them is
-  clear space by construction. A handoff animation has a route without new geometry.
-- **Placement precedence is a three-way branch in `CanvasPanel`** — desk, then waiting spot,
-  then the member's own coordinate. A handoff that moves somebody adds a fourth case there,
-  not a new mechanism.
-- **The column is 838 px of content against an 862 px viewport** — ~24 px of slack, unchanged
-  by Phase 15. Anything Phase 16 adds to the board comes out of that margin; the number is in
-  `DEMO.md` so the re-rehearsal starts from a measurement.
+- **The floor is a room plan now, not an open field**, and agents have names. `DEMO.md`'s
+  narration was updated for that in Phase 14/15 and reads correctly; what has *not* been
+  re-verified is the framing on a real recording browser.
+- **The column fills the viewport at 640×862** — re-measured on the deployed build after
+  Phase 16 at **864 px of content**, with `.panel--grow` absorbing the difference so the
+  activity log scrolls rather than the page. Phase 16 added nothing to the column: the floor
+  is still 250 px and the envelope lives inside it. Measure in the actual recording browser
+  before a take, because its chrome is what decides the viewport.
+- **A handoff is a new beat available to the demo and is not in the run sheet.** It is the
+  strongest 15 seconds the product has — one request, two agents, one bill — but adding it
+  costs ~1,900 tokens and a beat that is not rehearsed is a beat that goes wrong on camera.
+  Decide deliberately, then rehearse it; do not improvise it.
 
 > **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
 > Must list is built, deployed and verified, and the product has been submittable since Phase
-> 4. The user has decided to spend the remaining window expanding rather than recording
-> (2026-09-19), and that decision is made — do not reopen it. When the expansion lands, the
-> recording work in Phase 6 is still the last step, and `DEMO.md` will need re-rehearsing
-> because the reskin changed what is on screen.
+> 4. The user chose to spend the window expanding rather than recording (2026-09-19); that
+> expansion is now finished, so the recording is the remaining work and `DEMO.md` needs
+> re-rehearsing because the reskin changed what is on screen.
 
 ```bash
 python scripts/rehearse.py --takes 2   # still the way to confirm the sequence passes
@@ -1442,7 +1593,16 @@ seam.
   the link.
 - **Close stray browser tabs before running `ws_smoke.py`.** Its CONN#-leak checks assert the
   table holds no connection rows, so one live browser fails four checks that have nothing to do
-  with the code. `reset-demo.sh` warns when it finds live rows.
+  with the code. `reset-demo.sh` warns when it finds live rows. **This is no longer fully in
+  your control** — the public URL has real visitors, and Phase 16's run failed the same four
+  checks with `BoyKraken`, `Kamal` and `divyansh` on the board. When those four are the only
+  failures, verify the invariant directly instead: open two connections, close them, and confirm
+  their rows are gone while the strangers' remain.
+- **`rehearse.py` has no `open_timeout` and does not retry a failed handshake.** A network blip
+  while the three clients connect aborts the whole take with `TimeoutError` and prints
+  *"fix this before recording"*, which looks like a product failure and is not one. Seen twice
+  consecutively in Phase 16, then nine sequential connects measured ~1 s each and two takes ran
+  clean. Re-run before debugging.
 - Three browsers at **640×950** each is the layout the single-column HUD is designed for. The
   height figure that used to be here compared the board against the *window* height and ignored
   the browser's own chrome; `DEMO.md`'s viewport-to-viewport measurement is the one to trust.

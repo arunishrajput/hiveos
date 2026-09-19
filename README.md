@@ -26,13 +26,20 @@ The front page explains the product; the board itself is one click behind it, at
 - When both desks are busy, further requests **queue** with a real position
 - A freed slot **auto-dispatches** the next queued task
 - Agents share **team memory** — a fact saved by one member is known to the next member's agent
+- An agent can **hand work to the other desk** when it is a better fit — the envelope crosses
+  the floor, the receiving agent answers, and both legs bill to the same budget under one
+  task id. Bounded to one hop, so a chain cannot ping-pong through the budget
 - The budget is an **enforced ceiling**, not a gauge — the server refuses to spend past it
 - A shared **workspace floor** shows who is present and who is mid-task, live on every screen
 
-**Status.** Everything above is live, deployed and verified against real AWS — 85/85 end-to-end
+**Status.** Everything above is live, deployed and verified against real AWS — 94/98 end-to-end
 checks (`scripts/ws_smoke.py`) and the full demo sequence 12/12 twice unattended
 (`scripts/rehearse.py`). The agent is real and the token counts are the provider's reported
 usage, not estimates.
+
+> The four non-passing checks are all the same one: they assert the connection table is *empty*,
+> and the public URL now has real visitors on it during a run. The invariant itself is verified
+> directly — connections opened by the harness are gone from DynamoDB the moment they close.
 
 > **One honest note: model inference is the only thing not running on AWS.** Amazon Bedrock is
 > blocked account-wide here — `us-east-1`, `us-west-2` and `ap-south-1` all refuse, Marketplace
@@ -181,7 +188,7 @@ template.yaml      SAM — all AWS infrastructure
 
 ## Current MVP scope
 
-**Built and deployed:** shared token meter · **named agents** at each desk · **fair queueing** with live position · auto-dispatch · shared team memory via **model-invoked tools** · **per-person spend ledger** with the agent that ran each task · enforced budget ceiling · pixel workspace floor · team chat · public URL.
+**Built and deployed:** shared token meter · **named agents** at each desk · **fair queueing** with live position · auto-dispatch · shared team memory via **model-invoked tools** · **agent-to-agent handoff** billed as one job across two desks · **per-person spend ledger** with the agent that ran each task · enforced budget ceiling · pixel workspace floor · team chat · public URL.
 
 **Not built:** user accounts. Workspaces can be passphrase-protected and have an owner, but
 there is no identity behind a display name — administration hangs off a secret the creator

@@ -60,6 +60,19 @@ def get(agent_id):
     return _BY_ID.get(agent_id)
 
 
+def others(agent_id):
+    """Every desk except this one — who a task at `agent_id` may hand work to.
+
+    Derived rather than listed: a third agent should be one entry in `AGENTS`
+    and nothing else, and a hand-maintained "who can hand to whom" table is the
+    kind of thing that silently keeps pointing at a desk that no longer exists.
+
+    An id that is not on the roster gets the whole roster back, which is the
+    right answer — there is no desk to exclude.
+    """
+    return tuple(agent for agent in AGENTS if agent["id"] != agent_id)
+
+
 def name_of(agent_id):
     """A display name for an id, falling back to the id itself.
 

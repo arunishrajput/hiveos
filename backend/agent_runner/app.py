@@ -67,15 +67,18 @@ def _handle(task):
     team = state.clean_team(task.get("team_id"))
     print(
         f"[runner] start team={team} slot={slot_id} user={user_id} "
+        f"task={task.get('task_id')} hops={task.get('hops', 0)} "
         f"conn={task.get('connection_id')}"
     )
 
+    handoff = None
     try:
         # Returning here still runs `finally`, so a refused task releases its
         # slot exactly like a completed one.
         if _refuse_over_budget(team, task):
             return
-        _reply(team, task, _run_agent(team, task))
+        result, handoff = _run_agent(team, task)
+        _reply(team, task, result)
     except Exception:
         # The task failed, not the infrastructure. Tell the user, then fall
         # through to finally — swallowing it here is what stops SQS from
@@ -90,6 +93,8 @@ def _handle(task):
             status=history.FAILED,
             prompt=task.get("prompt", ""),
             requested_agent=task.get("requested_agent"),
+            task_id=task.get("task_id"),
+            handoff_from=task.get("handoff_from"),
         )
         _reply_error(task, "agent task failed")
     finally:
@@ -97,6 +102,18 @@ def _handle(task):
         # leaked, and an SQS redelivery is the only thing that can still fix
         # it. Better a duplicate response than a deadlocked workspace.
         scheduler.release_and_dispatch(team, slot_id)
+
+        # After the release, never before. A handoff is a scheduling request,
+        # so it has to compete for a desk on the same terms as everyone in the
+        # queue — dispatching it while this task still held a slot would let one
+        # chain occupy both desks at once, which is the monopoly the product
+        # exists to prevent.
+        #
+        # Reached from the failure path too, and deliberately: if the model
+        # genuinely decided to hand the work on and the reply then failed, the
+        # answer the user is waiting for is the *second* leg's.
+        if handoff:
+            scheduler.hand_off(team, task, handoff["target"], handoff["note"])
 
     print(f"[runner] done slot={slot_id} user={user_id}")
 
@@ -132,6 +149,8 @@ def _refuse_over_budget(team, task):
         status=history.REFUSED,
         prompt=task.get("prompt", ""),
         requested_agent=task.get("requested_agent"),
+        task_id=task.get("task_id"),
+        handoff_from=task.get("handoff_from"),
     )
     broadcast.broadcast_to_team(
         team,
@@ -182,12 +201,16 @@ def _remember_from_prompt(team, prompt, requester):
 
 
 def _run_agent(team, task):
-    """Run one task: load the team's memory, let the model work, hold the slot.
+    """Run one task. Returns `(result, handoff)`; `handoff` is usually None.
 
     The model call is the only part that can fail in a way the user should
     still get an answer from, so it is the only part wrapped. Everything around
     it — the memory write, the broadcast, the accounting — is the real
     mechanism and runs whether or not the provider is reachable.
+
+    A handoff is *recorded here and acted on by the caller*, after this task's
+    slot is released. The tool cannot dispatch it itself: doing so from inside a
+    task that still holds a desk would put one chain on both desks at once.
     """
     prompt = task.get("prompt", "")
 
@@ -197,9 +220,20 @@ def _run_agent(team, task):
     # Who answers is the desk this ran at, never the preference on the request.
     # They are usually the same; when they are not, the substitution is what
     # `_reply` reports and what the ledger records.
-    agent = agents.get(task["slot_id"])
+    slot_id = task["slot_id"]
+    agent = agents.get(slot_id)
     requester = task.get("user_id", "unknown")
     started = time.monotonic()
+
+    # Where this task may still be handed. Empty once the hop budget is spent,
+    # and `llm.tools_for` then leaves the handoff tool out of the request
+    # entirely — the loop guard is the absence of the tool, not an instruction
+    # the model is trusted to follow.
+    targets = (
+        agents.others(slot_id)
+        if int(task.get("hops", 0) or 0) < scheduler.MAX_HANDOFF_HOPS
+        else ()
+    )
 
     # Before the work, not during it: a queued user's agent must already know
     # the team's facts the moment its turn starts (CONTRACT.md). Deliberately
@@ -207,6 +241,7 @@ def _run_agent(team, task):
     context = memory.as_context(team)
 
     saved = []
+    handoff = {}
 
     def run_tool(name, args):
         """Execute one tool the model chose to call.
@@ -226,11 +261,16 @@ def _run_agent(team, task):
             )
         if name == "get_task_context":
             return history.as_context(team)
+        if name == "handoff_to_agent":
+            return _accept_handoff(handoff, targets, slot_id, args)
         return f"There is no tool called {name}."
 
     try:
         text, tokens, called = llm.complete(
-            prompt, llm.build_system_prompt(context, agent), run_tool
+            prompt,
+            llm.build_system_prompt(context, agent),
+            run_tool,
+            tools=llm.tools_for(targets),
         )
         result = AgentResult(text=text, tokens=tokens, estimated=False)
         if called:
@@ -241,7 +281,12 @@ def _run_agent(team, task):
         # so — and `estimated=True` keeps the meter honest about it.
         print(f"[runner] model call failed ({type(exc).__name__}: {exc}) — composing fallback")
         fact = _remember_from_prompt(team, prompt, requester)
-        result = _stub_agent(prompt, context, agents.name_of(task["slot_id"]), fact)
+        result = _stub_agent(prompt, context, agents.name_of(slot_id), fact)
+        # A handoff the model asked for before the call fell over is not acted
+        # on: `_stub_agent` has already answered the user from this desk, and
+        # dispatching a second leg would spend the team's budget answering a
+        # question that has a reply on screen.
+        handoff = {}
     else:
         # The model answered but chose not to save, and the prompt plainly
         # asked. Save it regardless: the fact is what the user asked for, and
@@ -250,7 +295,43 @@ def _run_agent(team, task):
             _remember_from_prompt(team, prompt, requester)
 
     _hold_slot(started)
-    return result
+    return result, (handoff or None)
+
+
+def _accept_handoff(handoff, targets, slot_id, args):
+    """Record the model's decision to pass this task on. Never dispatches.
+
+    Returns prose, including when it refuses — a tool that raised would abandon
+    a task that has already run and already cost the team tokens, and the model
+    can relay "there is no such desk" to the user perfectly well.
+    """
+    if handoff.get("target"):
+        return (
+            "This task has already been handed on. Tell the user who has it "
+            "and stop."
+        )
+
+    target = args.get("agent")
+    by_id = {agent["id"]: agent for agent in targets}
+    if target == slot_id:
+        return "You are already at that desk. Answer the task yourself."
+    if target not in by_id:
+        if not targets:
+            return (
+                "This task was already handed to you by another desk, so it "
+                "cannot be passed on again. Answer it yourself."
+            )
+        offer = ", ".join(f"{a['id']} ({a['name']}, {a['role']})" for a in targets)
+        return f"There is no desk called {target!r}. Available: {offer}."
+
+    handoff["target"] = target
+    handoff["note"] = (args.get("note") or "").strip()
+    taker = by_id[target]
+    return (
+        f"Handed to {taker['name']}, the {taker['role']}. They pick it up at "
+        "their own desk and answer next, under the same team budget. Tell the "
+        "user in one sentence that you have passed it on, and why."
+    )
 
 
 def _hold_slot(started):
@@ -321,6 +402,7 @@ def _reply(team, task, result):
     slot_id = task["slot_id"]
     requested = task.get("requested_agent")
     substituted = requested if requested and requested != slot_id else None
+    handed_from = task.get("handoff_from")
 
     # After the ADD, never before: the ledger must not be able to report a cost
     # that the team counter has not actually taken.
@@ -333,6 +415,11 @@ def _reply(team, task, result):
         status=history.DONE,
         prompt=task.get("prompt", ""),
         requested_agent=requested,
+        # Both legs of a handed-over task carry the same chain id, so the
+        # ledger can say the work cost the team N tokens rather than showing
+        # two unrelated tasks that happen to sit next to each other.
+        task_id=task.get("task_id"),
+        handoff_from=handed_from,
     )
 
     # `usage` already carries `estimated`, read back from the row, so the
@@ -354,6 +441,12 @@ def _reply(team, task, result):
             # join against.
             "requested_agent": substituted,
             "requested_name": agents.name_of(substituted) if substituted else None,
+            # Null on an ordinary task; set on the receiving leg of a handoff.
+            # The chain id rides along so a client can tie the two answers
+            # together without holding the ledger.
+            "task_id": task.get("task_id"),
+            "handoff_from": handed_from,
+            "handoff_from_name": agents.name_of(handed_from) if handed_from else None,
             "text": result.text,
             "tokens_used_this_call": result.tokens,
             "estimated": result.estimated,

@@ -427,6 +427,21 @@ receiving agent picks it up, and both legs bill to the same team budget under on
 **The budget ceiling still governs the whole chain** — a handoff must not become a way to spend
 past the ceiling one leg at a time. That check is the reason this phase is last.
 
+> **Done, 2026-09-19.** `handoff_to_agent` is a real tool the model chooses to call; Ada passes
+> a fact-finding question to Iris, an envelope crosses the corridor, and both legs write ledger
+> rows under one `task_id`. The ceiling needed no new check — each leg meets the existing one
+> immediately before its own model call, so a chain can overshoot by at most one leg exactly
+> like a single task. The phase's two real finds were elsewhere: **a handoff must not fall back
+> to another desk**, which made `pinned_slot` a queue-row concept and changed `take_next_task`
+> from "take the next row" to "take the next row this desk may run"; and **the loop guard has to
+> be the tool's absence, not an instruction** — verified against a prompt that explicitly told
+> the two agents to pass the work back and forth, which still produced exactly two legs.
+>
+> It also surfaced a latent bug that was never about handoffs: `gpt-oss-120b` charges its
+> reasoning tokens against `MAX_TOKENS_PER_CALL`, and at 400 a call spent 398 on reasoning and
+> returned nothing — billing the team in full for a stubbed answer. Raised to 900. See
+> `PROGRESS.md`.
+
 ---
 
 ## If you are behind schedule

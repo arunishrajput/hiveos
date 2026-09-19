@@ -185,9 +185,10 @@ room comes on. Do not cut away from it to point at a panel.
 > never asked twice — and his agent already knows the deploy window. Nobody told it. That's
 > shared memory across a team's agents.
 
-The meter has moved to roughly **2,250 / 5000** — about 45%, so it is unmistakably visible.
-A task costs more now that the agent has tools: two round trips plus the tool schemas in
-every prompt, roughly 800 tokens against roughly 270 before.
+The meter has moved to roughly **2,450-2,860 / 5000** — about 50-57%, so it is unmistakably
+visible. A task costs more now that the agent has tools: two round trips plus the tool schemas
+in every prompt, roughly 700-1,100 tokens against roughly 270 before. An agent-to-agent handoff
+is two agent runs and costs roughly **1,900** for the pair.
 
 ### 2:15–2:45 · Where AWS fits
 
@@ -236,8 +237,10 @@ The meter displays **100.0%** and **0 remaining**, even though the underlying co
 charged in advance, and the UI clamps. Rehearse it with `python scripts/rehearse.py --ceiling`.
 
 **1600, and this number has moved twice.** 60 when the agent was stubbed (~58 a token a task),
-500 once a real model call landed (~200–400), 1600 now the model has tools (~800). It tracks the
-cost of a task; if that changes again, this has to follow or the climb stops being watchable.
+500 once a real model call landed (~200–400), 1600 now the model has tools (~700–1,100). It
+tracks the cost of a task; if that changes again, this has to follow or the climb stops being
+watchable. Re-checked after Phase 16 and left at 1600: a plain task is ~700, so two land and the
+third is still refused.
 
 ---
 

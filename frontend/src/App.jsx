@@ -531,6 +531,7 @@ function Workspace({ identity }) {
         agents={board.agents}
         queue={board.queue}
         onMove={hive.moveAvatar}
+        handoff={hive.handoff}
       />
 
       {/* No SlotsPanel and no QueuePanel here any more. Both said exactly what

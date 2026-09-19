@@ -42,7 +42,14 @@ KEY_PARAM_NAME = os.environ.get("GROQ_KEY_PARAM", "/hiveos/groq-api-key")
 MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 # Per-call output cap — the same spend guard the Bedrock plan specified.
-MAX_TOKENS = int(os.environ.get("MAX_TOKENS_PER_CALL", "1024"))
+#
+# **This model's reasoning tokens are charged against it.** `gpt-oss-120b`
+# thinks before it answers, and that thinking counts as completion tokens, so a
+# cap set to the length of the *answer* can be spent entirely on reasoning and
+# return empty content. That surfaces here as "no usable completion" and to the
+# user as a stubbed reply — having paid full price for the call. Size this for
+# reasoning plus the answer, never for the answer alone.
+MAX_TOKENS = int(os.environ.get("MAX_TOKENS_PER_CALL", "900"))
 
 # Shorter than the Lambda's 60s timeout and the queue's visibility window, so a
 # hung provider surfaces as a fallback rather than as a redelivered task.
@@ -199,6 +206,66 @@ TOOLS = [
 MAX_TOOL_ROUNDS = 1
 
 
+def handoff_tool(targets):
+    """The tool that passes a task to another desk, or None if there is none.
+
+    Built from the roster entries the caller says are reachable, so the enum
+    can only ever name a desk that exists — and so a task that has already been
+    handed once is simply not offered the tool. The hop limit is therefore
+    structural rather than a rule the model is asked to respect: there is
+    nothing to call.
+
+    The descriptions carry each target's role verbatim from the roster. A bare
+    list of ids ("coder", "researcher") tells a model nothing about which desk a
+    piece of work belongs at, and picking the wrong one is worse than not
+    handing over at all — it spends a second leg to arrive at the same place.
+    """
+    if not targets:
+        return None
+
+    roles = "; ".join(
+        f"{agent['id']} is {agent['name']}, the {agent['role']} — {agent['tagline']}"
+        for agent in targets
+    )
+    return {
+        "type": "function",
+        "function": {
+            "name": "handoff_to_agent",
+            "description": (
+                "Pass this task to a different agent desk when the work plainly "
+                "belongs to them rather than to you. They pick it up at their "
+                "own desk, under the same team budget, and answer the user "
+                "next. Use it only for a genuine mismatch of expertise — the "
+                f"handover costs the team a second agent run. Desks: {roles}."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "agent": {
+                        "type": "string",
+                        "enum": [agent["id"] for agent in targets],
+                        "description": "Which desk takes it from here.",
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": (
+                            "One sentence for the agent picking this up: what "
+                            "you understood the task to be and why it is theirs."
+                        ),
+                    },
+                },
+                "required": ["agent", "note"],
+            },
+        },
+    }
+
+
+def tools_for(handoff_targets=()):
+    """The tool list for one task. The base tools, plus a handoff if allowed."""
+    handoff = handoff_tool(handoff_targets)
+    return TOOLS + [handoff] if handoff else list(TOOLS)
+
+
 def _post(payload):
     """One POST to the provider. Returns the decoded body."""
     request = urllib.request.Request(
@@ -231,7 +298,30 @@ def _usage(payload):
     return int((payload.get("usage") or {}).get("total_tokens") or 0)
 
 
-def complete(prompt, system, run_tool=None):
+def _no_completion(payload):
+    """Why an answer came back empty, said in a way a log reader can act on.
+
+    Worth the extra lines because the interesting case is indistinguishable
+    from a generic provider failure in a bare usage dump, and it cost this
+    project a confused half hour: the model spent its entire output cap on
+    reasoning and had nothing left to say. That is a `MAX_TOKENS_PER_CALL`
+    problem, not a provider problem, and the two want opposite responses.
+    """
+    usage = payload.get("usage") or {}
+    reasoning = int(
+        (usage.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0
+    )
+    completion = int(usage.get("completion_tokens") or 0)
+    if reasoning and completion >= MAX_TOKENS * 0.9:
+        return (
+            f"groq spent the whole {MAX_TOKENS}-token output cap on reasoning "
+            f"({reasoning} reasoning of {completion} completion tokens) and "
+            "returned no answer — raise MAX_TOKENS_PER_CALL"
+        )
+    return f"groq returned no usable completion: {usage}"
+
+
+def complete(prompt, system, run_tool=None, tools=None):
     """Call the model, letting it use tools. Returns (text, tokens, called).
 
     `run_tool(name, args) -> str` executes one tool and returns what the model
@@ -239,6 +329,11 @@ def complete(prompt, system, run_tool=None):
     actually chose, which the caller needs because a fact saved by the *model*
     and a fact saved by a regex are different claims and only one of them is
     "the agent decided to".
+
+    `tools` is the schema list to offer, defaulting to `TOOLS`. It is a
+    parameter rather than a constant because what an agent may do depends on
+    the task: a task that has already been handed over once is not offered the
+    handoff tool, which is how the hop limit is enforced.
 
     **Tokens are the sum across every round.** A tool call costs two requests,
     and charging the team for one of them would under-report spend on the one
@@ -259,7 +354,7 @@ def complete(prompt, system, run_tool=None):
         "messages": messages,
     }
     if run_tool:
-        request["tools"] = TOOLS
+        request["tools"] = TOOLS if tools is None else tools
         request["tool_choice"] = "auto"
 
     tokens = 0
@@ -274,7 +369,7 @@ def complete(prompt, system, run_tool=None):
         if not calls or not run_tool:
             text = (choice.get("content") or "").strip()
             if not text or tokens <= 0:
-                raise RuntimeError(f"groq returned no usable completion: {payload.get('usage')}")
+                raise RuntimeError(_no_completion(payload))
             return text, tokens, called
 
         # The assistant turn that *requested* the tools has to go back verbatim,

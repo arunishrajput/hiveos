@@ -95,6 +95,14 @@
   --desk: #c08c4e;
   --desk-edge: #8e6335;
   --desk-top: #d6a467;
+  /* The handoff envelope's edge. One step darker than `--rule-strong`, and a
+   * separate token because it is solving a different problem: a hairline
+   * between two panels only has to be *findable*, while a 15px piece of paper
+   * crossing a near-white room floor has to be findable in motion, at
+   * recording size, in under a second. Measured against the room floor rather
+   * than picked — at `--rule-strong` the envelope disappears inside a room and
+   * only reappears in the corridor, which is half its journey. */
+  --envelope-edge: #b39a68;
   --screen-off: #3a3630;
   /* A lit monitor is a light source, not a label, so it keeps the bright blue
    * that `--cool` had to give up to stay legible as text on paper. The two
@@ -166,6 +174,23 @@ body {
 .num {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* Text for assistive technology only. `display: none` and `visibility: hidden`
+ * both take it out of the accessibility tree along with the layout, which is
+ * the opposite of what is wanted — this keeps it announced while occupying no
+ * space. Used by the handoff envelope, whose meaning is otherwise carried
+ * entirely by an animation. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* --- Board shell ---------------------------------------------------------- */
@@ -856,6 +881,20 @@ body {
 }
 .entry--error .entry__who {
   color: var(--alarm);
+}
+
+/* A handoff is routing, not output — it produced no answer and spent no tokens
+ * of its own. So it takes the quietest treatment on the log: the hairline
+ * rather than a state hue, and dimmed text. The two legs it sits between are
+ * ordinary `entry--response` rows and are what should draw the eye. */
+.entry--handoff {
+  border-left-color: var(--rule-strong);
+}
+.entry--handoff .entry__who {
+  color: var(--dim);
+}
+.entry--handoff .entry__text {
+  color: var(--faint);
 }
 
 .entry__cost {
@@ -1790,6 +1829,66 @@ body {
 }
 
 
+/* --- The handoff envelope ------------------------------------------------- */
+
+/* A piece of paper crossing the corridor from one desk to another.
+ *
+ * Paper, deliberately, and the only thing on this floor that is: the room is
+ * furniture and people, and a handoff is the one event that has no physical
+ * object of its own to light up. It borrows the page's own `--paper` and its
+ * hairline rather than taking a hue, because a coloured envelope would read as
+ * a state — and the two colours that mean something on this floor are already
+ * spoken for by a lit monitor and an ochre queue label.
+ *
+ * Sits above everything: `z-index` puts it in front of the room walls and
+ * anybody standing in the corridor, which is what makes it read as travelling
+ * *across* the office rather than through it. */
+.envelope {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  width: calc(18px * var(--furn));
+  height: calc(12px * var(--furn));
+  background: var(--paper);
+  border: 1px solid var(--envelope-edge);
+  border-radius: 2px;
+  /* Two layers, and the tight one is the load-bearing half: a soft warm
+   * shadow alone reads as part of the room's own lighting, where a 1px contact
+   * line underneath lifts the envelope off whatever surface it is over. That
+   * is what makes it legible on the room floor and the corridor alike, without
+   * giving it a colour — and a coloured envelope would be claiming to be a
+   * state, which it is not. */
+  box-shadow:
+    0 3px 6px var(--shadow),
+    0 1px 2px rgba(60, 45, 20, 0.25);
+  pointer-events: none;
+  /* Travel lives in the prefers-reduced-motion: no-preference block with the
+   * rest of the motion, like `.pawn`. */
+}
+
+/* The flap: two hairlines from the top corners meeting at the middle. Drawn as
+ * a rotated square clipped by the envelope's own border rather than as a
+ * background gradient, so it stays crisp at the ~1.8 furniture scale the wide
+ * layout uses. */
+.envelope__flap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.envelope__flap::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -60%;
+  width: 90%;
+  height: 90%;
+  transform: translateX(-50%) rotate(45deg);
+  border-bottom: 1px solid var(--envelope-edge);
+  border-right: 1px solid var(--envelope-edge);
+}
+
 /* --- Quota bar (chrome) --------------------------------------------------- */
 
 .quotabar {
@@ -2048,6 +2147,32 @@ body {
       top 700ms cubic-bezier(0.37, 0, 0.32, 1);
   }
 
+  /* 1100ms, and it MUST match ENVELOPE_MS in components.jsx — same contract as
+   * WALK_MS and `.pawn` above. Slower than a walk on purpose: the crossing is
+   * the thing being read, not a by-product of somebody moving. Eased at both
+   * ends so it is handed over rather than fired.
+   *
+   * `opacity` fades it in over the first stretch so it does not pop into
+   * existence on the sender's desk; it is removed outright when
+   * `HANDOFF_MS` elapses, which is why there is no fade out to match. */
+  .envelope {
+    transition:
+      left 1100ms cubic-bezier(0.45, 0, 0.25, 1),
+      top 1100ms cubic-bezier(0.45, 0, 0.25, 1);
+    animation: envelope-in 220ms ease-out;
+  }
+
+  @keyframes envelope-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.7);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
   .sprite {
     animation: pawn-idle 2.4s steps(1, end) infinite;
   }
@@ -2136,6 +2261,13 @@ body {
 
   /* The marker still moves — it just arrives instead of travelling. */
   .pawn {
+    transition: none;
+  }
+
+  /* Same reading: the envelope appears at the receiving desk instead of
+   * crossing to it. It is still on screen for `HANDOFF_MS`, and the activity
+   * log entry that pairs with it says who handed what to whom in words. */
+  .envelope {
     transition: none;
   }
 }

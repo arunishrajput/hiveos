@@ -252,10 +252,17 @@ def _claim_agent(team, connection_id, body):
     if _already_working(team, user_id):
         return _error(connection_id, "you already have an agent running or queued")
 
+    # Minted here, where the work is *requested*, and carried unchanged through
+    # a queue and across a handoff. It identifies the job, not the leg — the
+    # ledger needs one id spanning both desks when an agent passes work on.
+    task_id = scheduler.new_task_id()
+
     slot_id = scheduler.claim_any(team, requested, user_id)
 
     if slot_id is None:
-        scheduler.enqueue(team, user_id, requested, prompt, connection_id)
+        scheduler.enqueue(
+            team, user_id, requested, prompt, connection_id, task_id=task_id
+        )
         scheduler.broadcast_queue(team)
         return OK
 
@@ -265,7 +272,9 @@ def _claim_agent(team, connection_id, body):
     # that sees BUSY arrive after the release is left showing a slot that never
     # goes idle again.
     scheduler.broadcast_slot(team, slot_id, "BUSY", user_id)
-    scheduler.dispatch(team, slot_id, user_id, requested, prompt, connection_id)
+    scheduler.dispatch(
+        team, slot_id, user_id, requested, prompt, connection_id, task_id=task_id
+    )
     return OK
 
 
@@ -331,6 +340,11 @@ def _already_working(team, user_id):
 
     One query rather than a get per slot plus a queue query: this runs on the
     claim path, which is the interaction the whole demo hangs on.
+
+    A queued *handoff* counts, because its QUEUE# row carries the requester's
+    id like any other. That is the reading we want: their chain is still
+    running, it just moved desks, and letting them start a second one while a
+    second leg waits is exactly the double-claim this prevents.
     """
     for item in state.query_team(team):
         sk = item["SK"]

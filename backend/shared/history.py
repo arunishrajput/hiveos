@@ -33,13 +33,19 @@ REFUSED = "refused"
 
 
 def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
-           requested_agent=None):
+           requested_agent=None, task_id=None, handoff_from=None):
     """Write one task to the ledger. Never raises into the caller.
 
     `agent_type` is the agent that **ran** the task — the desk it ran at, not
     the one the requester asked for. `requested_agent` records the preference,
     and only when it differed: a ledger that repeated the same id in both
     columns on every row would make the one case that matters invisible.
+
+    `task_id` is the *chain*, not the row. A handoff runs as two agent tasks
+    and writes two rows, and they carry the same `task_id` — that is what makes
+    "this piece of work cost the team 1,400 tokens across two desks" a question
+    the ledger can answer at all. `handoff_from` is set on the second row only,
+    and names the desk that passed it on.
 
     Deliberately swallowing failures: this is a record *about* work that has
     already happened, and losing a history row is a great deal better than
@@ -54,6 +60,8 @@ def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
                 "user_id": user_id or "unknown",
                 "agent_type": agent_type or "",
                 "requested_agent": substituted,
+                "task_id": task_id,
+                "handoff_from": handoff_from,
                 "tokens": int(tokens or 0),
                 "estimated": bool(estimated),
                 "status": status,
@@ -76,6 +84,14 @@ def view(rows):
             # Present only when somebody got a different agent than they asked
             # for. Null on every ordinary row.
             "requested_agent": item.get("requested_agent"),
+            # The chain this row belongs to. Two rows share one `task_id` when
+            # an agent handed the work on, and `handoff_from` names the desk it
+            # came from — null on a row that nobody handed over.
+            "task_id": item.get("task_id"),
+            "handoff_from": item.get("handoff_from"),
+            "handoff_from_name": (
+                agents.name_of(item["handoff_from"]) if item.get("handoff_from") else None
+            ),
             "tokens": int(item.get("tokens", 0)),
             "estimated": bool(item.get("estimated", False)),
             "status": item.get("status"),
@@ -103,7 +119,12 @@ def as_context(team, limit=8):
     lines = [
         f"- {item.get('user_id')} asked {agents.name_of(item.get('agent_type'))}:"
         f" {item.get('prompt') or '(no prompt)'}"
-        f" [{item.get('status')}, {int(item.get('tokens', 0))} tokens]"
+        f" [{item.get('status')}, {int(item.get('tokens', 0))} tokens"
+        # Named here too, so an agent asked where the budget went can say that
+        # two of these rows were one piece of work rather than two requests.
+        + (f", handed over by {agents.name_of(item['handoff_from'])}"
+           if item.get("handoff_from") else "")
+        + "]"
         for item in rows[:limit]
     ]
     return "Recent agent tasks, newest first:\n" + "\n".join(lines)

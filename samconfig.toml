@@ -27,4 +27,4 @@ fail_on_empty_changeset = false
 # changes nothing about a stack that already exists. The model name is not a
 # secret; the API key is a SecureString in SSM and is never passed as a
 # parameter. GroqKeyParam is the parameter *name* only.
-parameter_overrides = "GroqModel=openai/gpt-oss-120b GroqKeyParam=/hiveos/groq-api-key MaxTokensPerCall=400"
+parameter_overrides = "GroqModel=openai/gpt-oss-120b GroqKeyParam=/hiveos/groq-api-key MaxTokensPerCall=900"
