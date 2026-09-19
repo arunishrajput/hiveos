@@ -77,6 +77,72 @@ a fresh session reads first.
 
 ## Completed
 
+**PR #1 — 2026-09-19 — the release path is now guarded (Phantom9869 / Kamal Choubey)**
+
+First outside contribution. Two real defects on the release path, both
+correctly identified, both merged with changes:
+
+1. **`set_idle` wrote unconditionally.** SQS redelivers, so a task can
+   finish and reach its release long after the desk was freed and
+   handed to the next person in the queue. That write ended a
+   stranger's task and then broadcast `IDLE` for a desk that was
+   genuinely working — the board lying about the scheduler, in the one
+   product that claims it cannot. Now conditional on `current_user`,
+   like `try_claim` is conditional on `status`.
+2. **`release_agent` authorised nothing.** Any connected client could
+   send `{"action":"release_agent","agent_type":"coder"}` and cut short
+   a teammate's task. The UI only ever drew the button for your own
+   desk; there was simply no server-side half of that rule.
+
+**What review changed, and why:**
+
+- **The PR was cut before Phase 16.** It conflicted on the `scheduler`
+  docstring and predated both `dispatch_next` and the handoff dispatch
+  in the runner's `finally`. Merged onto current `main` with the
+  handoff block intact.
+- **Holder-only would have broken the escape hatch.** `release_agent`
+  exists so a wedged desk can be freed from the UI. If a runner dies
+  holding a desk and its owner closes the tab, holder-only means the
+  desk is stuck for the rest of the demo — the hatch works only for
+  people who do not need it. Admins may now free any desk, using the
+  actual holder as the expected value, not themselves.
+- **Holder-only also broke `ws_smoke.py` section 25.** That test frees
+  an *already idle* desk to make the scheduler look at a pinned
+  handoff again. The PR's check refused it, so the deployed gate for
+  queued handoffs would have failed. An idle desk is now neither an
+  error nor a release: it pokes `dispatch_next` and nothing else, which
+  can only start work that is already queued at a desk that is already
+  free.
+- **Exceptions became a return value.** The PR raised
+  `ConditionalCheckFailedException` out of `set_idle` and caught it in
+  two callers, one of which imported `botocore` inside an `except`
+  block. `set_idle` now returns a bool exactly like `try_claim` —
+  claiming and releasing are two halves of one mechanism and should
+  fail the same way. Both try/except blocks and the router's `botocore`
+  import are gone. A non-conditional `ClientError` still raises;
+  throttling must not be laundered into "somebody else holds it".
+- **The router kept its DynamoDB access in `state.py`.** The PR read
+  `state.table()` directly in two places; that is the only raw table
+  access anywhere in `router/app.py`. Added `state.slot_holder`.
+- **Authorisation reads the `CONN#` row, not `_user_for`.** `_user_for`
+  falls back to `user_id` on the frame, which is fine for labelling a
+  chat line and would have made the whole check decorative here.
+
+**Tests.** `tests/` is new — the repo had no unit tests, only
+`ws_smoke.py` against deployed AWS. 14 tests, `unittest.mock` only, no
+moto and no AWS. Verified by mutation rather than by passing: removing
+the `ConditionExpression` and the authorisation branch fails 3 of them.
+`conftest.py` puts `backend/` on the path, which is the layout
+`CodeUri: backend/` actually produces, rather than aliasing
+`sys.modules` as the PR did.
+
+**Not addressed, and deliberately.** SQS duplicate delivery still
+double-charges the meter — the guard stops a redelivery from taking
+someone else's desk, not from running. The author flagged it as
+separate work and it is Post-Hackathon.
+
+---
+
 **Phase 16 — 2026-09-19 — agent-to-agent handoff**
 
 An agent can now pass work to another desk. Ada decides a fact-finding

@@ -547,6 +547,25 @@ def idle_slots(team):
     }
 
 
+def slot_holder(team, slot_id):
+    """Who is sitting at one desk right now, or None if it is free.
+
+    A single GetItem rather than a slice of `idle_slots`, because the caller
+    that needs this — the manual release route — needs the *name*, not whether
+    the desk is busy, and it needs it to decide whether to refuse.
+
+    `current_user` is written as NULL when a desk is freed, so a free desk and
+    a desk whose row predates the attribute both read as None. Both mean the
+    same thing here.
+    """
+    response = table().get_item(
+        Key={"PK": team_pk(team), "SK": f"AGENT#{slot_id}"},
+        ProjectionExpression="#u",
+        ExpressionAttributeNames={"#u": "current_user"},
+    )
+    return (response.get("Item") or {}).get("current_user")
+
+
 def queue_view(team, items=None):
     """The queue as clients see it: 1-based positions, next up first."""
     items = queue_items(team) if items is None else items

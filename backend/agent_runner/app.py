@@ -98,26 +98,17 @@ def _handle(task):
         )
         _reply_error(task, "agent task failed")
     finally:
-        try:
-            scheduler.release_and_dispatch(
-                team,
-                slot_id,
-                expected_holder=user_id,
-            )
-        except Exception as exc:  # noqa: BLE001
-            from botocore.exceptions import ClientError as _CE
-
-            if (
-                isinstance(exc, _CE)
-                and exc.response["Error"]["Code"]
-                == "ConditionalCheckFailedException"
-            ):
-                print(
-                    f"[runner] slot {slot_id} already released or reassigned — "
-                    "skipping stale release"
-                )
-            else:
-                raise
+        # Still deliberately not wrapped: if the release fails the slot is
+        # leaked, and an SQS redelivery is the only thing that can still fix
+        # it. Better a duplicate response than a deadlocked workspace.
+        #
+        # What it is no longer allowed to do is free somebody *else's* desk.
+        # This task is the one SQS may redeliver, and a redelivery can arrive
+        # after the original release already handed the desk to the next
+        # person in the queue. Naming the holder we expect makes the write
+        # conditional, so a stale runner returns False and changes nothing
+        # rather than ending a stranger's task.
+        scheduler.release_and_dispatch(team, slot_id, expected_holder=user_id)
 
         # After the release, never before. A handoff is a scheduling request,
         # so it has to compete for a desk on the same terms as everyone in the

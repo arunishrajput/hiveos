@@ -21,8 +21,6 @@ on the first frame after the socket opens.
 import json
 import traceback
 
-from botocore.exceptions import ClientError
-
 from shared import broadcast, scheduler, state
 
 OK = {"statusCode": 200}
@@ -284,40 +282,47 @@ def _release_agent(team, connection_id, body):
     """Manual release. The Agent Runner also releases automatically when a
     task ends — this exists so a wedged demo slot can be freed from the UI.
 
-    Requires that the requesting user currently holds the slot. Any other
-    caller receives an error; the slot is not modified.
+    Who may free a desk:
+
+      - whoever is sitting at it. The UI only draws the button for the desk
+        running *your* task, and this is the server-side half of that — until
+        now there was no server-side half, and any connected client could send
+        `{"action": "release_agent", "agent_type": "coder"}` and cut short a
+        teammate's running task.
+      - a workspace admin, for the case the button was written for: a runner
+        died holding a desk and the person it belonged to has closed the tab.
+        Restricting this to the holder alone would leave the escape hatch
+        working only for people who do not need it.
+
+    An already-idle desk is neither an error nor a release. There is nobody to
+    authorise against and nothing to free, so it only pokes the dispatcher.
+    That is scheduler housekeeping rather than a privilege: it can start work
+    that is already queued, at a desk that is already free, and nothing else.
+    `ws_smoke.py` leans on exactly this to make a pinned handoff move.
+
+    Authorisation reads the CONN# row directly rather than going through
+    `_user_for`, whose last resort is the `user_id` on the frame. That
+    fallback is fine for labelling a chat line and wrong here — it would let a
+    caller name themselves the holder.
     """
     agent_type = body.get("agent_type")
     if agent_type not in scheduler.SLOTS:
         return _error(connection_id, f"unknown agent_type: {agent_type!r}")
 
-    # Resolve who is asking.
-    conn = state.table().get_item(
-        Key={"PK": state.team_pk(team), "SK": f"CONN#{connection_id}"}
-    ).get("Item", {})
-    requesting_user = conn.get("user_id")
+    holder = state.slot_holder(team, agent_type)
+    if holder is None:
+        scheduler.dispatch_next(team)
+        return OK
 
-    # Resolve who currently holds the slot.
-    slot = state.table().get_item(
-        Key={"PK": state.team_pk(team), "SK": f"AGENT#{agent_type}"}
-    ).get("Item", {})
-    current_holder = slot.get("current_user")
+    requester = state.connection_user(team, connection_id)
+    if holder != requester and not state.connection_is_admin(team, connection_id):
+        print(f"[release] REFUSED connection={connection_id} slot={agent_type}")
+        return _error(connection_id, f"{agent_type} is not yours to release")
 
-    if not requesting_user or requesting_user != current_holder:
-        return _error(connection_id, "you do not hold this slot")
-
-    try:
-        scheduler.release_and_dispatch(
-            team,
-            agent_type,
-            expected_holder=requesting_user,
-        )
-    except ClientError as error:
-        if error.response.get("Error", {}).get("Code") == (
-            "ConditionalCheckFailedException"
-        ):
-            return _error(connection_id, "slot changed before it could be released")
-        raise
+    # The holder read above is what the conditional write expects, so losing
+    # that race means the desk freed itself in between — which is the outcome
+    # the caller asked for. `release_and_dispatch` absorbs it either way.
+    scheduler.release_and_dispatch(team, agent_type, expected_holder=holder)
     return OK
 
 

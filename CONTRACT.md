@@ -356,13 +356,17 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 |---|---|---|
 | `hello` | — | Reply `state_snapshot` to this connection only. Sent once, immediately after the socket opens |
 | `claim_agent` | `{agent_type, prompt, user_id}` | Try atomic claim → dispatch to SQS, or enqueue and return position |
-| `release_agent` | `{agent_type, user_id}` | Set slot `IDLE`, dispatch the oldest queued task |
+| `release_agent` | `{agent_type}` | Free the slot if the sender holds it, then dispatch the next waiting task |
 | `send_message` | `{text}` | Broadcast to team chat as `chat_message` |
 | `move_avatar` | `{x, y}` | Update `CONN#` row, broadcast `avatar_moved` |
 
 **`agent_type` on `claim_agent` is a preference, not a reservation.** It is tried first, then the remaining slots in `SLOTS` order. Nobody queues behind an idle agent — and the agent that actually took it is named in the reply. Anything not in `SLOTS` becomes "no preference" rather than an error.
 
 **One active task per user.** A `claim_agent` from a user who already holds a slot or sits in the queue is refused with `error`. Without it a double-clicked button lets one person hold both slots — precisely the monopoly the product claims to prevent.
+
+**A desk can only be freed by whoever is sitting at it.** `release_agent` is refused with `error` unless the sender is the slot's `current_user` or was admitted with the workspace admin token; the admin case is what keeps the escape hatch usable when a runner dies holding a desk and its owner has closed the tab. The sender is resolved from the `CONN#` row, never from `user_id` on the frame — which is why that field is no longer listed above. Releasing a desk that is already idle is not an error and frees nothing; it only asks the scheduler to look at the queue again.
+
+**A release names the holder it expects.** Both halves of the slot mechanism are conditional writes: `claim` requires the desk to be `IDLE`, and the release requires `current_user` to still be the task's own user. SQS redelivers, so a task can finish and reach its release long after the desk was handed on — an unconditional write there would end a stranger's task and then broadcast `agent_state_update: IDLE` for a desk that is genuinely working. A refused release changes nothing, broadcasts nothing, and dispatches nothing.
 
 **Neither `send_message` nor `move_avatar` takes a `user_id`.** It is resolved from the sender's `CONN#` row, because a frame is whatever the client chose to type and the row is what `$connect` actually recorded — trusting the frame would let any client move someone else's avatar or speak as them. (This table previously listed `user_id` on both; the handlers never read it.)
 

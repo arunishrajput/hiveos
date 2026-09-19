@@ -122,21 +122,42 @@ def claim_any(team, preferred, user_id):
 
 
 def set_idle(team, slot_id, expected_holder):
-    state.table().update_item(
-        Key={"PK": state.team_pk(team), "SK": f"AGENT#{slot_id}"},
-        UpdateExpression="SET #s = :idle, #u = :null REMOVE claimed_at",
-        ConditionExpression="#u = :expected_holder",
-        ExpressionAttributeNames={
-            "#s": "status",
-            "#u": "current_user",
-        },
-        ExpressionAttributeValues={
-            ":idle": "IDLE",
-            ":null": None,
-            ":expected_holder": expected_holder,
-        },
-    )
-    print(f"[scheduler] released slot={slot_id}")
+    """Free one slot, but only if `expected_holder` is still the one in it.
+
+    False means somebody else is, and the caller must not treat the desk as
+    freed. The condition is not belt-and-braces: SQS redelivers, so a task can
+    finish and reach here long after its desk was released and handed to the
+    next person in the queue. An unconditional write then ends a stranger's
+    task and broadcasts IDLE for a desk that is genuinely working — which is
+    the board lying about the scheduler, in the one product that claims it
+    cannot.
+
+    Deliberately shaped like `try_claim`. Claiming and releasing are the two
+    halves of one mechanism, both are conditional writes, and they should fail
+    the same way rather than one returning False and the other raising.
+    """
+    try:
+        state.table().update_item(
+            Key={"PK": state.team_pk(team), "SK": f"AGENT#{slot_id}"},
+            UpdateExpression="SET #s = :idle, #u = :null REMOVE claimed_at",
+            ConditionExpression="#u = :holder",
+            ExpressionAttributeNames={"#s": "status", "#u": "current_user"},
+            ExpressionAttributeValues={
+                ":idle": "IDLE",
+                ":null": None,
+                ":holder": expected_holder,
+            },
+        )
+        print(f"[scheduler] released slot={slot_id}")
+        return True
+    except ClientError as error:
+        if _is_conditional_failure(error):
+            print(
+                f"[scheduler] stale release of slot={slot_id} — "
+                f"{expected_holder!r} no longer holds it"
+            )
+            return False
+        raise
 
 
 # --- Queue -----------------------------------------------------------------
@@ -315,8 +336,16 @@ def release_and_dispatch(team, slot_id, expected_holder):
 
     This runs in the Agent Runner's finally block, so it must work even when
     the task it follows blew up. A slot that leaks here deadlocks the demo.
+
+    `expected_holder` is who the caller believes is sitting at the desk. None
+    comes back for two different reasons: there was nothing to dispatch, or the
+    release was refused because the desk had already moved on. Refused is the
+    quiet case and it is correct to do nothing at all — the desk is not ours to
+    free, the IDLE frame would be false, and whoever actually freed it already
+    dispatched whatever was next.
     """
-    set_idle(team, slot_id, expected_holder)
+    if not set_idle(team, slot_id, expected_holder):
+        return None
     broadcast_slot(team, slot_id, "IDLE", None)
     return dispatch_next(team)
 

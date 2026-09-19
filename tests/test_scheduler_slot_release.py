@@ -1,193 +1,234 @@
-"""Regression tests for Bug A: unconditional slot release in scheduler.set_idle.
+"""The release path: a desk can only be freed by whoever is sitting at it.
 
-These tests assert the FIXED behavior and will fail if the guard is removed.
+Two holes, both closed here, both of which the demo would have shown as the
+product being broken rather than as a bug:
 
-Bug summary
------------
-Before the fix, set_idle had no ConditionExpression, so any caller could
-unconditionally clear any slot regardless of who held it.  _release_agent
-performed no ownership check, so any connected client could release any slot.
+  - `set_idle` wrote unconditionally. SQS redelivers, so a task can finish and
+    reach the release long after its desk was handed to the next person in the
+    queue. That write ended a stranger's task and then broadcast IDLE for a
+    desk that was genuinely working.
+  - `release_agent` checked nothing. Any connected client could name any desk
+    and free it.
 
-After the fix
--------------
-- set_idle(team, slot_id, expected_holder) adds a ConditionExpression that makes
-  DynamoDB raise ConditionalCheckFailedException when the slot is no longer
-  held by expected_holder.
-- _release_agent reads the slot and connection records and rejects callers
-  who do not own the slot.
+These assert the fixed behaviour, so they fail if either guard is removed.
+Mocked rather than run against moto or deployed AWS: the invariant is which
+arguments reach DynamoDB and which calls are skipped, and that is exactly what
+a mock can see. `ws_smoke.py` is where the deployed behaviour is checked.
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
+
+import pytest
 from botocore.exceptions import ClientError
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _cce():
-    """Fabricate a ConditionalCheckFailedException from DynamoDB."""
-    return ClientError(
-        {"Error": {"Code": "ConditionalCheckFailedException", "Message": "condition not met"}},
-        "UpdateItem",
-    )
+from shared import scheduler
 
 
-def _slot_item(user_id):
-    return {
-        "Item": {
-            "PK": "TEAM#alpha",
-            "SK": "AGENT#coder",
-            "status": "BUSY",
-            "current_user": user_id,
-        }
-    }
+TEAM = "alpha"
+SLOT = "coder"
 
 
-def _conn_item(user_id):
-    return {"Item": {"PK": "TEAM#alpha", "SK": "CONN#test-conn", "user_id": user_id}}
+def _client_error(code):
+    return ClientError({"Error": {"Code": code, "Message": code}}, "UpdateItem")
 
 
-# ---------------------------------------------------------------------------
-# set_idle — invariant layer
-# ---------------------------------------------------------------------------
+def _conditional_failure():
+    return _client_error("ConditionalCheckFailedException")
+
+
+# --- set_idle: the conditional write ---------------------------------------
+
 
 class TestSetIdle:
+    def _table(self, side_effect=None):
+        table = MagicMock()
+        table.update_item.side_effect = side_effect
+        return table
 
-    def test_condition_expression_is_present(self):
-        """set_idle must pass a ConditionExpression to DynamoDB."""
-        with patch("backend.shared.state.table") as mock_table_fn:
-            mock_table = MagicMock()
-            mock_table_fn.return_value = mock_table
-            mock_table.update_item.return_value = {}
+    def test_names_the_expected_holder_in_the_condition(self):
+        """Without a ConditionExpression bound to the holder, the write is a
+        blind clear and a stale runner can take somebody else's desk."""
+        table = self._table()
+        with patch("shared.state.table", return_value=table):
+            scheduler.set_idle(TEAM, SLOT, expected_holder="ada-user")
 
-            from backend.shared import scheduler
-            scheduler.set_idle("alpha", "coder", expected_holder="user_A")
-            _, kwargs = mock_table.update_item.call_args
-            assert "ConditionExpression" in kwargs, (
-                "set_idle must supply a ConditionExpression — "
-                "without it a stale runner can clear a live slot"
-            )
+        kwargs = table.update_item.call_args.kwargs
+        assert "ConditionExpression" in kwargs
+        assert "ada-user" in kwargs["ExpressionAttributeValues"].values()
+        # The condition has to test the holder, not merely mention one.
+        condition = kwargs["ConditionExpression"]
+        holder_alias = next(
+            alias
+            for alias, name in kwargs["ExpressionAttributeNames"].items()
+            if name == "current_user"
+        )
+        assert holder_alias in condition
 
-    def test_expected_holder_is_in_condition_values(self):
-        """The expected_holder value must appear in ExpressionAttributeValues."""
-        with patch("backend.shared.state.table") as mock_table_fn:
-            mock_table = MagicMock()
-            mock_table_fn.return_value = mock_table
-            mock_table.update_item.return_value = {}
+    def test_returns_true_when_the_desk_was_ours(self):
+        table = self._table()
+        with patch("shared.state.table", return_value=table):
+            assert scheduler.set_idle(TEAM, SLOT, expected_holder="ada-user") is True
 
-            from backend.shared import scheduler
-            scheduler.set_idle("alpha", "coder", expected_holder="user_A")
+    def test_returns_false_when_the_desk_moved_on(self):
+        """The stale-runner case: DynamoDB refuses, and that is not an error
+        worth raising — it is the guard doing its job."""
+        table = self._table(side_effect=_conditional_failure())
+        with patch("shared.state.table", return_value=table):
+            assert scheduler.set_idle(TEAM, SLOT, expected_holder="ada-user") is False
 
-            _, kwargs = mock_table.update_item.call_args
-            values = kwargs.get("ExpressionAttributeValues", {})
-            assert "user_A" in values.values(), (
-                "expected_holder must be bound in ExpressionAttributeValues"
-            )
+        assert table.update_item.call_count == 1, "a refused release must not retry"
 
-    def test_wrong_holder_raises_conditional_check(self):
-        """
-        When DynamoDB rejects the condition (slot held by a different user),
-        set_idle must propagate the ConditionalCheckFailedException.
-        It must NOT swallow it or retry.
-        """
-        with patch("backend.shared.state.table") as mock_table_fn:
-            mock_table = MagicMock()
-            mock_table_fn.return_value = mock_table
-            mock_table.update_item.side_effect = _cce()
-
-            from backend.shared import scheduler
-            with pytest.raises(ClientError) as exc_info:
-                scheduler.set_idle("alpha", "coder", expected_holder="user_A")
-
-            assert exc_info.value.response["Error"]["Code"] == "ConditionalCheckFailedException"
-            assert mock_table.update_item.call_count == 1, "Must not retry after condition failure"
-
-    def test_stale_runner_cannot_clear_reassigned_slot(self):
-        """
-        Scenario: Runner A finishes T1 (held by user_A), but the slot was
-        already reassigned to user_B for T2.  Runner A calls set_idle with
-        expected_holder='user_A'.  DynamoDB rejects because current_user is
-        now 'user_B'.  The slot must remain BUSY under user_B.
-        """
-        with patch("backend.shared.state.table") as mock_table_fn:
-            mock_table = MagicMock()
-            mock_table_fn.return_value = mock_table
-            # Simulate DynamoDB rejecting because slot now belongs to user_B.
-            mock_table.update_item.side_effect = _cce()
-
-            from backend.shared import scheduler
+    def test_a_real_failure_still_raises(self):
+        """Only the conditional failure is absorbed. Throttling or a missing
+        table must not be laundered into 'somebody else holds it'."""
+        table = self._table(side_effect=_client_error("ProvisionedThroughputExceeded"))
+        with patch("shared.state.table", return_value=table):
             with pytest.raises(ClientError):
-                scheduler.set_idle("alpha", "coder", expected_holder="user_A")
-
-            # Confirm only one attempt was made — no silent fallback.
-            assert mock_table.update_item.call_count == 1
+                scheduler.set_idle(TEAM, SLOT, expected_holder="ada-user")
 
 
-# ---------------------------------------------------------------------------
-# _release_agent — authorization layer
-# ---------------------------------------------------------------------------
+# --- release_and_dispatch: what a refusal must not do ----------------------
 
-class TestReleaseAgent:
 
-    def _make_table(self, requesting_user, slot_holder):
-        mock_table = MagicMock()
+class TestReleaseAndDispatch:
+    def test_a_refused_release_broadcasts_nothing_and_dispatches_nothing(self):
+        """The regression that matters on camera.
 
-        def get_item(Key, **_):
-            sk = Key.get("SK", "")
-            if "CONN#" in sk:
-                return _conn_item(requesting_user)
-            if "AGENT#" in sk:
-                return _slot_item(slot_holder)
-            return {}
-
-        mock_table.get_item.side_effect = get_item
-        mock_table.update_item.return_value = {}
-        return mock_table
-
-    def test_non_holder_is_rejected(self):
+        If the desk was reassigned while this task was in flight, announcing
+        IDLE puts every client's board in a state the scheduler is not in, and
+        dispatching again would hand out a desk somebody is already using.
         """
-        A client who does not hold the slot must receive an error.
-        release_and_dispatch must NOT be called.
-        """
-        mock_table = self._make_table(requesting_user="user_B", slot_holder="user_A")
+        with patch.object(scheduler, "set_idle", return_value=False), \
+             patch.object(scheduler, "broadcast_slot") as broadcast_slot, \
+             patch.object(scheduler, "dispatch_next") as dispatch_next:
 
-        with patch("backend.shared.state.table", return_value=mock_table), \
-             patch("backend.shared.scheduler.release_and_dispatch") as mock_release, \
-             patch("backend.shared.broadcast.send_to_connection"):
+            result = scheduler.release_and_dispatch(
+                TEAM, SLOT, expected_holder="ada-user"
+            )
 
-            from backend.router import app as router
-            router._release_agent("alpha", "conn-user-B", {"agent_type": "coder"})
+        assert result is None
+        broadcast_slot.assert_not_called()
+        dispatch_next.assert_not_called()
 
-            mock_release.assert_not_called()
+    def test_a_real_release_announces_idle_then_dispatches(self):
+        with patch.object(scheduler, "set_idle", return_value=True), \
+             patch.object(scheduler, "broadcast_slot") as broadcast_slot, \
+             patch.object(scheduler, "dispatch_next", return_value="researcher"):
 
-    def test_holder_can_release_own_slot(self):
-        """
-        The user who holds the slot must be able to release it successfully.
-        """
-        mock_table = self._make_table(requesting_user="user_A", slot_holder="user_A")
+            result = scheduler.release_and_dispatch(
+                TEAM, SLOT, expected_holder="ada-user"
+            )
 
-        with patch("backend.shared.state.table", return_value=mock_table), \
-             patch("backend.shared.scheduler.release_and_dispatch") as mock_release:
+        assert result == "researcher"
+        broadcast_slot.assert_called_once_with(TEAM, SLOT, "IDLE", None)
 
-            from backend.router import app as router
-            router._release_agent("alpha", "conn-user-A", {"agent_type": "coder"})
+    def test_the_holder_is_passed_through_to_the_write(self):
+        """`release_and_dispatch` must not invent its own expectation."""
+        with patch.object(scheduler, "set_idle", return_value=False) as set_idle:
+            scheduler.release_and_dispatch(TEAM, SLOT, expected_holder="ada-user")
 
-            mock_release.assert_called_once()
+        set_idle.assert_called_once_with(TEAM, SLOT, "ada-user")
 
-    def test_slot_read_happens_before_release(self):
-        """
-        The slot's DynamoDB record must be read before any release call.
-        This proves authorization is not bypassed.
-        """
-        mock_table = self._make_table(requesting_user="user_A", slot_holder="user_A")
 
-        with patch("backend.shared.state.table", return_value=mock_table), \
-             patch("backend.shared.scheduler.release_and_dispatch"):
+# --- release_agent: who is allowed to free a desk --------------------------
 
-            from backend.router import app as router
-            router._release_agent("alpha", "conn-user-A", {"agent_type": "coder"})
 
-            # get_item must have been called at least twice:
-            # once for the connection record, once for the slot record.
-            assert mock_table.get_item.call_count >= 2
+class TestReleaseAgentRoute:
+    """The router route. Patched at `shared.*` because `conftest.py` puts
+    `backend/` on the path, so the test and `router/app.py` import the same
+    module objects — the same arrangement `sam build` produces."""
+
+    def _run(self, holder, requester, is_admin=False, body=None):
+        from router import app as router
+
+        with patch("shared.state.slot_holder", return_value=holder), \
+             patch("shared.state.connection_user", return_value=requester), \
+             patch("shared.state.connection_is_admin", return_value=is_admin), \
+             patch("shared.broadcast.send_to_connection") as send, \
+             patch("shared.scheduler.release_and_dispatch") as release, \
+             patch("shared.scheduler.dispatch_next") as dispatch_next:
+
+            router._release_agent(
+                TEAM, "conn-1", body or {"agent_type": SLOT}
+            )
+            return send, release, dispatch_next
+
+    def test_a_bystander_cannot_free_someone_elses_desk(self):
+        send, release, _ = self._run(holder="ada-user", requester="bystander")
+
+        release.assert_not_called()
+        assert send.call_count == 1
+        assert send.call_args.args[1]["event"] == "error"
+
+    def test_the_holder_can_free_their_own_desk(self):
+        _, release, _ = self._run(holder="ada-user", requester="ada-user")
+
+        release.assert_called_once()
+        assert release.call_args.kwargs["expected_holder"] == "ada-user"
+
+    def test_an_admin_can_free_a_wedged_desk(self):
+        """The case the button was written for: the runner died holding the
+        desk and the person it belonged to has closed the tab."""
+        _, release, _ = self._run(
+            holder="ada-user", requester="operator", is_admin=True
+        )
+
+        release.assert_called_once()
+        # The write expects whoever is actually sitting there, not the admin.
+        assert release.call_args.kwargs["expected_holder"] == "ada-user"
+
+    def test_authorisation_ignores_the_user_id_on_the_frame(self):
+        """`user_id` in the body is client-supplied. Trusting it here would
+        make the whole check decorative."""
+        send, release, _ = self._run(
+            holder="ada-user",
+            requester="bystander",
+            body={"agent_type": SLOT, "user_id": "ada-user"},
+        )
+
+        release.assert_not_called()
+        assert send.call_args.args[1]["event"] == "error"
+
+    def test_an_idle_desk_is_a_dispatch_poke_not_a_release(self):
+        """Nobody to authorise against and nothing to free — but the queue may
+        still have a pinned handoff waiting for a desk that is now free.
+        `ws_smoke.py` section 25 depends on this."""
+        send, release, dispatch_next = self._run(holder=None, requester="anyone")
+
+        release.assert_not_called()
+        send.assert_not_called()  # not an error
+        dispatch_next.assert_called_once_with(TEAM)
+
+    def test_an_unknown_desk_is_still_rejected(self):
+        send, release, _ = self._run(
+            holder=None, requester="anyone", body={"agent_type": "nonesuch"}
+        )
+
+        release.assert_not_called()
+        assert send.call_args.args[1]["event"] == "error"
+
+
+# --- The runner's finally block --------------------------------------------
+
+
+class TestRunnerRelease:
+    def test_the_runner_releases_under_its_own_task_user(self):
+        """The task's own user is the expectation. This is the argument that
+        makes a redelivered task harmless instead of destructive."""
+        from agent_runner import app as runner
+
+        task = {
+            "slot_id": SLOT,
+            "user_id": "ada-user",
+            "team_id": TEAM,
+            "prompt": "anything",
+        }
+
+        # Refusing on budget returns early and still runs `finally`, which is
+        # the block under test, without reaching a model call.
+        with patch.object(runner, "_refuse_over_budget", return_value=True), \
+             patch("shared.scheduler.release_and_dispatch") as release:
+            runner._handle(task)
+
+        release.assert_called_once()
+        assert release.call_args.kwargs["expected_holder"] == "ada-user"
