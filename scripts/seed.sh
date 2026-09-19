@@ -30,7 +30,34 @@ ddb put-item --item "{
 }"
 echo "  METADATA         tokens_used reset to 0"
 
-# --- agent slots (IDLE) ------------------------------------------------------
+# --- agent desks -------------------------------------------------------------
+#
+# Every hired desk is removed and the two the workspace opens with are put back
+# IDLE. Without the removal a board seeded after a demo would still be staffed
+# with whoever was hired on camera, and the roster is no longer a constant this
+# script can assume — an agent can be hired at any time.
+#
+# The two seed rows are written WITHOUT their identity fields, deliberately.
+# `agents.from_row` fills those in from `STARTING_ROSTER` by slot id, which is
+# the same path every workspace created before the roster became data takes.
+# Writing them bare here means a seeded demo board exercises that path rather
+# than hiding it — and `ws_smoke.py` asserts these come back named Ada and Iris.
+HIRED=$(aws dynamodb query \
+  --region "$REGION" --table-name "$TABLE" \
+  --key-condition-expression "PK = :p AND begins_with(SK, :s)" \
+  --expression-attribute-values "{\":p\":{\"S\":\"TEAM#${TEAM}\"},\":s\":{\"S\":\"AGENT#\"}}" \
+  --query 'Items[].SK.S' --output text 2>/dev/null || true)
+
+for sk in $HIRED; do
+  case "$sk" in
+    AGENT#coder|AGENT#researcher) ;;
+    *)
+      ddb delete-item --key "{\"PK\":{\"S\":\"TEAM#${TEAM}\"},\"SK\":{\"S\":\"${sk}\"}}"
+      echo "  ${sk}  dismissed"
+      ;;
+  esac
+done
+
 for slot in coder researcher; do
   ddb put-item --item "{
     \"PK\":{\"S\":\"TEAM#${TEAM}\"},

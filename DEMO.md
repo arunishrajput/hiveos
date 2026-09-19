@@ -33,47 +33,61 @@ before and uses the open default workspace.
 At the gate, each browser enters the same **workspace** name and the same
 **passphrase**. The first one in creates it and becomes its administrator.
 
-**Point the three recording windows at the board directly:**
+**Point the recording windows at the board directly:**
 
 ```
 https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace
 ```
 
 `/` is the public landing page now, and the board is one CTA click behind it.
-That is right for a judge arriving cold and wrong for a take — three windows
-each needing an extra click before the gate is three chances to be caught
+That is right for a judge arriving cold and wrong for a take — every window
+needing an extra click before the gate is another chance to be caught
 mid-scroll on camera. The hash link goes straight to the gate.
 
 Show `/` itself in the opening seconds if you want the pitch on screen, then
-cut to the three board windows. It is a still page; nothing on it moves and
-nothing on it connects.
+cut to the board windows. It is a still page; nothing on it moves and nothing
+on it connects.
 
-It prints `snapshot clean — both slots IDLE, 0/5000 tokens, queue and memory empty`. If it
-prints `DIRTY`, or warns that connection rows were live, **close every browser tab pointed at
-the deployed URL and run it again.**
+It prints `snapshot clean — 2 desks IDLE (Ada, Iris), 0/5000 tokens, queue and memory empty`.
+If it prints `DIRTY`, or warns that connection rows were live, **close every browser tab
+pointed at the deployed URL and run it again.**
+
+> ### ⚠ The framing changed in Phase 17. Three portrait windows no longer work.
+>
+> Everything below used to say *three browser windows, 640×950, side by side*, and that
+> measurement was carefully earned over Phases 7–15. **It is dead.** HiveOS is a landscape
+> app shell now — floor on the left, agent inspector on the right, roster along the bottom —
+> and it stacks into a single scrolling column below 900 px wide. A 640 px window shows the
+> mobile layout, not the product.
+>
+> **The new framing is one wide window plus one small one:**
+>
+> | | |
+> |---|---|
+> | **Primary — 1440×900** | The office. This is the shot. Everything happens here |
+> | **Secondary — ~900×760** | One teammate's view, for the beats that have to be proved on a *second* screen: hiring, the meter moving, the queue |
+>
+> Two windows rather than three. The third was there to make "everyone sees the same board"
+> legible, and one witness proves that as well as two while leaving the office big enough to
+> read. Put the secondary window beside or below the primary — do not overlap them.
+>
+> **Re-measure before recording.** No pixel figure below has been re-verified against the new
+> shell at 1440×900.
 
 Then:
 
 - [ ] `rehearse.py --takes 2` passed within the last hour
-- [ ] Three browser windows, **640×950 each**, side by side. Verified on the deployed URL:
-      board **838 px** into an **862 px** viewport, nothing clipped and no horizontal scroll.
-      **Measure it in the browser you are actually recording in.** That 862 is what a 640×950
-      window gives with a plain toolbar; add a bookmarks bar and a couple of extensions and the
-      viewport drops to ~806, which puts the team-chat box below the fold. The board grew 41 px
-      in Phase 14 (the agent picker), so the slack is ~24 px where it used to be ~65.
-      **Phase 15 did not change this number** — the floor was rebuilt into rooms inside its
-      existing 250 px, so the 838 was re-measured on the deployed build and came back identical.
-      **The height is the part that matters.** The board is now capped to the viewport and the
-      activity log scrolls inside itself, so a *shorter* window does not push panels off-screen
-      any more — it squeezes the log instead, and at ~806 px of viewport the agent's answer
-      starts getting cut mid-sentence. 950 px tall gives the log 104 px, which is a full
-      response.
+- [ ] Primary window **1440×900**, secondary **~900×760**. Verified on the deployed URL at
+      1440: no horizontal overflow, zero console errors, the floor and all four desks on
+      screen at once. The roster strip scrolls inside itself if the floor is fully staffed,
+      which is by design — but with four desks it does not need to.
 - [ ] Each window is a **separate browser or profile**. The entry gate persists to
       `localStorage['hiveos.identity']`, so two tabs of the same origin share one identity and
-      you will end up with three "Alice"s.
-- [ ] Identities entered: **alice 🐝**, **bob 🦊**, **charlie 🦉** — all in the same
-      workspace, with the same passphrase
-- [ ] All three show the same meter — `0 / 5000` — and both slots IDLE
+      you will end up with two "Alice"s.
+- [ ] Identities entered: **alice 🐝** (primary), **bob 🦊** (secondary) — same workspace,
+      same passphrase. A third, **charlie 🦉**, only if you are demonstrating the queue with
+      every desk busy
+- [ ] Both windows show the same meter — `0 / 5000` — and the same desks IDLE
 - [ ] **Browser extensions disabled, or record in a clean profile.** Grammarly injects a
       floating icon *into the prompt textarea* and it is clearly visible on camera. Found while
       verifying the deployed page — it was the only thing in the console, and the only thing on
@@ -93,6 +107,22 @@ The reset takes ~8 seconds. Between takes, run it again — it is idempotent.
 
 Product time is ~15 seconds; the rest is narration over a live board. Rehearsed timings are in
 brackets.
+
+> ### ⚠ Phase 17 added a beat, and it is probably the strongest one
+>
+> **Hiring an agent on camera.** Click `+ add agent` in the primary window, type a name, pick
+> a character, hit `spawn` — and the desk appears on the *secondary* window's floor, seated
+> and named, with nobody touching it. It is the clearest single proof in the product that this
+> is one live shared board, and it is far more legible than three matching numbers.
+>
+> `rehearse.py` does **not** cover it — that harness predates hiring and still drives the
+> Phase 2–8 sequence. `ws_smoke.py` section 26 covers it fully against deployed AWS, so the
+> mechanism is verified; what has not been rehearsed is the *timing* of doing it on camera.
+> Run through it once before a take.
+>
+> The narration below still describes the old two-desk board. Re-read it against what is
+> actually on screen — the floor now has up to four desks, people stand *beside* an agent's
+> desk rather than sitting at it, and "agent slots" are "desks" everywhere in the UI.
 
 ### 0:00–0:25 · The problem
 

@@ -2,9 +2,11 @@
 
 ## Product
 
-A cloud-deployed team workspace where human members request shared AI agents through an OS-style queue, with a real-time token budget visible to everyone — built entirely on AWS.
+A cloud-deployed office where a team hires and runs a floor of AI agents together — you watch them work at their desks in real time, and the whole office runs on one shared, server-enforced token budget. Built entirely on AWS.
 
-**The one-sentence test.** If a judge can say *"HiveOS is the OS scheduler for your team's shared AI budget — like a queue management system for AI agents, visible to everyone in real time"* — the product landed. Every implementation decision should serve that sentence.
+**The one-sentence test.** If a judge can say *"HiveOS is Munder Difflin for teams, in the cloud — hire a floor of AI agents, watch them work, and the whole office runs on one enforced budget"* — the product landed. Every implementation decision should serve that sentence.
+
+> **This sentence changed on 2026-09-19, and deliberately.** It used to be *"the OS scheduler for your team's shared AI budget"*, and the scheduler was the headline. The scheduler, the fair queue and the enforced ceiling are all still here and all still load-bearing — they moved from being the product to being the governance layer *inside* it. The reason is that a queue is a thing you explain and an office is a thing you see, and a 3-minute video is the only judge touchpoint.
 
 ---
 
@@ -38,13 +40,13 @@ Ship a **deployed, publicly reachable** workspace where three simultaneous brows
 
 ## Core user journey
 
-1. Open the public URL. Pick a name. Land in Team Alpha's workspace.
-2. See the team's token meter and agent slot states — **identical on every screen**.
-3. Click "Get Agent." A slot is free → it turns BUSY on everyone's screen.
-4. Send the agent a task. Watch the token meter tick down on every screen as it works.
-5. A third member claims while both slots are busy → sees "Position #1 · ~3 min."
-6. Tell the agent to remember a team fact. A badge appears on every screen.
-7. A slot frees → the queued member is auto-assigned → their agent already knows the team fact.
+1. Open the public URL. Pick a name. Land on Team Alpha's floor.
+2. See the office: Ada and Iris at their desks, the team's token meter above them — **identical on every screen**.
+3. Pick a desk and send that agent a task. It goes BUSY on everyone's screen and the meter moves as it works.
+4. **Hire a third agent.** Name it, pick its character, write its briefing. It appears at a desk on *everyone's* floor, with no refresh.
+5. Give the new agent work. A third member asks while every desk is busy → stands in the waiting area at "queued #1".
+6. Tell an agent to remember a team fact. A badge appears on every screen.
+7. A desk frees → the queued member walks into the room and is auto-assigned → their agent already knows the team fact.
 
 ---
 
@@ -113,7 +115,7 @@ The 3-minute video is the **only** judge touchpoint. There is no live demo and n
 - Must show on camera: the shared token meter moving, a slot going BUSY, a real queue position, auto-dispatch on release, and shared memory benefiting a different user
 - Must name where AWS fits — naming AWS in the writeup alone does not count
 - Must state honestly what the architecture does. Say *"every agent task runs through a real SQS queue, and waiting tasks auto-dispatch the moment a slot frees."* Do **not** claim queued users are parked inside SQS — see `ARCHITECTURE.md`.
-- Address the Munder Difflin comparison in the first 20 seconds: *"Munder Difflin is a local harness for one developer's own CLI agents. HiveOS is a cloud governance layer for a team."*
+- Address the Munder Difflin comparison in the first 20 seconds, and the honest line has changed with the product: *"Munder Difflin runs your own CLI agents as local processes, on your machine, for you. HiveOS is that office in the cloud and shared — a URL your whole team opens, hiring agents onto one floor, on one enforced budget."* Do **not** imply HiveOS spawns local processes or attaches to anyone's terminal. It cannot, and the tabs say so.
 
 **Fallback ladder if something breaks on the final day.** Fix only what is broken — never add features to rescue a demo.
 1. Token meter + slot badges working → demo the HUD only

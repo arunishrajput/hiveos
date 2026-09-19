@@ -84,9 +84,9 @@ function BoardPreview() {
       </div>
 
       <figcaption className="lp-preview__caption">
-        Ada and Iris both working, one person holding queue position 1, and
-        2,847 of 5,000 tokens spent. Every member sees this same frame at the
-        same instant.
+        Ada and Iris at their desks, both working, with the people who asked
+        standing beside them — one more waiting, and 2,847 of 5,000 tokens
+        spent. Every member sees this same frame at the same instant.
       </figcaption>
     </figure>
   )
@@ -121,20 +121,22 @@ const EVIDENCE = [
 const STEPS = [
   {
     n: '01',
-    title: 'Ask an agent',
+    title: 'Staff the floor',
     body:
-      'A workspace shares two named agents — Ada, who takes engineering work, '
-      + 'and Iris, who researches. Claiming a desk is a single atomic '
-      + 'conditional write in DynamoDB, so two people clicking in the same '
-      + 'moment cannot both win it.',
+      'A workspace opens with Ada, who takes engineering work, and Iris, who '
+      + 'researches. Hire more: a name, a character, a briefing, and a desk '
+      + 'appears on every teammate’s floor without anyone reloading. '
+      + 'Hiring is free — running an agent is what spends the budget.',
   },
   {
     n: '02',
-    title: 'Or take a number',
+    title: 'Ask one, or take a number',
     body:
-      'Every slot busy? Your task gets a real queue position, broadcast to the '
-      + 'whole team. Dispatch is least-recently-served first, not arrival order '
-      + '— one heavy user cannot camp at the front of the line.',
+      'Claiming a desk is a single atomic conditional write in DynamoDB, so '
+      + 'two people clicking in the same moment cannot both win it. Every desk '
+      + 'busy? You stand in the waiting area with a real queue position. '
+      + 'Dispatch is least-recently-served first, not arrival order — one '
+      + 'heavy user cannot camp at the front of the line.',
   },
   {
     n: '03',
@@ -207,14 +209,14 @@ export default function Landing() {
                 First Commit · WeMakeDevs × AWS · Ship It
               </p>
               <h1 className="lp-hero__title">
-                The OS scheduler for your team&rsquo;s shared AI budget.
+                An office of AI agents your whole team can walk into.
               </h1>
               <p className="lp-hero__sub">
-                Your team shares AI agents and one token budget, with no way to
-                see who is spending it. HiveOS gives that budget a scheduler:
-                agent slots, a fair run queue, and a live quota every member
-                watches move at the same instant — behind a ceiling the server
-                actually enforces.
+                Hire an agent, give it a name and a briefing, and watch it take
+                a desk on a floor everyone can see. Your teammates watch it
+                work in real time — and every desk on that floor draws from one
+                shared token budget, behind a ceiling the server actually
+                enforces.
               </p>
 
               <div className="lp-hero__actions">
@@ -232,7 +234,7 @@ export default function Landing() {
               </div>
 
               <p className="lp-hero__note">
-                No sign-in, no setup. Pick a name and you are on the board.
+                No sign-in, no setup. Pick a name and you are on the floor.
               </p>
             </div>
 

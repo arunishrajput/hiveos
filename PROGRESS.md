@@ -11,11 +11,11 @@
 
 | | |
 |---|---|
-| **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
+| **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 6 — demo readiness** (the expansion is finished) |
-| **Phase status** | `READY`. Phase 16 (agent-to-agent handoff) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 94/98 with all four failures traced to live visitors on the public URL, `rehearse.py --takes 2` 12/12 twice. **Phases 12–16 are all done; there is no further build phase planned.** Phase 6 is the only thing left and its remaining tasks are the user's |
+| **Current phase** | **Phase 6 — demo readiness** (Phase 17 landed on top of it) |
+| **Phase status** | `READY`. **Phase 17 (the office) complete, deployed and verified 2026-09-19** — `ws_smoke.py` 108/112 with all four failures traced to live visitors on the public URL, `rehearse.py` 12/12. Phase 6 is the only thing left and its remaining tasks are the user's. **`DEMO.md`'s framing changed — three portrait windows no longer work; re-read it before recording.** |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -49,6 +49,7 @@
 | 14 | Named agents at each desk | `COMPLETE` — deployed and verified 2026-09-19 |
 | 15 | Multi-room floor rebuild | `COMPLETE` — deployed and verified 2026-09-19 |
 | 16 | Agent-to-agent handoff | `COMPLETE` — deployed and verified 2026-09-19 |
+| 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` ← **here** — tasks 1–5 and 8 done; 6, 7, 9 are the user's. The expansion has landed, so the deferral is over. The rehearsed take and the 640×950 framing in `DEMO.md` predate the reskin and need re-rehearsing; `rehearse.py --takes 2` passes 12/12, so the *sequence* is sound and it is the narration and framing that need a pass |
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
@@ -76,6 +77,138 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 17 — 2026-09-19 — the office**
+
+User decision, and a deliberate pivot rather than a feature: *"I think our
+project is drifting drastically from Munder Difflin… I think we need a big
+decision/goal/workflow change."* The product was **a team queues for two
+shared agent slots**. It is now **a floor you staff** — agents are hired,
+named, briefed and given a character, and they sit at desks people can watch.
+
+**What was raised before building, because it is not negotiable.** Munder
+Difflin spawns local PTY processes running your own Claude Code / Codex CLIs
+against folders on your disk. That is a desktop app, and a Lambda behind a
+public URL cannot attach to a judge's terminal. So this took the reference's
+*interaction model* and never its mechanism — the inspector's four tabs are
+bound to data this board actually holds, and there is no fake terminal
+anywhere. The scheduler, the fair queue and the enforced ceiling did not go
+anywhere; they stopped being the pitch and became the governance layer inside
+the office, which is a better pitch and was ~80% already built.
+
+Shipped as two slices, each deployed and verified before the next — the Phase
+8 precedent, and the reason there was a submittable deliverable at every point.
+
+**Slice 1 — the shell (`ff6a723`), frontend only.** The 760px panel column
+became a three-region app: title bar, floor filling the left at full height,
+one agent in depth on the right, every desk along the bottom. Zero backend
+files, so `ws_smoke.py` and `rehearse.py` stayed valid without being re-run.
+
+**Slice 2 — the roster is data (`edea677`, `77053e4`).** `agents.py` was the
+roster: one tuple, fixed at deploy time, identical in every workspace. It is
+an `AGENT#` row per agent now, carrying identity beside the `status` and
+`current_user` it already held.
+
+**Five decisions worth the space:**
+
+1. **The chair belongs to the agent.** Before hireable agents, holding a slot
+   and doing the work were the same thing, so the floor sat the *human* at the
+   desk. Now the agent sits there and the person who asked stands beside it.
+   That one swap is the product change made visible, and it kept the walk-in
+   animation that is the best thing on the floor.
+2. **No migration, and that is the design.** `ensure_team` writes slot rows
+   conditionally, so every board created before today still has a bare
+   `AGENT#coder` row. `agents.from_row` falls back field by field to
+   `STARTING_ROSTER`, so all of them read as Ada and Iris with no backfill and
+   no scan-and-update against a live table. `seed.sh` and `ws_smoke.py` now
+   write those bare rows **on purpose**, so the compatibility path is
+   exercised on every seed and every smoke run rather than assumed.
+3. **Hiring is open to any member, not to the owner.** Hiring costs nothing;
+   *running* an agent spends the budget, and the ceiling governs that
+   identically however many desks share it. A permissions wall in front of the
+   one interaction this product is now about would be governing the wrong
+   thing.
+4. **The ledger writes `agent_name` at run time.** With a fixed roster a late
+   join was equivalent. With hiring it is not — a dismissed agent's rows would
+   report a raw slot id, or be credited to whoever holds that id next. Proven
+   rather than argued: `ws_smoke.py` dismisses Jim and then asserts his
+   finished task is still his.
+5. **The engine step is a readout, not a picker.** One model is configured per
+   deployment. A per-agent model picker would let one hire quietly change what
+   the team spends per call, which is the opposite of what this product is
+   for. It says which model runs and why it is not a choice.
+
+**`MAX_AGENTS` is 4, and the number was measured rather than chosen.** The plan
+was six. The floor's lower band is 38% tall with the waiting-area rug across
+the middle, so the only free places are the left and right margins; two rows
+per side does not fit, and it failed *on screen* — row one's character lands on
+row two's nameplate and row two's character falls off the bottom edge.
+Shrinking further makes a nameplate unreadable at recording size. A cap above
+what the floor can draw would let someone hire an agent the roster strip lists
+and the room cannot show.
+
+**Four defects found by looking rather than by reading:**
+
+1. **A visitor's sprite painted over the agent's speech bubble**, which read as
+   truncated text. Found on the landing preview, where the room is small enough
+   that it covered four characters. The bubble now lifts above every pawn and
+   caps at 18ch.
+2. **`Workspace` returned `<Deleted />` before a `useMemo`** — a latent
+   rules-of-hooks violation that would have thrown on the exact frame it was
+   meant to handle gracefully. Pre-existing; fixed while restructuring.
+3. **`--px-n` was inert on `.agentface`.** The scale transform that makes the
+   baked 4px art grow lives on `.sprite::before`, and the portrait rule never
+   got it — so the character picker asked for 6px and silently kept rendering
+   at 4, showing eight near-identical shapes with none of the three
+   silhouettes the art actually has.
+4. **Two identical roster queries on the hottest path.** `_claim_agent` read
+   the roster and then `claim_any` read it again. Caught by the unit tests
+   rather than by review. `claim_any` now takes the list the caller already
+   has, and `_release_agent` answers "does this desk exist" and "who holds it"
+   from one `GetItem` — strictly less I/O than before this phase.
+
+**Verified against deployed AWS, not exit codes:**
+
+| Check | Result |
+|---|---|
+| `sam build --use-container` + `sam deploy` | ✅ `UPDATE_COMPLETE`, twice |
+| `vite build` + Amplify | ✅ jobs 22 and 24 `SUCCEED` |
+| `ws_smoke.py` | ✅ **108/112** — 14 new hiring checks, all passing. The 4 failures are the documented live-visitor case |
+| `rehearse.py --takes 1` | ✅ **12/12**, 97s of headroom |
+| Unit tests | ✅ 14/14 |
+| AST undefined-name pass over all 10 backend modules | ✅ 0 problems |
+| **Hiring is live for everyone** | ✅ on the deployed URL: bob hired Dwight from a separate socket; alice's browser, never reloaded, drew him seated at an open desk, added his roster card and moved the app bar to `0/3 working` |
+| A hired agent runs a real task, credited by name | ✅ 622 real tokens, ledger row `agent_name=Jim` |
+| A dismissed agent's past work stays attributed | ✅ asserted after the dismissal |
+| A floor cannot be emptied of every agent | ✅ refused |
+| Phase 16 handoff still crosses | ✅ chain 1,952 tokens across two desks |
+| `seed.sh` | ✅ dismissed a hired desk and restored the starting roster |
+| `reset-demo.sh` | ✅ `snapshot clean — 2 desks IDLE (Ada, Iris)` — which also proves the bare-row fallback |
+| Console on the deployed page | ✅ zero errors, zero warnings |
+| Horizontal overflow at 1440 / 1100 / 900 / 390 | ✅ none |
+
+**The demo framing is dead and `DEMO.md` says so at the top.** Three 640×950
+portrait windows were carefully earned over Phases 7–15 and cannot hold a
+landscape app shell — at 640px the shell renders its stacked mobile layout.
+The replacement is one 1440×900 primary plus one ~900×760 secondary. **No
+pixel figure in `DEMO.md`'s checklist has been re-measured against the new
+shell**; that is the user's first job before a take.
+
+**`rehearse.py` does not cover hiring.** It still drives the Phase 2–8
+sequence and passes 12/12. `ws_smoke.py` section 26 covers hiring fully
+against deployed AWS, so the mechanism is verified — what is unrehearsed is
+the *timing* of doing it on camera.
+
+**Test partitions left in the table**, alongside the existing ones:
+`smokehiring` (the smoke test's own workspace, reset at both ends of its
+section), `p17shell`, `p17hire`, `p17live` and `p17demo` from driving the real
+UI against deployed AWS. All inert — Phase 9 partitions every row by team, so
+`alpha` cannot see them.
+
+**Phase 6's deferred tasks are unchanged and still the user's.** This phase
+did not touch them.
+
+---
 
 **PR #1 — 2026-09-19 — the release path is now guarded (Phantom9869 / Kamal Choubey)**
 
