@@ -33,13 +33,22 @@ REFUSED = "refused"
 
 
 def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
-           requested_agent=None, task_id=None, handoff_from=None):
+           requested_agent=None, task_id=None, handoff_from=None,
+           agent_name=None, handoff_from_name=None):
     """Write one task to the ledger. Never raises into the caller.
 
     `agent_type` is the agent that **ran** the task — the desk it ran at, not
     the one the requester asked for. `requested_agent` records the preference,
     and only when it differed: a ledger that repeated the same id in both
     columns on every row would make the one case that matters invisible.
+
+    **The names are written here, at the moment the work ran, rather than
+    joined on when the ledger is read.** They used to be looked up from a
+    roster that was the same in every workspace and never changed; an agent can
+    now be hired and fired, so a late join would report a dismissed agent's
+    past work as `jim-a3f2` — or, worse, attribute it to whoever was hired into
+    that id next. A ledger is a record of what happened, and who did it is part
+    of what happened. It also drops N lookups from every snapshot.
 
     `task_id` is the *chain*, not the row. A handoff runs as two agent tasks
     and writes two rows, and they carry the same `task_id` — that is what makes
@@ -59,9 +68,11 @@ def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
                 "SK": f"TASK#{state.now_iso_micros()}#{uuid.uuid4().hex[:8]}",
                 "user_id": user_id or "unknown",
                 "agent_type": agent_type or "",
+                "agent_name": agent_name or agent_type or "",
                 "requested_agent": substituted,
                 "task_id": task_id,
                 "handoff_from": handoff_from,
+                "handoff_from_name": handoff_from_name,
                 "tokens": int(tokens or 0),
                 "estimated": bool(estimated),
                 "status": status,
@@ -80,7 +91,10 @@ def view(rows):
         {
             "user_id": item.get("user_id"),
             "agent_type": item.get("agent_type"),
-            "agent_name": agents.name_of(item.get("agent_type")),
+            # Read straight off the row. Rows written before this phase have no
+            # `agent_name`, so they fall back to the id — which for those rows
+            # is `coder` or `researcher`, the only two ids that existed then.
+            "agent_name": item.get("agent_name") or item.get("agent_type"),
             # Present only when somebody got a different agent than they asked
             # for. Null on every ordinary row.
             "requested_agent": item.get("requested_agent"),
@@ -90,7 +104,7 @@ def view(rows):
             "task_id": item.get("task_id"),
             "handoff_from": item.get("handoff_from"),
             "handoff_from_name": (
-                agents.name_of(item["handoff_from"]) if item.get("handoff_from") else None
+                item.get("handoff_from_name") or item.get("handoff_from") or None
             ),
             "tokens": int(item.get("tokens", 0)),
             "estimated": bool(item.get("estimated", False)),
@@ -117,12 +131,14 @@ def as_context(team, limit=8):
         return "The team has not run any agent tasks yet."
 
     lines = [
-        f"- {item.get('user_id')} asked {agents.name_of(item.get('agent_type'))}:"
+        f"- {item.get('user_id')} asked"
+        f" {item.get('agent_name') or item.get('agent_type')}:"
         f" {item.get('prompt') or '(no prompt)'}"
         f" [{item.get('status')}, {int(item.get('tokens', 0))} tokens"
         # Named here too, so an agent asked where the budget went can say that
         # two of these rows were one piece of work rather than two requests.
-        + (f", handed over by {agents.name_of(item['handoff_from'])}"
+        + (f", handed over by "
+           f"{item.get('handoff_from_name') or item.get('handoff_from')}"
            if item.get("handoff_from") else "")
         + "]"
         for item in rows[:limit]

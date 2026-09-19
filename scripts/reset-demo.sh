@@ -128,10 +128,19 @@ async def main():
                 break
     elapsed = (time.monotonic() - started) * 1000
 
+    # Whatever desks this floor has, not a fixed two. `seed.sh` dismisses every
+    # hire and puts the starting roster back, so a clean board is Ada and Iris
+    # — but the check is on the state of the desks that exist rather than on
+    # how many there are, because an agent can be hired at any time and a
+    # reset that insisted on exactly two would fail on a board somebody was
+    # still setting up.
     slots = sorted((a["slot_id"], a["status"]) for a in frame["agents"])
+    names = [a.get("name") or a["slot_id"] for a in frame["agents"]]
     problems = []
+    if not slots:
+        problems.append("no agents on the floor")
     if any(status != "IDLE" for _, status in slots):
-        problems.append(f"slots not IDLE: {slots}")
+        problems.append(f"desks not IDLE: {slots}")
     if frame.get("tokens_used", 0) != 0:
         problems.append(f"tokens_used={frame['tokens_used']}")
     if frame.get("queue"):
@@ -149,8 +158,9 @@ async def main():
         print("  snapshot         DIRTY — " + "; ".join(problems))
         sys.exit(1)
     print(
-        f"  snapshot         clean — both slots IDLE, "
-        f"0/{frame['token_budget']} tokens, queue and memory empty"
+        f"  snapshot         clean — {len(slots)} desks IDLE "
+        f"({', '.join(names)}), 0/{frame['token_budget']} tokens, "
+        f"queue and memory empty"
     )
 
 

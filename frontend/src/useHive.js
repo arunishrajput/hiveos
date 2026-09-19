@@ -178,6 +178,48 @@ export function applyFrame(board, frame) {
       return { ...board, agents, queue }
     }
 
+    /* A desk appears on the floor. This is the beat the whole phase is for:
+     * somebody else hires an agent and it walks into your room without you
+     * touching anything.
+     *
+     * Appended rather than sorted in. The server orders the roster by
+     * `created_at` and a hire is always the newest, so the end *is* its
+     * place — and re-sorting on an incremental frame would risk the board
+     * disagreeing with the scheduler's fallback order between here and the
+     * next snapshot. Guarded against duplicates because the 500 ms re-sync
+     * can land a snapshot carrying this desk before this frame is applied. */
+    case 'agent_spawned': {
+      const slotId = frame.slot_id ?? frame.agent_type
+      if (!slotId || board.agents.some((a) => a.slot_id === slotId)) return board
+      return {
+        ...board,
+        agents: [
+          ...board.agents,
+          {
+            slot_id: slotId,
+            agent_type: slotId,
+            status: frame.status ?? 'IDLE',
+            current_user: frame.current_user ?? null,
+            name: frame.name,
+            role: frame.role,
+            tagline: frame.tagline,
+            character: frame.character,
+            project: frame.project,
+            created_at: frame.created_at,
+          },
+        ],
+      }
+    }
+
+    case 'agent_dismissed': {
+      const slotId = frame.slot_id ?? frame.agent_type
+      if (!slotId) return board
+      return {
+        ...board,
+        agents: board.agents.filter((a) => a.slot_id !== slotId),
+      }
+    }
+
     case 'token_update':
       return {
         ...board,
@@ -311,6 +353,26 @@ function activityFor(frame) {
             : 'Picked up straight away — same task, same budget.'),
         ts,
       }
+    case 'agent_spawned':
+      return {
+        kind: 'hire',
+        agent: frame.slot_id ?? frame.agent_type ?? null,
+        who: `${frame.hired_by ?? 'someone'} hired ${frame.name ?? 'an agent'}`,
+        text:
+          [frame.role, frame.project].filter(Boolean).join(' · ') ||
+          'A new desk on the floor.',
+        ts,
+      }
+
+    case 'agent_dismissed':
+      return {
+        kind: 'hire',
+        agent: frame.slot_id ?? frame.agent_type ?? null,
+        who: `${frame.dismissed_by ?? 'someone'} dismissed an agent`,
+        text: `${frame.slot_id ?? 'that desk'} is off the floor.`,
+        ts,
+      }
+
     case 'chat_message':
       return { kind: 'chat', who: frame.user_id ?? 'unknown', text: frame.text ?? '', ts }
     case 'memory_updated':
@@ -588,6 +650,19 @@ export function useHive(identity) {
 
   const sendMessage = useCallback((text) => send({ action: 'send_message', text }), [send])
 
+  /* Staffing the floor. Deliberately not admin actions — hiring costs
+   * nothing, and the ceiling governs running an agent no matter how many
+   * desks share it. The server enforces the two rules that do matter: the
+   * floor's size, and never dismissing a working or last desk. */
+  const spawnAgent = useCallback(
+    (fields) => send({ action: 'spawn_agent', ...fields }),
+    [send],
+  )
+  const dismissAgent = useCallback(
+    (slotId) => send({ action: 'dismiss_agent', agent_type: slotId }),
+    [send],
+  )
+
   /* Administration. Every one of these is refused server-side unless this
    * connection was admitted with the workspace's admin token, so the UI
    * hiding them is convenience rather than the control. */
@@ -690,6 +765,8 @@ export function useHive(identity) {
     requestAgent,
     releaseAgent,
     sendMessage,
+    spawnAgent,
+    dismissAgent,
     moveAvatar,
     deleted,
     setBudget,

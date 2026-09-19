@@ -2,13 +2,17 @@
 
 Everything needed to record the 3-minute video in one take. **No new features from here.**
 
-The sequence below is rehearsed automatically and passes 12/12 against deployed AWS:
+The sequence below is rehearsed automatically and passes 15/15 against deployed AWS:
 
 ```bash
-python scripts/rehearse.py --takes 2
+python3 scripts/rehearse.py --takes 2
 ```
 
 Run that first. If it fails, do not record — fix what it names.
+
+> **`python3`, not `python`.** This machine has no `python` on `PATH` — the bare name
+> exits `command not found`, and every command in this file used to be written that way.
+> Caught by running them, 2026-09-19.
 
 ---
 
@@ -23,7 +27,7 @@ be joined by someone who happens to be reading the README.
 export DEMO_TEAM=demo-stage
 export DEMO_PASSPHRASE='pick something'
 
-python scripts/rehearse.py --takes 2   # rehearses in that workspace
+python3 scripts/rehearse.py --takes 2  # rehearses in that workspace
 ./scripts/reset-demo.sh                # clean board, SQS drained, Lambdas warm, verified
 ```
 
@@ -33,47 +37,87 @@ before and uses the open default workspace.
 At the gate, each browser enters the same **workspace** name and the same
 **passphrase**. The first one in creates it and becomes its administrator.
 
-**Point the three recording windows at the board directly:**
+**Point the recording windows at the board directly:**
 
 ```
 https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace
 ```
 
 `/` is the public landing page now, and the board is one CTA click behind it.
-That is right for a judge arriving cold and wrong for a take — three windows
-each needing an extra click before the gate is three chances to be caught
+That is right for a judge arriving cold and wrong for a take — every window
+needing an extra click before the gate is another chance to be caught
 mid-scroll on camera. The hash link goes straight to the gate.
 
 Show `/` itself in the opening seconds if you want the pitch on screen, then
-cut to the three board windows. It is a still page; nothing on it moves and
-nothing on it connects.
+cut to the board windows. It is a still page; nothing on it moves and nothing
+on it connects.
 
-It prints `snapshot clean — both slots IDLE, 0/5000 tokens, queue and memory empty`. If it
-prints `DIRTY`, or warns that connection rows were live, **close every browser tab pointed at
-the deployed URL and run it again.**
+It prints `snapshot clean — 2 desks IDLE (Ada, Iris), 0/5000 tokens, queue and memory empty`.
+If it prints `DIRTY`, or warns that connection rows were live, **close every browser tab
+pointed at the deployed URL and run it again.**
+
+> ### The framing, measured on the deployed build (2026-09-19)
+>
+> Everything here used to say *three browser windows, 640×950, side by side*, earned over
+> Phases 7–15. Phase 17 killed it: HiveOS is a landscape app shell now — floor on the left,
+> agent inspector on the right, roster along the bottom. These figures replace it and were
+> taken against the deployed URL, not estimated.
+>
+> **900 CSS px wide is a cliff, not a slope.** At **900** the shell is the landscape office
+> and the page does not scroll. At **899** it becomes a single stacked column 1164 px tall
+> and the page scrolls. One pixel decides it, so never write a window size as "about 900".
+>
+> **Height is not a fit problem.** The shell is `100dvh` and fills whatever it is given —
+> at a 1440×900 viewport it lays out to exactly 900 (44 title bar + 777 floor/inspector +
+> 79 roster), with no overflow on either axis and a clean console. Height only decides how
+> big the room is, and the room is the shot.
+>
+> **Two landscape windows do not fit on this machine.** Two windows at ≥900 need 1800 px of
+> desktop. This Mac's logical desktop is **1512×982** (`osascript … bounds of window of
+> desktop`), so "side by side, both landscape" is arithmetically impossible here. The
+> instruction that used to be in this box could not have been followed.
+>
+> **The configuration that does fit, both windows fully visible, nothing overlapping:**
+>
+> | Window | Size | What it is |
+> |---|---|---|
+> | **Primary — 960×957** | viewport ≈ 960×870 | The landscape office. Floor renders 515×548. This is the shot |
+> | **Witness — 540×957** | viewport ≈ 540×870 | The stacked layout, and it is *not* a degraded one — the whole floor, both rooms, the waiting area, the nameplates, the meter and the chat input all sit above the fold |
+>
+> 960 + 540 = **1500**, inside 1512. Both screenshotted at these sizes and both read.
+>
+> **The stacked layout is the product, not a fallback.** The previous note called anything
+> under 900 px "the mobile layout, not the product". That is wrong and it cost the framing
+> its only workable option: the narrow column is a real responsive layout of the same live
+> board, and on camera a second window that is visibly a *different shape* makes "one shared
+> board, any screen" read faster than two identical rectangles do.
+>
+> If you record on an external display with ≥1800 px of width, two 900-wide landscape
+> windows side by side is the nicer shot. Check `osascript -e 'tell application "Finder" to
+> get bounds of window of desktop'` before planning it.
 
 Then:
 
 - [ ] `rehearse.py --takes 2` passed within the last hour
-- [ ] Three browser windows, **640×950 each**, side by side. Verified on the deployed URL:
-      board **838 px** into an **862 px** viewport, nothing clipped and no horizontal scroll.
-      **Measure it in the browser you are actually recording in.** That 862 is what a 640×950
-      window gives with a plain toolbar; add a bookmarks bar and a couple of extensions and the
-      viewport drops to ~806, which puts the team-chat box below the fold. The board grew 41 px
-      in Phase 14 (the agent picker), so the slack is ~24 px where it used to be ~65.
-      **Phase 15 did not change this number** — the floor was rebuilt into rooms inside its
-      existing 250 px, so the 838 was re-measured on the deployed build and came back identical.
-      **The height is the part that matters.** The board is now capped to the viewport and the
-      activity log scrolls inside itself, so a *shorter* window does not push panels off-screen
-      any more — it squeezes the log instead, and at ~806 px of viewport the agent's answer
-      starts getting cut mid-sentence. 950 px tall gives the log 104 px, which is a full
-      response.
+- [ ] Windows sized per the box above — **960 wide** for the office, **540** for the witness.
+      Verified on the deployed URL at both: no horizontal overflow, no page scroll, zero
+      console errors and zero warnings, both rooms and both nameplates legible. The roster
+      strip scrolls inside itself once the floor is fully staffed, which is by design.
+- [ ] **Three identities, and the third is not optional.** The queue beat is the centrepiece
+      and it only forms when *every* desk is busy: alice takes Ada, bob takes Iris, and it is
+      **charlie** who gets position 1. With the two-desk starting roster there is no queue
+      without him. (This checklist used to call him optional. He is the beat.)
+- [ ] Identities entered: **alice 🐝** (office window), **bob 🦊** (witness), **charlie 🦉** —
+      same workspace, same passphrase
+- [ ] **Where charlie's window goes.** 960 + 540 fills this desktop, so his window sits behind
+      bob's and comes forward for his one request. His *proof* — walking into the waiting area
+      — renders on alice's and bob's screens, so his own window never has to be the shot. If
+      you would rather have all three visible at once, three **504**-wide windows total 1512
+      and each shows the whole floor above the fold; you trade the landscape office for it.
 - [ ] Each window is a **separate browser or profile**. The entry gate persists to
       `localStorage['hiveos.identity']`, so two tabs of the same origin share one identity and
-      you will end up with three "Alice"s.
-- [ ] Identities entered: **alice 🐝**, **bob 🦊**, **charlie 🦉** — all in the same
-      workspace, with the same passphrase
-- [ ] All three show the same meter — `0 / 5000` — and both slots IDLE
+      you will end up with two "Alice"s.
+- [ ] Every window shows the same meter — `0 / 5000` — and the same desks IDLE
 - [ ] **Browser extensions disabled, or record in a clean profile.** Grammarly injects a
       floating icon *into the prompt textarea* and it is clearly visible on camera. Found while
       verifying the deployed page — it was the only thing in the console, and the only thing on
@@ -82,7 +126,7 @@ Then:
       `ESTIMATED`, the model was unreachable: the board still works but the counts are
       heuristics, and the narration has to say so. Fix it before recording rather than
       explaining it on camera.
-- [ ] Screen recorder capturing all three windows
+- [ ] Screen recorder capturing every window you plan to show
 - [ ] Notifications silenced
 
 The reset takes ~8 seconds. Between takes, run it again — it is idempotent.
@@ -91,12 +135,30 @@ The reset takes ~8 seconds. Between takes, run it again — it is idempotent.
 
 ## The take
 
-Product time is ~15 seconds; the rest is narration over a live board. Rehearsed timings are in
-brackets.
+Product time is ~16 seconds across five beats; the rest is narration over a live board.
+Rehearsed timings are in brackets, and the harness reports 91–95 s of headroom against its
+110 s allowance.
+
+> ### The hiring beat is rehearsed now, and it runs last for a reason
+>
+> **Hiring an agent on camera.** Click `+ add agent` in the office window, type a name, pick
+> a character, hit `spawn` — and the desk appears on the *witness* window's floor, seated and
+> named, with nobody touching it. It is the clearest single proof in the product that this is
+> one live shared board, and far more legible than matching numbers.
+>
+> `rehearse.py` now drives it as **Beat 5** and it passes: across four takes the hire reached
+> a bystander's screen in **305–433 ms**, carrying its name, role, character and project, and
+> a browser opening cold afterwards saw the same three desks in the same order.
+>
+> **Hire after the queue beat, never before it.** The queue only forms when every desk is
+> busy. Hire a third desk first and alice and bob fill two of three, charlie is dispatched
+> straight into the spare, and there is no queue position, no walk into the waiting area and
+> no auto-dispatch — the two strongest beats in the demo silently do not happen, and nothing
+> on screen tells you they didn't. The harness enforces the order for the same reason.
 
 ### 0:00–0:25 · The problem
 
-Talking over the three windows, before touching anything.
+Talking over the windows, before touching anything.
 
 > Uber burned through its 2026 AI budget in four months. 79% of enterprises had overruns last
 > year; only 36% have any real-time control. Teams share AI agents with no visibility, no
@@ -107,29 +169,32 @@ Talking over the three windows, before touching anything.
 If asked how this differs from a local agent harness: **that governs one developer's own CLI
 agents on their own machine; this is a cloud governance layer for a team sharing one budget.**
 
-### 0:25–0:45 · Three browsers, one workspace
+### 0:25–0:40 · Two windows, one workspace
 
-Click once on the **workspace floor** in each window, so each marker visibly moves on the other
-two screens. This is the cheapest possible proof that the three windows are one live board —
-much stronger than pointing at three identical numbers, which a viewer could assume were
-screenshots.
+Click once on the **workspace floor** in the office window, so your marker visibly moves on the
+witness screen too. This is the cheapest possible proof that the windows are one live board —
+much stronger than pointing at matching numbers, which a viewer could assume were screenshots.
 
 > Three people, one workspace, one budget. Two agent rooms on the floor — Ada, who takes
 > engineering work, and Iris, who researches — and a waiting area between them and us. Same
 > meter, same queue, same rooms, on every screen, live. When I move here, it moves there.
 
-Keep it to one click each — the floor is the opening handshake, not the point of the demo. The
+Keep saying **three people** — there are three identities on this board even though two windows
+are on camera, and charlie is about to be visible on both of them.
+
+Keep it to one click — the floor is the opening handshake, not the point of the demo. The
 nameplates are legible at recording size, so the agents introduce themselves; do not stop to
 read them out, and do not narrate the floor plan. It pays off twice in the next two beats and
 explaining it up front spends that twice.
 
-### 0:45–1:30 · The queue moment `[~1s of product time]`
+### 0:40–1:25 · The queue moment `[~1s of product time]`
 
 1. **Alice** picks **Ada** and requests an agent with the prompt:
    ```
    remember: deploy window = Friday 16:00 UTC
    ```
-   → Ada's desk goes BUSY on **all three** screens *(rehearsed: 282–310 ms)*
+   → Ada's desk goes BUSY on **every** screen *(rehearsed 2026-09-19 over four takes:
+   331–433 ms to a bystander, measured on bob's socket rather than alice's)*
 
 2. **Bob** picks **Iris** — any prompt, e.g. `summarise yesterday's incident review`
    → Iris's desk goes BUSY. Both desks now full.
@@ -138,8 +203,9 @@ explaining it up front spends that twice.
    ```
    when is our next deploy?
    ```
-   → Charlie gets **queue position 1** — and on all three screens he **walks into the waiting
-   area and stands there**, captioned `queued #1`.
+   → Charlie gets **queue position 1** — and on both visible screens he **walks into the
+   waiting area and stands there**, captioned `queued #1`. This is why his own window never
+   has to be on camera: the proof renders on everyone else's floor.
 
 > Both agents are busy, so Charlie doesn't get a failure and he doesn't get a spinner — he gets
 > a real position in line, he's standing in it, and the whole team can see him waiting.
@@ -160,13 +226,14 @@ waiting tasks auto-dispatch the moment a slot frees.*
 SQS is the durable at-least-once handoff for tasks that are actually running.
 (`ARCHITECTURE.md` decision 1.)
 
-### 1:30–2:15 · The memory moment `[~10s of product time]`
+### 1:25–2:05 · The memory moment `[~8–10s of product time]`
 
 This runs itself. Alice's task finishes, and three things happen in sequence — let them land.
 
-1. A **toast** fires on all three screens and Alice's fact appears in **team memory**,
+1. A **toast** fires on every screen and Alice's fact appears in **team memory**,
    attributed to her — this lands as her task *starts*, so give it a beat before the rest
-2. Her slot frees → **Charlie is auto-dispatched into it** *(rehearsed: 64–84 ms)*. Watch the
+2. Her slot frees → **Charlie is auto-dispatched into it** *(rehearsed 2026-09-19: 0–118 ms
+   after the desk went idle — one take landed both frames in the same millisecond)*. Watch the
    floor: Charlie **walks out of the waiting area, into Ada's room, and sits down**; the room
    and its monitor light up around him. Alice **walks back** to where she was standing. Nobody
    told either of them to move — the room is rendering the scheduler.
@@ -190,7 +257,28 @@ visible. A task costs more now that the agent has tools: two round trips plus th
 in every prompt, roughly 700-1,100 tokens against roughly 270 before. An agent-to-agent handoff
 is two agent runs and costs roughly **1,900** for the pair.
 
-### 2:15–2:45 · Where AWS fits
+### 2:05–2:20 · The floor is staffed, not fixed `[~2s of product time]`
+
+The Phase 17 beat, and the one that says what this product *is*. Do it here — **after** the
+queue has paid off, for the reason in the box above.
+
+1. In the office window, click **`+ add agent`**
+2. Name it **Dwight**, role **Analyst**, pick a character that is not a teammate's avatar
+3. Hit **spawn**
+
+→ The desk appears on the **witness** window's floor, seated, named and idle, with nobody
+touching that window *(rehearsed 2026-09-19: 305–433 ms)*. The roster strip gains a card and
+the app bar goes to `0/3 working`.
+
+> These two agents aren't the product — the floor is. You hire onto it. Dwight didn't exist
+> ten seconds ago, nobody touched that second screen, and he's already at a desk with a name
+> on it. Same budget, same ceiling, same queue — one more desk sharing them.
+
+**Four desks is the cap** (`MAX_AGENTS = 4`), and it is a measured limit rather than a chosen
+one: the floor's lower band cannot draw a fifth without a character landing on someone else's
+nameplate. Do not hire more than twice on camera.
+
+### 2:20–2:45 · Where AWS fits
 
 > API Gateway WebSocket for the live board. Lambda for the router and the agent runner. SQS as
 > the durable task handoff, with a dead-letter queue. DynamoDB as a single-table store, with
@@ -234,7 +322,7 @@ is invoked** and `budget_exhausted` goes out team-wide.
 
 The meter displays **100.0%** and **0 remaining**, even though the underlying count overshoots
 (rehearsed at 1744 of 1600) — a task's cost is only known once it has run, so it cannot be
-charged in advance, and the UI clamps. Rehearse it with `python scripts/rehearse.py --ceiling`.
+charged in advance, and the UI clamps. Rehearse it with `python3 scripts/rehearse.py --ceiling`.
 
 **1600, and this number has moved twice.** 60 when the agent was stubbed (~58 a token a task),
 500 once a real model call landed (~200–400), 1600 now the model has tools (~700–1,100). It

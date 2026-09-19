@@ -238,6 +238,31 @@ def reset_demo_state():
             "--table-name", "hiveos-state",
             "--key", json.dumps({"PK": {"S": TEAM_PK}, "SK": {"S": sk}}),
         )
+    # Every desk this run hired, removed.
+    #
+    # Without this the harness only passes the first time it is ever run —
+    # exactly the trap the TASK# rows above document. A hired desk survives
+    # into the next run, and every assertion that counts the desks on this
+    # floor starts reporting three.
+    for slot in agent_rows():
+        if slot not in ("coder", "researcher"):
+            aws(
+                "dynamodb", "delete-item",
+                "--table-name", "hiveos-state",
+                "--key",
+                json.dumps({"PK": {"S": TEAM_PK}, "SK": {"S": f"AGENT#{slot}"}}),
+            )
+
+    # The two the workspace opens with, put back **without their identity
+    # fields** — and that is deliberate, not laziness.
+    #
+    # The roster lives in the AGENT# rows now, but `ensure_team` writes them
+    # conditionally, so every workspace created before that change still holds
+    # a bare row like this one. `agents.from_row` fills those in from
+    # `STARTING_ROSTER` by slot id, which is what spares every existing board a
+    # migration. Writing bare rows here means the compatibility path is
+    # exercised on every single smoke run rather than assumed — section 7
+    # asserts these desks come back named Ada and Iris.
     for slot in ("coder", "researcher"):
         aws(
             "dynamodb", "put-item",
@@ -321,10 +346,14 @@ async def run(url):
         == [("coder", "IDLE"), ("researcher", "IDLE")],
         str(snapshot["agents"]),
     )
-    # The desks are named agents, and the names live in `backend/shared/agents.py`
-    # rather than in the AGENT# rows. If the join were dropped the board would
-    # silently fall back to captioning the desks with their slot ids — which is
-    # exactly what they said before Phase 14, so nothing would look broken.
+    # The desks are named agents, and the identity now lives on the AGENT# row
+    # — except on rows written before it did, which is what `reset_demo_state`
+    # deliberately recreates above. So this check does double duty: it proves
+    # the board captions its desks at all, and it proves the
+    # `STARTING_ROSTER` fallback still covers every workspace that existed
+    # before the roster became data. Without the fallback these two rows would
+    # come back captioned `coder` and `researcher` — which is exactly what they
+    # said before Phase 14, so nothing would *look* broken.
     check(
         "snapshot carries each desk's agent identity, in roster order",
         [(a["slot_id"], a.get("name"), a.get("role")) for a in snapshot["agents"]]
@@ -806,6 +835,7 @@ async def run_memory_and_budget(url):
     await run_passphrase(url)
     await run_admin(url)
     await run_handoff(url)
+    await run_hiring(url)
 
 
 
@@ -1048,6 +1078,192 @@ async def run_isolation(url):
     for ws in (alice, zara):
         await ws.close()
     await asyncio.sleep(3)
+
+
+# --- Hiring and dismissing -------------------------------------------------
+
+# Its own workspace, like the handoff section and for the same reason: this one
+# adds and removes desks, and doing that in the demo partition would leave
+# `alpha` with a roster nobody seeded and the fairness ledger reasoning about
+# agents that no longer exist.
+HIRE_TEAM = "smokehiring"
+HIRE_PK = f"TEAM#{HIRE_TEAM}"
+
+
+def hire_team_rows(prefix):
+    page = aws(
+        "dynamodb", "query",
+        "--table-name", "hiveos-state",
+        "--key-condition-expression", "PK = :p AND begins_with(SK, :s)",
+        "--expression-attribute-values",
+        json.dumps({":p": {"S": HIRE_PK}, ":s": {"S": prefix}}),
+    )
+    return page["Items"]
+
+
+def reset_hire_team():
+    """Every row this section owns, gone — so it can run twice in a row."""
+    for prefix in ("AGENT#", "QUEUE#", "TASK#", "MEMORY#", "METADATA"):
+        for item in hire_team_rows(prefix):
+            aws(
+                "dynamodb", "delete-item",
+                "--table-name", "hiveos-state",
+                "--key",
+                json.dumps({"PK": {"S": HIRE_PK}, "SK": item["SK"]}),
+            )
+
+
+async def run_hiring(url):
+    """Phase 17 gate: the floor is something you staff.
+
+    The roster used to be a constant in `backend/shared/agents.py`, identical
+    in every workspace and fixed at deploy time. It is data now, and this is
+    what proves it: a desk that did not exist is hired, works, and is dismissed
+    — all of it visible to a second person who never reloaded.
+    """
+    print("\n26. Hiring — staffing the floor")
+    reset_hire_team()
+
+    alice = await websockets.connect(f"{url}?user_id=alice&team={HIRE_TEAM}")
+    bob = await websockets.connect(f"{url}?user_id=bob&team={HIRE_TEAM}")
+    await alice.send(json.dumps({"action": "hello"}))
+    opening = await expect(alice, "state_snapshot", "alice")
+
+    check(
+        "a new workspace opens with the starting roster, named",
+        [(a["slot_id"], a.get("name")) for a in opening["agents"]]
+        == [("coder", "Ada"), ("researcher", "Iris")],
+        str([(a["slot_id"], a.get("name")) for a in opening["agents"]]),
+    )
+
+    # --- Hiring ------------------------------------------------------------
+    await drain(bob)
+    await alice.send(json.dumps({
+        "action": "spawn_agent",
+        "name": "Jim",
+        "role": "Editor",
+        "tagline": "Tightens prose. Cuts what does not earn its place.",
+        "persona": "You edit text. Cut hedges and say what is left plainly.",
+        "character": "🐙",
+        "project": "newsletter",
+    }))
+
+    # Announced to the *other* person, who never asked for it and never
+    # reloaded. This is the demo beat, so it is asserted on bob's socket
+    # rather than on the hirer's.
+    spawned = await expect(bob, "agent_spawned", "bob")
+    check(
+        "hiring an agent is broadcast to the whole floor",
+        (spawned.get("name"), spawned.get("role"), spawned.get("status"))
+        == ("Jim", "Editor", "IDLE"),
+        str({k: spawned.get(k) for k in ("name", "role", "status")}),
+    )
+    check(
+        "a hired agent gets a readable slot id of its own",
+        (spawned.get("slot_id") or "").startswith("jim-"),
+        str(spawned.get("slot_id")),
+    )
+    check(
+        "a hired agent's briefing never reaches a client",
+        "persona" not in spawned,
+        str(sorted(spawned)),
+    )
+
+    jim = spawned["slot_id"]
+
+    await alice.send(json.dumps({"action": "hello"}))
+    after = await expect(alice, "state_snapshot", "alice")
+    check(
+        "the new desk is on the floor, after the two it opened with",
+        [a["slot_id"] for a in after["agents"]] == ["coder", "researcher", jim],
+        str([a["slot_id"] for a in after["agents"]]),
+    )
+
+    # --- It is a real desk, not a label ------------------------------------
+    await alice.send(json.dumps({
+        "action": "claim_agent", "agent_type": jim,
+        "prompt": "Reply with exactly: hired.",
+    }))
+    busy = await expect(alice, "agent_state_update", "alice",
+                        where=lambda f: f.get("slot_id") == jim)
+    check(
+        "a hired desk can be claimed by name",
+        (busy.get("status"), busy.get("current_user")) == ("BUSY", "alice"),
+        str({k: busy.get(k) for k in ("status", "current_user")}),
+    )
+
+    answered = await expect(alice, "agent_response", "alice", timeout=45)
+    check(
+        "a hired agent runs a real task and is credited by name",
+        (answered.get("agent_type"), answered.get("agent_name")) == (jim, "Jim"),
+        str({k: answered.get(k) for k in ("agent_type", "agent_name")}),
+    )
+    check(
+        "the hired agent's task spent real tokens",
+        int(answered.get("tokens_used_this_call") or 0) > 0,
+        str(answered.get("tokens_used_this_call")),
+    )
+
+    # The name is written into the ledger at the moment the work ran, not
+    # joined on when the ledger is read — which is what keeps a dismissed
+    # agent's past work attributed correctly below.
+    await alice.send(json.dumps({"action": "hello"}))
+    ledger = await expect(alice, "state_snapshot", "alice")
+    jim_rows = [r for r in ledger["history"] if r.get("agent_type") == jim]
+    check(
+        "the ledger records the hired agent by name",
+        jim_rows and jim_rows[0].get("agent_name") == "Jim",
+        str(jim_rows[:1]),
+    )
+
+    # --- Dismissing ---------------------------------------------------------
+    await alice.send(json.dumps({"action": "dismiss_agent", "agent_type": jim}))
+    gone = await expect(bob, "agent_dismissed", "bob")
+    check(
+        "dismissing an agent is broadcast to the whole floor",
+        gone.get("slot_id") == jim,
+        str(gone),
+    )
+
+    await alice.send(json.dumps({"action": "hello"}))
+    final = await expect(alice, "state_snapshot", "alice")
+    check(
+        "the dismissed desk is off the floor",
+        [a["slot_id"] for a in final["agents"]] == ["coder", "researcher"],
+        str([a["slot_id"] for a in final["agents"]]),
+    )
+    # The point of writing the name at run time rather than joining it on.
+    still = [r for r in final["history"] if r.get("agent_type") == jim]
+    check(
+        "a dismissed agent's past work is still attributed to it by name",
+        still and still[0].get("agent_name") == "Jim",
+        str(still[:1]),
+    )
+
+    # --- The rules ----------------------------------------------------------
+    await drain(alice)
+    await alice.send(json.dumps({"action": "dismiss_agent", "agent_type": "coder"}))
+    await alice.send(json.dumps({"action": "dismiss_agent", "agent_type": "researcher"}))
+    refused = await expect(alice, "error", "alice")
+    check(
+        "a floor may not be emptied of every agent",
+        "at least one agent" in (refused.get("message") or ""),
+        str(refused.get("message")),
+    )
+
+    await drain(alice)
+    await alice.send(json.dumps({"action": "dismiss_agent", "agent_type": "nonesuch"}))
+    unknown = await expect(alice, "error", "alice")
+    check(
+        "dismissing a desk that does not exist is refused",
+        "no such desk" in (unknown.get("message") or ""),
+        str(unknown.get("message")),
+    )
+
+    for ws in (alice, bob):
+        await ws.close()
+    await asyncio.sleep(3)
+    reset_hire_team()
 
 
 # --- Agent-to-agent handoff ------------------------------------------------

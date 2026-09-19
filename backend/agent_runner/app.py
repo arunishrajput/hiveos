@@ -59,6 +59,17 @@ def lambda_handler(event, context):
     return {"ok": True}
 
 
+def _named(names, slot_id):
+    """A display name for one desk, falling back to its id, then to None.
+
+    `None` in means `None` out — `handoff_from` is null on an ordinary task and
+    must stay null in the ledger, not become the string "None".
+    """
+    if not slot_id:
+        return None
+    return names.get(slot_id) or slot_id
+
+
 def _handle(task):
     slot_id = task["slot_id"]
     user_id = task.get("user_id", "unknown")
@@ -71,14 +82,24 @@ def _handle(task):
         f"conn={task.get('connection_id')}"
     )
 
+    # The roster, read once for the whole task.
+    #
+    # It is per workspace now, so who Ada is depends on which board this is.
+    # Everything downstream — the persona the model runs under, the handoff
+    # targets, the name on the reply and the names written into the ledger —
+    # comes from this one read rather than from four lookups against a module
+    # that no longer knows the answer.
+    desks = [agents.from_row(row) for row in state.roster(team)]
+    names = {desk["slot_id"]: desk["name"] for desk in desks}
+
     handoff = None
     try:
         # Returning here still runs `finally`, so a refused task releases its
         # slot exactly like a completed one.
-        if _refuse_over_budget(team, task):
+        if _refuse_over_budget(team, task, names):
             return
-        result, handoff = _run_agent(team, task)
-        _reply(team, task, result)
+        result, handoff = _run_agent(team, task, desks)
+        _reply(team, task, result, names)
     except Exception:
         # The task failed, not the infrastructure. Tell the user, then fall
         # through to finally — swallowing it here is what stops SQS from
@@ -95,6 +116,8 @@ def _handle(task):
             requested_agent=task.get("requested_agent"),
             task_id=task.get("task_id"),
             handoff_from=task.get("handoff_from"),
+            agent_name=_named(names, slot_id),
+            handoff_from_name=_named(names, task.get("handoff_from")),
         )
         _reply_error(task, "agent task failed")
     finally:
@@ -128,7 +151,7 @@ def _handle(task):
 # --- The budget ceiling ----------------------------------------------------
 
 
-def _refuse_over_budget(team, task):
+def _refuse_over_budget(team, task, names):
     """True if the quota is spent and the agent must not be invoked.
 
     This is the control the product is built around: a real refusal, not a
@@ -158,6 +181,8 @@ def _refuse_over_budget(team, task):
         requested_agent=task.get("requested_agent"),
         task_id=task.get("task_id"),
         handoff_from=task.get("handoff_from"),
+        agent_name=_named(names, task.get("slot_id")),
+        handoff_from_name=_named(names, task.get("handoff_from")),
     )
     broadcast.broadcast_to_team(
         team,
@@ -207,7 +232,7 @@ def _remember_from_prompt(team, prompt, requester):
     return fact
 
 
-def _run_agent(team, task):
+def _run_agent(team, task, desks):
     """Run one task. Returns `(result, handoff)`; `handoff` is usually None.
 
     The model call is the only part that can fail in a way the user should
@@ -228,16 +253,30 @@ def _run_agent(team, task):
     # They are usually the same; when they are not, the substitution is what
     # `_reply` reports and what the ledger records.
     slot_id = task["slot_id"]
-    agent = agents.get(slot_id)
     requester = task.get("user_id", "unknown")
     started = time.monotonic()
+
+    # `desks` is the workspace's roster, already resolved by `_handle`. Passed
+    # in rather than read again: the persona, the handoff targets, the reply
+    # and the ledger all have to agree about who is on this floor, and two
+    # reads a second apart can disagree if somebody hires in between.
+    agent = next((d for d in desks if d["slot_id"] == slot_id), None) or {
+        "slot_id": slot_id,
+        "name": slot_id,
+        "role": "",
+        "persona": "",
+    }
 
     # Where this task may still be handed. Empty once the hop budget is spent,
     # and `llm.tools_for` then leaves the handoff tool out of the request
     # entirely — the loop guard is the absence of the tool, not an instruction
     # the model is trusted to follow.
+    #
+    # Derived from the live roster rather than a fixed "everyone except me"
+    # list, so an agent hired five minutes ago is a legitimate target and one
+    # that was fired is not offered as a desk that no longer exists.
     targets = (
-        agents.others(slot_id)
+        tuple(d for d in desks if d["slot_id"] != slot_id)
         if int(task.get("hops", 0) or 0) < scheduler.MAX_HANDOFF_HOPS
         else ()
     )
@@ -288,7 +327,7 @@ def _run_agent(team, task):
         # so — and `estimated=True` keeps the meter honest about it.
         print(f"[runner] model call failed ({type(exc).__name__}: {exc}) — composing fallback")
         fact = _remember_from_prompt(team, prompt, requester)
-        result = _stub_agent(prompt, context, agents.name_of(slot_id), fact)
+        result = _stub_agent(prompt, context, agent["name"], fact)
         # A handoff the model asked for before the call fell over is not acted
         # on: `_stub_agent` has already answered the user from this desk, and
         # dispatching a second leg would spend the team's budget answering a
@@ -319,7 +358,7 @@ def _accept_handoff(handoff, targets, slot_id, args):
         )
 
     target = args.get("agent")
-    by_id = {agent["id"]: agent for agent in targets}
+    by_id = {agent["slot_id"]: agent for agent in targets}
     if target == slot_id:
         return "You are already at that desk. Answer the task yourself."
     if target not in by_id:
@@ -328,7 +367,7 @@ def _accept_handoff(handoff, targets, slot_id, args):
                 "This task was already handed to you by another desk, so it "
                 "cannot be passed on again. Answer it yourself."
             )
-        offer = ", ".join(f"{a['id']} ({a['name']}, {a['role']})" for a in targets)
+        offer = ", ".join(f"{a['slot_id']} ({a['name']}, {a['role']})" for a in targets)
         return f"There is no desk called {target!r}. Available: {offer}."
 
     handoff["target"] = target
@@ -394,7 +433,7 @@ def _stub_agent(prompt, context, agent_name, fact):
 # --- Replies ---------------------------------------------------------------
 
 
-def _reply(team, task, result):
+def _reply(team, task, result, names):
     """Account for the spend, then tell the room.
 
     The `ADD` happens before either broadcast so no client is ever told about
@@ -427,6 +466,12 @@ def _reply(team, task, result):
         # two unrelated tasks that happen to sit next to each other.
         task_id=task.get("task_id"),
         handoff_from=handed_from,
+        # Written now, at the moment the work ran, rather than joined on when
+        # the ledger is read. An agent can be fired, and a ledger that looked
+        # its names up later would attribute this row to whoever holds that id
+        # next — or to nobody.
+        agent_name=_named(names, slot_id),
+        handoff_from_name=_named(names, handed_from),
     )
 
     # `usage` already carries `estimated`, read back from the row, so the
@@ -439,7 +484,7 @@ def _reply(team, task, result):
             "event": "agent_response",
             "user_id": task.get("user_id"),
             "agent_type": slot_id,
-            "agent_name": agents.name_of(slot_id),
+            "agent_name": _named(names, slot_id),
             # Null on an ordinary task. Set only when somebody asked for one
             # agent and a different one took the work, which is a thing the
             # room should say out loud rather than quietly substitute. The
@@ -447,13 +492,13 @@ def _reply(team, task, result):
             # activity log renders a frame on its own, without a roster to
             # join against.
             "requested_agent": substituted,
-            "requested_name": agents.name_of(substituted) if substituted else None,
+            "requested_name": _named(names, substituted),
             # Null on an ordinary task; set on the receiving leg of a handoff.
             # The chain id rides along so a client can tie the two answers
             # together without holding the ledger.
             "task_id": task.get("task_id"),
             "handoff_from": handed_from,
-            "handoff_from_name": agents.name_of(handed_from) if handed_from else None,
+            "handoff_from_name": _named(names, handed_from),
             "text": result.text,
             "tokens_used_this_call": result.tokens,
             "estimated": result.estimated,

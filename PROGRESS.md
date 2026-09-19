@@ -11,11 +11,11 @@
 
 | | |
 |---|---|
-| **Project** | HiveOS — OS-style scheduler for a team's shared AI agent budget |
+| **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 6 — demo readiness** (the expansion is finished) |
-| **Phase status** | `READY`. Phase 16 (agent-to-agent handoff) complete, deployed and verified 2026-09-19 — `ws_smoke.py` 94/98 with all four failures traced to live visitors on the public URL, `rehearse.py --takes 2` 12/12 twice. **Phases 12–16 are all done; there is no further build phase planned.** Phase 6 is the only thing left and its remaining tasks are the user's |
+| **Current phase** | **Phase 6 — demo readiness** (Phase 17 landed on top of it) |
+| **Phase status** | `BLOCKED — WAITING FOR MANUAL ACTION`. **Phase 6 tasks 4 and 5 re-done against the Phase 17 office, 2026-09-19** — `rehearse.py` extended to cover hiring and passing **15/15 twice**, and every pixel figure in `DEMO.md` re-measured on the deployed build instead of estimated. Tasks 6, 7 and 9 (record, upload, submit) are the user's and are all that is left. |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -49,7 +49,8 @@
 | 14 | Named agents at each desk | `COMPLETE` — deployed and verified 2026-09-19 |
 | 15 | Multi-room floor rebuild | `COMPLETE` — deployed and verified 2026-09-19 |
 | 16 | Agent-to-agent handoff | `COMPLETE` — deployed and verified 2026-09-19 |
-| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` ← **here** — tasks 1–5 and 8 done; 6, 7, 9 are the user's. The expansion has landed, so the deferral is over. The rehearsed take and the 640×950 framing in `DEMO.md` predate the reskin and need re-rehearsing; `rehearse.py --takes 2` passes 12/12, so the *sequence* is sound and it is the narration and framing that need a pass |
+| 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
+| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` ← **here** — tasks 1–5 and 8 done, with **4 and 5 re-done on 2026-09-19** against the Phase 17 office: `rehearse.py` now covers hiring and passes **15/15** twice, and `DEMO.md`'s framing, narration and beat timings were corrected against measurement. Tasks 6, 7 and 9 are the user's |
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -76,6 +77,255 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Documentation pass — 2026-09-19 — the judge-facing files catch up with the office**
+
+The Phase 17 doc commit (`aaced4e`) updated `CLAUDE.md`, `CONTRACT.md`, `DEMO.md` and `PRD.md`
+and **skipped the two files a judge actually opens**: `README.md` and `SUBMISSION.md` both still
+led with *"The OS scheduler for your team's shared AI budget"*, described "two named agents" as
+a fixed roster, and never mentioned hiring. `ARCHITECTURE.md` had not been touched since
+2026-09-18 and so recorded neither Phase 16 nor Phase 17.
+
+**What was wrong, and is now corrected:**
+
+- **`README.md`** — rewritten around the office. Its screenshot, `docs/hud.png`, was the
+  single-column pre-pivot HUD showing "AGENT SLOTS", `coder`/`researcher` and the line *"the
+  agent is stubbed"*, which has been false since Phase 3 closed. Replaced with three captures
+  of the deployed build: `docs/office.png`, `docs/working.png`, `docs/hire.png`. Stale counts
+  fixed (`94/98` → `108/112`, `12/12` → `15/15`, "79 checks" removed); repo layout updated for
+  `addagent.jsx`, `landing.jsx`, `sprites.js` and `tests/`.
+- **`SUBMISSION.md`** — pitch, feature list and three stale numbers (`85/85`, `12/12`,
+  "49 checks"). Its "What I learned" section was accurate and was left alone.
+- **`ARCHITECTURE.md`** — decisions **11** (the roster is per-workspace data, `MAX_AGENTS`,
+  no migration, hiring open to any member, the engine step as a readout) and **12** (handoff
+  bounded to one hop, guarded by tool availability) added. Data-flow diagrams for hiring and
+  handoff added. Decision 8 had said *"the HUD is the product; the canvas is the wrapper"* —
+  the pivot inverted exactly that, so it now records the inversion **and** why a game engine is
+  still rejected even though the floor became load-bearing.
+- **`BUILD_PLAN.md`** — Phase 17 was missing entirely; the plan stopped at Phase 16.
+- **`DEPLOYMENT.md`** — **two different sections were both numbered `MANUAL ACTION 2b`**, and a
+  cross-reference pointed at the ambiguous pair. The key-provisioning one is now `2c`. One
+  remaining `python scripts/…` fixed to `python3`.
+
+**Two things found by running rather than reading:**
+
+1. **The unit tests do not run on this machine.** `PROGRESS.md` claims 14/14, and that is true —
+   but only with `boto3` installed, and system Python 3.14 here has no `botocore`, so collection
+   fails before a single test executes. Verified in a throwaway venv: **14 passed**. The claim
+   was right and the instructions were incomplete; `README.md` and `SUBMISSION.md` now give the
+   venv line. **Anything asserting "the tests pass" must say what they need to pass.**
+2. **The entry gate still described the old product.** `App.jsx` told every arriving visitor
+   *"A workspace shares two agent slots and one token budget"* — the pre-pivot sentence, on the
+   first screen of the deployed app, contradicting the floor behind it. Also *"their own budget,
+   slots, queue and memory"*. Both corrected, rebuilt, deployed as Amplify **job 26**, and
+   verified live by reading the strings back out of the deployed DOM. Product copy is
+   documentation that ships; the doc sweep did not look at it, and it was the most-read sentence
+   of all of them.
+
+**Verified:** `vite build` clean · Amplify job 26 `SUCCEED` · both gate strings read back from
+the deployed page · console **0 errors, 0 warnings** · unit tests **14/14** in a venv · a real
+task end to end on the deployed URL (1,234 provider-reported tokens, memory fact saved, desk
+lit and released) — which is also where `docs/office.png` and `docs/working.png` come from.
+
+**Not re-run:** `ws_smoke.py` and `rehearse.py`. No backend file changed, and the frontend change
+was two sentences of copy in the entry gate — neither script asserts on that text. The `108/112`
+and `15/15` figures quoted above are the last recorded runs, not new ones.
+
+**`p17live` now holds Jim and ~1,234 spent tokens** from the screenshot session. Inert, like the
+other test partitions — Phase 9 partitions every row by team, so `alpha` and `p6stage` cannot
+see it.
+
+---
+
+**Phase 6 tasks 4–5 — 2026-09-19 — the run sheet catches up with the office**
+
+Phase 17 changed what is on screen and left `DEMO.md` describing a board that no longer
+exists. Its own warning boxes said so: *"No pixel figure below has been re-verified"* and
+*"`rehearse.py` does not cover hiring"*. Both are now closed by measurement. **No product
+code changed** — this is the harness and the run sheet only.
+
+**Five defects in the run sheet, each found by running it rather than reading it:**
+
+1. **Every command in `DEMO.md` was unrunnable.** They all said `python scripts/…`; this
+   machine has no `python` on `PATH` and exits `command not found`. The first thing the
+   operator would have typed on recording night. Now `python3` throughout.
+2. **`~900×760` for the secondary window sat one pixel from a cliff.** The shell stacks at
+   `max-width: 899px`: at **900** it is the landscape office and the page does not scroll,
+   at **899** it is a single column **1164 px** tall and it does. A size written as
+   "about 900" is a coin flip on camera.
+3. **The framing it prescribed was arithmetically impossible on this machine.** Two windows
+   at ≥900 need 1800 px; the logical desktop here is **1512×982**. "Side by side — do not
+   overlap them" could never have been followed. Replaced with a measured configuration
+   that fits: office **960** + witness **540** = 1500, both screenshotted, or three
+   **504**-wide windows = 1512 if all three must be visible.
+4. **It called charlie optional.** *"A third, charlie 🦉, only if you are demonstrating the
+   queue with every desk busy"* — which is the 0:40–1:25 beat, the centrepiece. With the
+   two-desk roster alice and bob fill both desks and **charlie is the queue**. Three
+   identities are mandatory even though two windows are on camera.
+5. **The narration still counted three screens** throughout, after the framing box above it
+   had already cut to two.
+
+**The claim that anything under 900 px is "the mobile layout, not the product" is wrong,
+and it was the expensive part.** The narrow column is a real responsive layout of the same
+live board — at 540×870 the whole floor, both rooms, the waiting area, the nameplates, the
+meter and the chat input all sit above the fold with no horizontal overflow. Believing it
+was a degraded view is what left the framing with no option that fits the screen.
+
+**`rehearse.py` covers hiring now — as Beat 5, and the position is load-bearing.** The
+queue only forms when every desk is busy, so a third desk hired before Beat 2 means alice
+and bob fill two of three, charlie is dispatched straight into the spare, and the queue
+position, the walk into the waiting area and the auto-dispatch all silently do not happen
+— with nothing failing to warn you. On camera that is a take that looks fine and proves
+nothing. Both the harness comment and `DEMO.md` record the ordering and why.
+
+| Check | Result |
+|---|---|
+| `rehearse.py --takes 2`, before the change | ✅ 12/12 twice, `REAL` provider usage |
+| `rehearse.py --takes 2`, with Beat 5 | ✅ **15/15**, run twice (four takes), 91–95 s of headroom |
+| A hire reaches a bystander's screen | ✅ **305–433 ms**, carrying name, role, character, project |
+| A browser opening cold after the hire | ✅ same three desks, roster order, hire last |
+| Take 2 cleaned up take 1's hire | ✅ `seed.sh` deletes non-starting `AGENT#` rows, so the beat is self-cleaning |
+| Deployed shell at 1440×900 | ✅ lays out to exactly 900 (44 + 777 + 79), no overflow either axis |
+| Deployed shell at 960×870 and 540×870 | ✅ both read; console **0 errors, 0 warnings** |
+| Stack state | ✅ `hiveos` `UPDATE_COMPLETE`, unchanged — nothing was deployed |
+
+Rehearsed in a private workspace (`DEMO_TEAM=p6stage`) rather than the default, which is
+what `DEMO.md` already prescribes and what keeps live visitors out of the assertions. That
+partition joins the inert test partitions already in the table.
+
+---
+
+**Phase 17 — 2026-09-19 — the office**
+
+User decision, and a deliberate pivot rather than a feature: *"I think our
+project is drifting drastically from Munder Difflin… I think we need a big
+decision/goal/workflow change."* The product was **a team queues for two
+shared agent slots**. It is now **a floor you staff** — agents are hired,
+named, briefed and given a character, and they sit at desks people can watch.
+
+**What was raised before building, because it is not negotiable.** Munder
+Difflin spawns local PTY processes running your own Claude Code / Codex CLIs
+against folders on your disk. That is a desktop app, and a Lambda behind a
+public URL cannot attach to a judge's terminal. So this took the reference's
+*interaction model* and never its mechanism — the inspector's four tabs are
+bound to data this board actually holds, and there is no fake terminal
+anywhere. The scheduler, the fair queue and the enforced ceiling did not go
+anywhere; they stopped being the pitch and became the governance layer inside
+the office, which is a better pitch and was ~80% already built.
+
+Shipped as two slices, each deployed and verified before the next — the Phase
+8 precedent, and the reason there was a submittable deliverable at every point.
+
+**Slice 1 — the shell (`ff6a723`), frontend only.** The 760px panel column
+became a three-region app: title bar, floor filling the left at full height,
+one agent in depth on the right, every desk along the bottom. Zero backend
+files, so `ws_smoke.py` and `rehearse.py` stayed valid without being re-run.
+
+**Slice 2 — the roster is data (`edea677`, `77053e4`).** `agents.py` was the
+roster: one tuple, fixed at deploy time, identical in every workspace. It is
+an `AGENT#` row per agent now, carrying identity beside the `status` and
+`current_user` it already held.
+
+**Five decisions worth the space:**
+
+1. **The chair belongs to the agent.** Before hireable agents, holding a slot
+   and doing the work were the same thing, so the floor sat the *human* at the
+   desk. Now the agent sits there and the person who asked stands beside it.
+   That one swap is the product change made visible, and it kept the walk-in
+   animation that is the best thing on the floor.
+2. **No migration, and that is the design.** `ensure_team` writes slot rows
+   conditionally, so every board created before today still has a bare
+   `AGENT#coder` row. `agents.from_row` falls back field by field to
+   `STARTING_ROSTER`, so all of them read as Ada and Iris with no backfill and
+   no scan-and-update against a live table. `seed.sh` and `ws_smoke.py` now
+   write those bare rows **on purpose**, so the compatibility path is
+   exercised on every seed and every smoke run rather than assumed.
+3. **Hiring is open to any member, not to the owner.** Hiring costs nothing;
+   *running* an agent spends the budget, and the ceiling governs that
+   identically however many desks share it. A permissions wall in front of the
+   one interaction this product is now about would be governing the wrong
+   thing.
+4. **The ledger writes `agent_name` at run time.** With a fixed roster a late
+   join was equivalent. With hiring it is not — a dismissed agent's rows would
+   report a raw slot id, or be credited to whoever holds that id next. Proven
+   rather than argued: `ws_smoke.py` dismisses Jim and then asserts his
+   finished task is still his.
+5. **The engine step is a readout, not a picker.** One model is configured per
+   deployment. A per-agent model picker would let one hire quietly change what
+   the team spends per call, which is the opposite of what this product is
+   for. It says which model runs and why it is not a choice.
+
+**`MAX_AGENTS` is 4, and the number was measured rather than chosen.** The plan
+was six. The floor's lower band is 38% tall with the waiting-area rug across
+the middle, so the only free places are the left and right margins; two rows
+per side does not fit, and it failed *on screen* — row one's character lands on
+row two's nameplate and row two's character falls off the bottom edge.
+Shrinking further makes a nameplate unreadable at recording size. A cap above
+what the floor can draw would let someone hire an agent the roster strip lists
+and the room cannot show.
+
+**Four defects found by looking rather than by reading:**
+
+1. **A visitor's sprite painted over the agent's speech bubble**, which read as
+   truncated text. Found on the landing preview, where the room is small enough
+   that it covered four characters. The bubble now lifts above every pawn and
+   caps at 18ch.
+2. **`Workspace` returned `<Deleted />` before a `useMemo`** — a latent
+   rules-of-hooks violation that would have thrown on the exact frame it was
+   meant to handle gracefully. Pre-existing; fixed while restructuring.
+3. **`--px-n` was inert on `.agentface`.** The scale transform that makes the
+   baked 4px art grow lives on `.sprite::before`, and the portrait rule never
+   got it — so the character picker asked for 6px and silently kept rendering
+   at 4, showing eight near-identical shapes with none of the three
+   silhouettes the art actually has.
+4. **Two identical roster queries on the hottest path.** `_claim_agent` read
+   the roster and then `claim_any` read it again. Caught by the unit tests
+   rather than by review. `claim_any` now takes the list the caller already
+   has, and `_release_agent` answers "does this desk exist" and "who holds it"
+   from one `GetItem` — strictly less I/O than before this phase.
+
+**Verified against deployed AWS, not exit codes:**
+
+| Check | Result |
+|---|---|
+| `sam build --use-container` + `sam deploy` | ✅ `UPDATE_COMPLETE`, twice |
+| `vite build` + Amplify | ✅ jobs 22 and 24 `SUCCEED` |
+| `ws_smoke.py` | ✅ **108/112** — 14 new hiring checks, all passing. The 4 failures are the documented live-visitor case |
+| `rehearse.py --takes 1` | ✅ **12/12**, 97s of headroom |
+| Unit tests | ✅ 14/14 |
+| AST undefined-name pass over all 10 backend modules | ✅ 0 problems |
+| **Hiring is live for everyone** | ✅ on the deployed URL: bob hired Dwight from a separate socket; alice's browser, never reloaded, drew him seated at an open desk, added his roster card and moved the app bar to `0/3 working` |
+| A hired agent runs a real task, credited by name | ✅ 622 real tokens, ledger row `agent_name=Jim` |
+| A dismissed agent's past work stays attributed | ✅ asserted after the dismissal |
+| A floor cannot be emptied of every agent | ✅ refused |
+| Phase 16 handoff still crosses | ✅ chain 1,952 tokens across two desks |
+| `seed.sh` | ✅ dismissed a hired desk and restored the starting roster |
+| `reset-demo.sh` | ✅ `snapshot clean — 2 desks IDLE (Ada, Iris)` — which also proves the bare-row fallback |
+| Console on the deployed page | ✅ zero errors, zero warnings |
+| Horizontal overflow at 1440 / 1100 / 900 / 390 | ✅ none |
+
+**The demo framing is dead and `DEMO.md` says so at the top.** Three 640×950
+portrait windows were carefully earned over Phases 7–15 and cannot hold a
+landscape app shell — at 640px the shell renders its stacked mobile layout.
+The replacement is one 1440×900 primary plus one ~900×760 secondary. **No
+pixel figure in `DEMO.md`'s checklist has been re-measured against the new
+shell**; that is the user's first job before a take.
+
+**`rehearse.py` does not cover hiring.** It still drives the Phase 2–8
+sequence and passes 12/12. `ws_smoke.py` section 26 covers hiring fully
+against deployed AWS, so the mechanism is verified — what is unrehearsed is
+the *timing* of doing it on camera.
+
+**Test partitions left in the table**, alongside the existing ones:
+`smokehiring` (the smoke test's own workspace, reset at both ends of its
+section), `p17shell`, `p17hire`, `p17live` and `p17demo` from driving the real
+UI against deployed AWS. All inert — Phase 9 partitions every row by team, so
+`alpha` cannot see them.
+
+**Phase 6's deferred tasks are unchanged and still the user's.** This phase
+did not touch them.
+
+---
 
 **PR #1 — 2026-09-19 — the release path is now guarded (Phantom9869 / Kamal Choubey)**
 
@@ -1361,10 +1611,11 @@ slot scheduler, token accounting, WebSocket sync and the deployed URL are all bu
 **These three are the only things standing between the repo and a submission.** Everything
 buildable is done, deployed and rehearsed.
 
-1. **Record the demo.** Follow `DEMO.md` exactly. Run `./scripts/reset-demo.sh` first (it
-   pre-warms the Lambdas and verifies the board), and `python scripts/rehearse.py --takes 2`
-   before that to confirm the sequence still passes. Three browsers, ~640 px wide, separate
-   profiles. Under 3:00.
+1. **Record the demo.** Follow `DEMO.md` exactly — its figures were measured on the deployed
+   build on 2026-09-19, not estimated. Run `python3 scripts/rehearse.py --takes 2` to confirm
+   the sequence still passes (expect **15/15**), then `./scripts/reset-demo.sh` (it pre-warms
+   the Lambdas and verifies the board). **Office window 960 wide, witness 540, separate
+   profiles, three identities.** Under 3:00.
 2. **Upload to YouTube** (public or unlisted) and **open the link in a signed-out browser.**
    An accidentally-private video scores zero regardless of what was built. Paste the link into
    `SUBMISSION.md`.
@@ -1578,6 +1829,11 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
   **Model catalog** page, not Model access. `DEPLOYMENT.md` Manual Action 2 reflects this.
 - **Local Python is 3.14**, newer than any Lambda runtime. Compiled dependencies would get
   wrong-platform wheels if built locally. **Always `sam build --use-container`.**
+- **`pytest tests/` fails to collect on this machine** — system Python 3.14 has no `botocore`,
+  and `scheduler.py` imports it, so the failure is a `ModuleNotFoundError` at *collection*, not
+  a test failure. Nothing is wrong with the tests: `python3 -m venv .venv && .venv/bin/pip
+  install boto3 pytest && .venv/bin/python -m pytest tests/` is **14/14**. The `.venv/` is
+  gitignored. Do not "fix" the tests in response to this error.
 - **npm global prefix `~/.local/lib` does not exist** — `npm install -g` may fail. Use `npx`.
 - **AWS CLI `configure` cannot run** through the `!` prefix in Claude Code (no TTY). Interactive
   AWS commands must be run in a normal terminal.
@@ -1614,21 +1870,23 @@ and no build service role, which makes it fully scriptable. The consequence is t
 deployed and verified, and no further phase is planned. What remains is the recording, the
 upload and the submission, all of which are the user's — see *Manual actions pending*.
 
-**Before a take, the three things that changed under `DEMO.md` since it was last rehearsed
-on camera:**
+**`DEMO.md` has been re-measured and re-rehearsed against the office (2026-09-19). Follow it
+as written — the figures in it are measured, not estimated.** What it now says, in brief:
 
-- **The floor is a room plan now, not an open field**, and agents have names. `DEMO.md`'s
-  narration was updated for that in Phase 14/15 and reads correctly; what has *not* been
-  re-verified is the framing on a real recording browser.
-- **The column fills the viewport at 640×862** — re-measured on the deployed build after
-  Phase 16 at **864 px of content**, with `.panel--grow` absorbing the difference so the
-  activity log scrolls rather than the page. Phase 16 added nothing to the column: the floor
-  is still 250 px and the envelope lives inside it. Measure in the actual recording browser
-  before a take, because its chrome is what decides the viewport.
-- **A handoff is a new beat available to the demo and is not in the run sheet.** It is the
-  strongest 15 seconds the product has — one request, two agents, one bill — but adding it
-  costs ~1,900 tokens and a beat that is not rehearsed is a beat that goes wrong on camera.
-  Decide deliberately, then rehearse it; do not improvise it.
+- **Windows: office 960 wide, witness 540, side by side = 1500 on this 1512 px desktop.**
+  900 CSS px is a cliff, not a slope — 900 is the landscape office, 899 is a 1164 px
+  scrolling column. Never write a window size as "about 900". Two landscape windows need
+  1800 px and do not fit this machine; the old instruction to put them side by side without
+  overlapping was impossible.
+- **Three identities are mandatory, two windows are on camera.** Alice and bob fill the two
+  desks; **charlie is the queue**. `DEMO.md` used to call him optional, which would have
+  cost the centrepiece beat.
+- **Hiring is Beat 5 and runs after the queue beat, never before.** A third desk hired early
+  means charlie is dispatched into the spare and the queue, the walk and the auto-dispatch
+  silently do not happen. `rehearse.py` covers it now and enforces the order.
+- **A handoff is still an unrehearsed beat and is still not in the run sheet.** One request,
+  two agents, one bill — but it costs ~1,900 tokens and `rehearse.py` does not drive it.
+  Decide deliberately, then rehearse it; do not improvise it on camera.
 
 > **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
 > Must list is built, deployed and verified, and the product has been submittable since Phase
@@ -1637,7 +1895,8 @@ on camera:**
 > re-rehearsing because the reskin changed what is on screen.
 
 ```bash
-python scripts/rehearse.py --takes 2   # still the way to confirm the sequence passes
+# python3, not python — this machine has no `python` on PATH
+DEMO_TEAM=p6stage DEMO_PASSPHRASE='…' python3 scripts/rehearse.py --takes 2   # 15/15
 ./scripts/reset-demo.sh                # clean board, warm Lambdas, verified
 ```
 
@@ -1654,9 +1913,12 @@ seam.
 ### Standing gotchas for the recording
 
 - **Point the recording windows at `/#/workspace`, not `/`.** `/` is the landing page now. It is
-  the right thing for a judge arriving cold and the wrong thing for a take — three windows each
-  needing an extra click before the gate is three chances to be caught mid-scroll. `DEMO.md` has
-  the link.
+  the right thing for a judge arriving cold and the wrong thing for a take — every window
+  needing an extra click before the gate is another chance to be caught mid-scroll. `DEMO.md`
+  has the link.
+- **Every command in the run sheet is `python3`.** `python` is not on this machine's `PATH`
+  and exits `command not found`. Both `DEMO.md` and this file said `python` until 2026-09-19;
+  it would have been the first thing typed on recording night.
 - **Close stray browser tabs before running `ws_smoke.py`.** Its CONN#-leak checks assert the
   table holds no connection rows, so one live browser fails four checks that have nothing to do
   with the code. `reset-demo.sh` warns when it finds live rows. **This is no longer fully in
@@ -1669,13 +1931,13 @@ seam.
   *"fix this before recording"*, which looks like a product failure and is not one. Seen twice
   consecutively in Phase 16, then nine sequential connects measured ~1 s each and two takes ran
   clean. Re-run before debugging.
-- Three browsers at **640×950** each is the layout the single-column HUD is designed for. The
-  height figure that used to be here compared the board against the *window* height and ignored
-  the browser's own chrome; `DEMO.md`'s viewport-to-viewport measurement is the one to trust.
-  Re-measured on the deployed build 2026-09-19: a clean board is **838 px of content**, which
-  fits `DEMO.md`'s recorded 862 px viewport with ~24 px to spare. **Check it in the recording
-  browser** — a Chrome with a bookmarks bar and an extension or two gives ~806 px instead, and
-  the team-chat input drops below the fold.
+- **The 640×950 three-window layout is dead and the figures that went with it are gone.** It
+  described the single-column HUD that Phase 17 replaced. Re-measured on the deployed office,
+  2026-09-19: the shell is `100dvh` and **never scrolls at ≥900 px wide**, so height is no
+  longer a fit problem — at a 1440×900 viewport it lays out to exactly 900 (44 title bar +
+  777 floor/inspector + 79 roster). Width is the only hard constraint and it is a **cliff at
+  900**: 899 stacks into a 1164 px scrolling column. `DEMO.md`'s framing box has the measured
+  window sizes; use those and nothing else.
 - Each browser needs a **different profile or a cleared localStorage** to hold a separate
   identity: the entry gate persists to `localStorage['hiveos.identity']`, so two tabs of the
   same origin share one name.

@@ -44,8 +44,13 @@ RECV_TIMEOUT = 25
 FACT_KEY = "deploy window"
 FACT_VAL = "Friday 16:00 UTC"
 
-# What the video has to fit inside. The beats below are the 0:25-2:15 stretch
-# of BUILD_PLAN's script — problem framing and the AWS/learnings outro are
+# The desk Alice hires on camera. A name nobody else on the floor has, so the
+# assertion cannot pass on Ada or Iris by accident.
+HIRE_NAME = "Dwight"
+HIRE_ROLE = "Analyst"
+
+# What the video has to fit inside. The beats below are the 0:25-2:20 stretch
+# of DEMO.md's script — problem framing and the AWS/learnings outro are
 # talking over a static board and cost no product time.
 DEMO_BUDGET_SECONDS = 110
 
@@ -245,7 +250,11 @@ async def run_demo(url):
     charlie = await websockets.connect(ws_url(url, "charlie", avatar="\U0001f989"))
 
     try:
-        with Beat("BEAT 1 (0:25) — three browsers, one workspace"):
+        # Three identities, not three windows. The take shows two windows now
+        # (DEMO.md's framing box — two landscape windows do not fit the
+        # recording desktop), but the queue beat still needs a third person:
+        # alice and bob fill the two desks and charlie is the one who queues.
+        with Beat("BEAT 1 (0:25) — three people, one workspace"):
             snaps = {
                 "alice": await snapshot(alice, "alice"),
                 "bob": await snapshot(bob, "bob"),
@@ -400,6 +409,67 @@ async def run_demo(url):
                 and len(cold_snap["agents"]) == 2,
                 f"{cold_snap['tokens_used']} tokens, "
                 f"{len(cold_snap['memory'])} fact, {len(cold_snap['agents'])} slots",
+            )
+
+        with Beat("BEAT 5 (2:15) — the floor is staffed, not fixed"):
+            # **This beat runs last, and the order is not a preference.**
+            #
+            # The queue only forms when every desk is busy. Hire a third desk
+            # before Beat 2 and alice and bob fill two of three, charlie is
+            # dispatched straight into the spare, and there is no queue
+            # position, no walk into the waiting area and no auto-dispatch —
+            # the two strongest beats in the demo silently do not happen, and
+            # nothing fails to warn you. On camera that is a take that looks
+            # fine while proving nothing. Hire after the queue has paid off.
+            #
+            # It also keeps Beat 4's cold-snapshot count honest: that check
+            # asserts the starting roster, and it runs before this one.
+            hired_at = time.monotonic()
+            await alice.send(json.dumps({
+                "action": "spawn_agent",
+                "name": HIRE_NAME,
+                "role": HIRE_ROLE,
+                "tagline": "Reads the numbers and says what changed.",
+                "persona": "You analyse data and report what moved, and why.",
+                # One of sprites.js AVATARS, and deliberately neither alice's
+                # bee nor bob's fox — a hire that borrowed a person's avatar
+                # would be the one frame on camera where you cannot tell the
+                # staff from the team.
+                "character": "\U0001f422",
+                "project": "quarterly review",
+            }))
+            # Asserted on bob's socket, not alice's. The product claim is that
+            # a hire lands on a floor nobody touched; alice seeing her own
+            # click echo back would prove only that the frame made a round
+            # trip.
+            spawned = await expect(bob, "agent_spawned", "bob",
+                                   where=lambda f: f.get("name") == HIRE_NAME)
+            appear_ms = (time.monotonic() - hired_at) * 1000
+            check(
+                "**alice hires a desk and it walks onto a teammate's floor, named**",
+                spawned.get("status") == "IDLE"
+                and spawned.get("hired_by") == "alice"
+                and spawned.get("role") == HIRE_ROLE,
+                f"{spawned.get('name')} ({spawned.get('role')}) at "
+                f"{spawned.get('slot_id')}, on bob's screen in {appear_ms:.0f} ms",
+            )
+            check(
+                "the hire arrives with everything needed to draw it",
+                all(spawned.get(f) for f in ("slot_id", "agent_type", "character")),
+                f"character={spawned.get('character')}, "
+                f"project={spawned.get('project')!r}",
+            )
+            # A browser arriving after the hire must see the same floor as one
+            # that watched it happen — the incremental event and the snapshot
+            # have to agree, which is the bug class the 500 ms re-sync hides.
+            late = await websockets.connect(ws_url(url, "latecomer"))
+            late_snap = await snapshot(late, "latecomer")
+            await late.close()
+            roster = [(a["slot_id"], a.get("name")) for a in late_snap["agents"]]
+            check(
+                "a browser opening cold after the hire sees the third desk too",
+                len(roster) == 3 and any(n == HIRE_NAME for _, n in roster),
+                str(roster),
             )
 
         # Let bob's in-flight task finish so the board is quiet at the outro.

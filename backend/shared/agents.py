@@ -1,33 +1,85 @@
-"""The agent roster — who sits at each desk.
+"""The agent roster — who sits at each desk, and who may be hired.
 
-Until now a slot was a number with a name on it: `coder` and `researcher` were
-two interchangeable workers whose only difference was the string in the URL.
-Every claim fell back to whichever was free and the ledger recorded whichever
-had been *asked for*, so the two labels were decoration.
+Until Phase 17 this module *was* the roster: one tuple, fixed at deploy time,
+identical in every workspace, two desks forever. A floor you staff cannot work
+that way, so the roster moved into DynamoDB — one `AGENT#` row per agent,
+carrying its identity alongside the `status` and `current_user` that row
+already held.
 
-Here each desk holds a named agent with a role and a system prompt of its own,
-and the ledger records the one that actually ran the task.
+What stays here is the part that genuinely belongs in code:
 
-**The roster lives in code, not in DynamoDB.** The `AGENT#` row keeps only what
-varies at runtime — `status` and `current_user` — and the snapshot joins the
-two. The alternative was tempting and wrong: `ensure_team` writes slot rows
-conditionally, so every workspace that already exists would have kept rows
-without the new attributes and needed a backfill, and a persona editable per
-workspace is a feature nobody asked for. One tuple, one place to edit, no
-migration.
+  * ``STARTING_ROSTER`` — who a brand-new workspace opens with.
+  * ``CHARACTERS`` — the faces the hire form offers.
+  * the limits every hired field is truncated to.
 
-The ids are unchanged (`coder`, `researcher`). They are in deployed DynamoDB
-rows, in `seed.sh`, in `ws_smoke.py` and in every queued task, and renaming
-them would buy nothing that adding a name to them does not.
+**`from_row` falls back to `STARTING_ROSTER` by slot id, and that fallback is
+load-bearing rather than defensive.** `ensure_team` writes slot rows
+*conditionally*, so it never updates a row that already exists — which means
+every workspace created before this phase still holds an `AGENT#coder` row with
+no name on it. Reading identity through this function gives all of them Ada and
+Iris exactly as before, with no migration, no backfill, and no one-off script
+run against a live table. The alternative was a scan-and-update over every
+partition, to add data that can be derived.
+
+The two original ids stay `coder` and `researcher`. They are in deployed rows,
+in `seed.sh`, in `ws_smoke.py` and in every queued task, and renaming them
+would buy nothing that hiring a third agent does not already give.
 """
 
-# Order matters twice: it is the fallback order for a claim (CONTRACT.md), and
-# it is the left-to-right order of the desks on the floor.
-AGENTS = (
+import re
+import secrets
+
+# How many desks one workspace may hold.
+#
+# A floor limit, not a cost limit — the ceiling is what governs spend, and it
+# is per workspace no matter how many agents share it.
+#
+# **Four, because that is how many places the floor plan actually has**: two
+# project rooms and two open desks, one either side of the waiting area. The
+# number was measured rather than picked (see `OPEN_DESKS` in
+# `components.jsx`) — a second row of open desks puts one agent's character on
+# the next one's nameplate and the last one off the bottom of the floor.
+#
+# Capping at the room rather than above it is the point. A higher limit would
+# let someone hire an agent the roster strip lists and the floor cannot show,
+# and a board whose whole claim is that it shows real state cannot have a desk
+# that exists but is not drawn.
+MAX_AGENTS = 4
+
+# What a hired agent may carry. Truncated server-side, like `user_id` already
+# is — a client that sends more gets a shorter agent, not an error.
+MAX_NAME = 24
+MAX_ROLE = 24
+MAX_TAGLINE = 120
+MAX_PERSONA = 600
+MAX_PROJECT = 40
+
+# The faces the hire form offers.
+#
+# Deliberately the same eight markers the entry gate uses for people, and in
+# the same order: `sprites.js` derives a look from this string, so an agent and
+# a person picking the same marker genuinely look alike. Keeping one list means
+# the art, the gate and the hire form cannot drift into three different rosters
+# of faces.
+#
+# **This tuple must stay in step with `AVATARS` in `frontend/src/sprites.js`.**
+# A value not in that list still works — `lookFor` hashes anything it does not
+# recognise — so the failure mode is a face you did not pick, not a crash.
+CHARACTERS = ("🐝", "🦊", "🐙", "🦉", "🐺", "🦋", "🐢", "🦜")
+
+# Who a new workspace opens with.
+#
+# Two, not zero. An empty floor is a worse first impression than a staffed one
+# and would make the very first thing a visitor has to do a form — and two is
+# what every existing workspace already has, so the fallback below and a fresh
+# board describe the same office.
+STARTING_ROSTER = (
     {
         "id": "coder",
         "name": "Ada",
         "role": "Engineer",
+        "character": "🦊",
+        "project": "platform",
         "tagline": "Code, debugging, design. Answers with the next concrete step.",
         "persona": (
             "You take engineering work: code, debugging, design and "
@@ -40,6 +92,8 @@ AGENTS = (
         "id": "researcher",
         "name": "Iris",
         "role": "Researcher",
+        "character": "🦉",
+        "project": "platform",
         "tagline": "Finding, checking, summarising. Says what it is unsure of.",
         "persona": (
             "You take work that needs finding, checking and summarising. Give "
@@ -49,54 +103,79 @@ AGENTS = (
     },
 )
 
-IDS = tuple(agent["id"] for agent in AGENTS)
+_SEED_BY_ID = {agent["id"]: agent for agent in STARTING_ROSTER}
 
-_BY_ID = {agent["id"]: agent for agent in AGENTS}
-
-
-def get(agent_id):
-    """One agent by id, or None. `None` in means `None` out — a task with no
-    preference is a normal thing, not a lookup failure."""
-    return _BY_ID.get(agent_id)
+# What a slot id may contain. Slugged from the agent's name and suffixed, so it
+# is readable in a log line and in a queued task rather than being a bare uuid.
+_SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
 
-def others(agent_id):
-    """Every desk except this one — who a task at `agent_id` may hand work to.
+def new_slot_id(name):
+    """A fresh slot id for a hired agent: `jim-a3f2`.
 
-    Derived rather than listed: a third agent should be one entry in `AGENTS`
-    and nothing else, and a hand-maintained "who can hand to whom" table is the
-    kind of thing that silently keeps pointing at a desk that no longer exists.
+    Suffixed rather than deduplicated by lookup. Two people hiring a "Jim" at
+    the same moment is a real race on a shared board, and four random hex
+    characters settle it without a read, a lock or a retry. The slug is only
+    there so `[scheduler] claimed slot=jim-a3f2` is readable — the suffix is
+    what makes it unique.
 
-    An id that is not on the roster gets the whole roster back, which is the
-    right answer — there is no desk to exclude.
+    A name with nothing sluggable in it (emoji, or a script this regex does not
+    cover) still yields a valid id, because the suffix alone is one.
     """
-    return tuple(agent for agent in AGENTS if agent["id"] != agent_id)
+    slug = _SLUG_STRIP.sub("-", (name or "").lower()).strip("-")[:16]
+    suffix = secrets.token_hex(2)
+    return f"{slug}-{suffix}" if slug else f"agent-{suffix}"
 
 
-def name_of(agent_id):
-    """A display name for an id, falling back to the id itself.
+def clean(value, limit, fallback=""):
+    """One hired field: a string, trimmed, truncated, never None."""
+    text = (value or "").strip()
+    return text[:limit] if text else fallback
 
-    Used on every wire frame and log line that names an agent. Falling back
-    rather than raising: an id that is not in the roster can only come from an
-    older queued task or a hand-written frame, and neither is worth failing a
-    task that has already run.
+
+def seed_for(slot_id):
+    """The starting-roster entry for an id, or None. Used by the fallback."""
+    return _SEED_BY_ID.get(slot_id)
+
+
+def from_row(item):
+    """The identity of one agent, from its `AGENT#` row.
+
+    Falls back field by field rather than wholesale, so a row written before
+    this phase — which has a `slot_id` and nothing else — still reports Ada's
+    name, role, tagline and persona, while a row that carries its own name uses
+    every value it was hired with.
+
+    An unknown id with no stored name is not an error: it can only come from a
+    row whose roster entry was removed, and answering with the id is better
+    than raising inside a task that has already run.
     """
-    agent = get(agent_id)
-    return agent["name"] if agent else (agent_id or "agent")
+    slot_id = item.get("slot_id")
+    seed = _SEED_BY_ID.get(slot_id) or {}
+    return {
+        "slot_id": slot_id,
+        "name": item.get("name") or seed.get("name") or slot_id or "agent",
+        "role": item.get("role") or seed.get("role") or "",
+        "tagline": item.get("tagline") or seed.get("tagline") or "",
+        "persona": item.get("persona") or seed.get("persona") or "",
+        "character": item.get("character") or seed.get("character") or "",
+        "project": item.get("project") or seed.get("project") or "",
+    }
 
 
-def public(agent_id):
+def public(item):
     """What a client is told about an agent: everything except the prompt.
 
-    The persona is deliberately not sent. It is the model's instruction, not
+    `persona` is deliberately withheld. It is the model's instruction, not
     board state, and shipping it to every browser on every snapshot would make
-    a prompt edit a frontend concern.
+    editing a briefing a frontend concern — and would hand anyone on a public
+    URL the exact text steering the agents.
     """
-    agent = get(agent_id)
-    if not agent:
-        return {"name": agent_id, "role": "", "tagline": ""}
-    return {
-        "name": agent["name"],
-        "role": agent["role"],
-        "tagline": agent["tagline"],
-    }
+    identity = from_row(item)
+    identity.pop("persona", None)
+    return identity
+
+
+def name_of(item):
+    """A display name for a row. `None` in means a neutral label out."""
+    return from_row(item)["name"] if item else "agent"

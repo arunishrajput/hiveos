@@ -113,12 +113,12 @@ aws bedrock-runtime converse \
 > subscription nor a payment instrument — fails identically. The use-case form was submitted and
 > cleared; that was never the binding constraint.
 >
-> **Inference runs on Groq instead — see MANUAL ACTION 2b.** Do not spend session time
+> **Inference runs on Groq instead — see MANUAL ACTION 2c.** Do not spend session time
 > re-attempting this. One `converse` call is enough to detect if it ever unlocks.
 
 ---
 
-## MANUAL ACTION 2b — Provision the model API key
+## MANUAL ACTION 2c — Provision the model API key
 
 **Reason:** The Agent Runner reads its model API key from SSM Parameter Store at runtime.
 Without it every task falls back to composed text flagged `estimated`.
@@ -273,7 +273,7 @@ aws dynamodb get-item --table-name hiveos-state \
 # WebSocket — the real check. Two clients, fan-out, GoneException cleanup,
 # and DynamoDB assertions, all against deployed AWS.
 pip install websockets
-python scripts/ws_smoke.py
+python3 scripts/ws_smoke.py
 
 # Queue depth
 aws sqs get-queue-attributes --queue-url <QUEUE_URL> \

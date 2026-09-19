@@ -21,7 +21,7 @@ on the first frame after the socket opens.
 import json
 import traceback
 
-from shared import broadcast, scheduler, state
+from shared import agents, broadcast, scheduler, state
 
 OK = {"statusCode": 200}
 
@@ -142,6 +142,12 @@ def _on_message(event, connection_id):
     if action == "release_agent":
         return _release_agent(team, connection_id, body)
 
+    if action == "spawn_agent":
+        return _spawn_agent(team, connection_id, body)
+
+    if action == "dismiss_agent":
+        return _dismiss_agent(team, connection_id, body)
+
     if action == "move_avatar":
         return _move_avatar(team, connection_id, body)
 
@@ -162,6 +168,85 @@ def _on_message(event, connection_id):
 
     return _error(connection_id, f"unknown action: {action!r}")
 
+
+
+# --- Staffing the floor ----------------------------------------------------
+
+
+def _spawn_agent(team, connection_id, body):
+    """Hire an agent onto this floor.
+
+    **Deliberately not an admin action.** Hiring costs nothing — running an
+    agent is what spends the budget, and the ceiling governs that identically
+    no matter how many desks share it. Requiring the workspace owner to add a
+    colleague would be governing the wrong thing, and it would put a
+    permissions wall in front of the one interaction this product is now about.
+
+    Every field is truncated server-side rather than rejected, exactly as
+    `user_id` and the prompt already are: a client that sends 4KB of persona
+    gets a shorter agent, not an error.
+    """
+    row = state.hire_agent(
+        team,
+        {
+            "name": body.get("name"),
+            "role": body.get("role"),
+            "tagline": body.get("tagline"),
+            "persona": body.get("persona"),
+            "character": body.get("character"),
+            "project": body.get("project"),
+        },
+    )
+
+    if row is None:
+        return _error(
+            connection_id,
+            f"this floor is full — {agents.MAX_AGENTS} desks is the limit",
+        )
+
+    # The whole room, not just the hirer. A desk appearing on the floor is the
+    # most visible thing that happens on this board, and a teammate watching
+    # has to see it without a refresh — that is the demo beat.
+    broadcast.broadcast_to_team(
+        team,
+        {
+            "event": "agent_spawned",
+            "hired_by": _user_for(team, connection_id, body),
+            **agents.public(row),
+            "status": row["status"],
+            "current_user": None,
+            "agent_type": row["slot_id"],
+            "created_at": row["created_at"],
+        },
+    )
+    return OK
+
+
+def _dismiss_agent(team, connection_id, body):
+    """Take a desk off the floor. Refused while it is working.
+
+    `state.fire_agent` owns both rules and returns the reason it refused, so
+    the check and the message cannot drift apart — the alternative was
+    duplicating "is it busy" here and letting the two disagree.
+    """
+    slot_id = body.get("agent_type") or body.get("slot_id")
+    if not slot_id:
+        return _error(connection_id, "dismiss_agent requires an agent_type")
+
+    refused = state.fire_agent(team, slot_id)
+    if refused:
+        return _error(connection_id, refused)
+
+    broadcast.broadcast_to_team(
+        team,
+        {
+            "event": "agent_dismissed",
+            "agent_type": slot_id,
+            "slot_id": slot_id,
+            "dismissed_by": _user_for(team, connection_id, body),
+        },
+    )
+    return OK
 
 
 # --- Administration --------------------------------------------------------
@@ -245,8 +330,17 @@ def _claim_agent(team, connection_id, body):
     # behind an agent that is sitting idle. Now that the agents are named and
     # genuinely different, the one that *runs* the task is recorded separately
     # and reported back, so a substitution is visible rather than silent.
+    # Validated against *this workspace's* desks, not a global list — two
+    # boards no longer have the same roster. An id that is not on this floor
+    # is dropped to "no preference" rather than rejected, which is already how
+    # a preference for a busy desk behaves.
+    #
+    # Read once and handed to `claim_any` below. It needs the same list, and
+    # this is the hottest path in the product — letting both read it would be
+    # two identical queries on every single task.
+    slots = scheduler.slot_ids(team)
     requested = body.get("agent_type")
-    if requested not in scheduler.SLOTS:
+    if requested not in slots:
         requested = None
 
     if _already_working(team, user_id):
@@ -257,7 +351,7 @@ def _claim_agent(team, connection_id, body):
     # ledger needs one id spanning both desks when an agent passes work on.
     task_id = scheduler.new_task_id()
 
-    slot_id = scheduler.claim_any(team, requested, user_id)
+    slot_id = scheduler.claim_any(team, requested, user_id, slots)
 
     if slot_id is None:
         scheduler.enqueue(
@@ -305,11 +399,17 @@ def _release_agent(team, connection_id, body):
     fallback is fine for labelling a chat line and wrong here — it would let a
     caller name themselves the holder.
     """
+    # One GetItem answers both questions: does this desk exist on this floor,
+    # and who is sitting at it. The roster used to be a module constant that
+    # could be checked for free; now that it is data, reading the one row we
+    # are about to act on beats querying the whole floor to validate an id and
+    # then reading that row anyway.
     agent_type = body.get("agent_type")
-    if agent_type not in scheduler.SLOTS:
+    desk = state.agent_row(team, agent_type) if agent_type else None
+    if not desk:
         return _error(connection_id, f"unknown agent_type: {agent_type!r}")
 
-    holder = state.slot_holder(team, agent_type)
+    holder = desk.get("current_user")
     if holder is None:
         scheduler.dispatch_next(team)
         return OK

@@ -34,10 +34,11 @@ from botocore.exceptions import ClientError
 
 from . import agents, broadcast, state
 
-# Slot order is also the fallback order for a claim. CONTRACT.md. Taken from
-# the roster so the desks, the fallback order and the slot rows cannot disagree
-# about which agents exist.
-SLOTS = agents.IDS
+# `SLOTS` is gone, and with it the assumption that every workspace has the same
+# desks. The fallback order for a claim is now `state.roster(team)` — read per
+# claim, because a desk can be hired or fired between one task and the next.
+# The ordering guarantee CONTRACT.md relies on is unchanged: the desks, the
+# fallback order and the floor plan all come from that one function.
 
 # Rough per-task duration used for the queue's estimated wait. A heuristic,
 # shown as such — the stub agent takes ~2.5s, a Bedrock call will take longer.
@@ -105,9 +106,30 @@ def try_claim(team, slot_id, user_id):
         raise
 
 
-def claim_any(team, preferred, user_id):
-    """Claim the requested slot, else any other. None if all are busy."""
-    order = list(SLOTS)
+def slot_ids(team):
+    """This workspace's desk ids, in floor order. One read."""
+    return [
+        item.get("slot_id") for item in state.roster(team) if item.get("slot_id")
+    ]
+
+
+def claim_any(team, preferred, user_id, order=None):
+    """Claim the requested slot, else any other. None if all are busy.
+
+    The order comes from this workspace's own roster rather than from a module
+    constant, because two boards no longer have the same desks. A preference
+    for a desk that does not exist here is simply not a preference — it falls
+    through to the ordinary order instead of failing, which is the same way a
+    preference for a *busy* desk already behaves (CONTRACT.md: a preference is
+    not a reservation).
+
+    `order` is the roster a caller has *already* read. The claim route has to
+    read it anyway, to tell an unknown preference from a real one before that
+    value reaches the ledger — passing it in is what stops the same query being
+    issued twice on the hottest path in the product. Omitted, this reads it.
+    """
+    order = list(order) if order is not None else slot_ids(team)
+
     if preferred in order:
         order.remove(preferred)
         order.insert(0, preferred)
@@ -117,7 +139,7 @@ def claim_any(team, preferred, user_id):
             print(f"[scheduler] claimed slot={slot_id} user={user_id}")
             return slot_id
 
-    print(f"[scheduler] all slots busy — user={user_id} must queue")
+    print(f"[scheduler] all {len(order)} desks busy — user={user_id} must queue")
     return None
 
 
@@ -419,7 +441,7 @@ def dispatch_next(team):
 # --- Agent-to-agent handoff ------------------------------------------------
 
 
-def handoff_prompt(task, from_slot, note):
+def handoff_prompt(task, sender, note):
     """What the receiving agent is actually asked.
 
     Composed once, here, and carried as the leg's ordinary `prompt` rather than
@@ -432,9 +454,14 @@ def handoff_prompt(task, from_slot, note):
     and braces: the structural guard is that the tool is not offered, and this
     is what the model reads if it ever is.
     """
-    sender = agents.get(from_slot)
+    # `sender` is an identity from `agents.from_row`, resolved by the caller
+    # which has already read the roster. A desk with no role — every hired
+    # agent has one, but a row could predate the field — still introduces
+    # itself by name rather than by slot id.
     who = (
-        f"{sender['name']}, the {sender['role']}," if sender else f"{from_slot},"
+        f"{sender['name']}, the {sender['role']},"
+        if sender.get("role")
+        else f"{sender.get('name') or 'another desk'},"
     )
     lines = [
         f"This task was passed to you by {who} who judged it a better fit for "
@@ -470,7 +497,14 @@ def hand_off(team, task, target_slot, note):
     task_id = task.get("task_id")
     hops = int(task.get("hops", 0) or 0) + 1
     note = (note or "").strip()[:MAX_HANDOFF_NOTE]
-    prompt = handoff_prompt(task, from_slot, note)
+
+    # One roster read for both names and the sender's role. Reading it here
+    # rather than in three places keeps the envelope, the prompt and the log
+    # line naming the same two desks even if one is fired mid-flight.
+    desks = {item.get("slot_id"): item for item in state.roster(team)}
+    sender = agents.from_row(desks.get(from_slot) or {"slot_id": from_slot})
+    target = agents.from_row(desks.get(target_slot) or {"slot_id": target_slot})
+    prompt = handoff_prompt(task, sender, note)
 
     claimed = try_claim(team, target_slot, user_id)
 
@@ -485,9 +519,9 @@ def hand_off(team, task, target_slot, note):
             "task_id": task_id,
             "user_id": user_id,
             "from_agent": from_slot,
-            "from_name": agents.name_of(from_slot),
+            "from_name": sender["name"],
             "to_agent": target_slot,
-            "to_name": agents.name_of(target_slot),
+            "to_name": target["name"],
             "note": note,
             "queued": not claimed,
         },

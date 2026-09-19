@@ -257,6 +257,7 @@ const STREAM_MARK = {
   handoff: '→',
   memory: '★',
   chat: '·',
+  hire: '+',
   error: '!',
 }
 
@@ -816,8 +817,41 @@ const ARROWS = {
  * floor follows, rather than two lists that have to be kept in step.
  */
 const ROOMS = [
-  { slot_id: 'coder', x: 6, y: 14, w: 34, h: 48 },
-  { slot_id: 'researcher', x: 60, y: 14, w: 34, h: 48 },
+  { x: 6, y: 14, w: 34, h: 48 },
+  { x: 60, y: 14, w: 34, h: 48 },
+]
+
+/* Where desks three to six go.
+ *
+ * The two project rooms are the floor's architecture and they stay exactly as
+ * Phase 15 measured them. Everything hired after that sits at an open-plan
+ * desk along the left edge and across the bottom — which is where `HOT_DESKS`
+ * already drew furniture, so the room was always composed for people to be
+ * there. Those two coordinates are now the first two open desks rather than
+ * props, which is why the constant is gone: a desk that somebody works at and
+ * a desk that is scenery cannot be the same thing on a board whose whole claim
+ * is that it shows real state.
+ *
+ * Open desks are not rooms. They get no walls and no doorway — an office does
+ * not give every hire a private office, and walled rooms for everyone in a
+ * floor this short would read as a spreadsheet.
+ *
+ * **Two, and the floor caps at four. That number is measured, not chosen.**
+ * The lower band is 38% of the floor tall (62 to 100) with the waiting-area
+ * rug across the middle, so the only free places are the left and right
+ * margins. Two rows per side was the first attempt and does not fit: at the
+ * 0.72 scale in styles.css a desk stack is ~19% and its seated agent hangs
+ * `OPEN_SEAT_DROP` below that, so row one's character lands on row two's
+ * nameplate, and row two's character falls off the bottom of the floor.
+ * Shrinking further makes a nameplate unreadable at recording size.
+ *
+ * So the floor holds four desks and `agents.MAX_AGENTS` says four. A cap that
+ * matches the room is better than one that promises a desk with nowhere to put
+ * it — the roster strip would list an agent the floor could not show.
+ */
+const OPEN_DESKS = [
+  { x: 8, y: 78 },
+  { x: 91, y: 78 },
 ]
 
 /* How far down its room a desk sits, as a fraction of the room's height.
@@ -829,30 +863,44 @@ const ROOMS = [
  * guessed. 0.38 in a 48-tall room lands the whole stack inside. */
 const DESK_IN_ROOM = 0.38
 
-/* The rooms to draw, each joined to the live slot behind it.
- *
- * Driven by the plan rather than by the agent list, so an agent with no room is
- * simply not drawn — better than a desk stacked at (0, 0) on top of another
- * one. The join itself is unchanged from the two-spot version it replaces; only
- * the geometry either side of it is new.
- */
+/* The desks to draw, each joined to the live agent sitting at it. */
 function roomsFrom(agents) {
-  const bySlot = new Map(agents.map((agent) => [agent.slot_id, agent]))
-  return ROOMS.map((room) => {
-    const agent = bySlot.get(room.slot_id)
+  /* Driven by the *agent list* now, not by a fixed plan keyed on slot id.
+   *
+   * It had to invert: the plan used to name `coder` and `researcher`, which
+   * only worked while those were the only two desks that could ever exist.
+   * The floor now lays out whatever roster it is given, in roster order — the
+   * first two into the project rooms, the rest at open desks — so a hire
+   * appears at the next free place and a dismissal leaves no hole.
+   *
+   * An agent past the last open desk is simply not drawn. The server caps a
+   * floor at six, which is exactly how many places this plan has, so that is
+   * belt and braces rather than an expected state — and a desk stacked on top
+   * of another one would be worse than one that is missing.
+   */
+  return agents.slice(0, ROOMS.length + OPEN_DESKS.length).map((agent, index) => {
+    const room = ROOMS[index]
+    const open = room ? null : OPEN_DESKS[index - ROOMS.length]
     return {
-      ...room,
+      ...(room ?? { x: open.x - 8, y: open.y - 8, w: 0, h: 0 }),
+      slot_id: agent.slot_id,
+      walled: Boolean(room),
       agent,
-      name: agent?.name || room.slot_id,
+      name: agent?.name || agent.slot_id,
       role: agent?.role || '',
       busy: agent?.status === 'BUSY',
       /* The desk's centre in *floor* percent, kept alongside the room's own
        * corner rather than replacing it. The desk is drawn room-locally, but
        * the person seated at it is a pawn on the floor like any other, so the
        * one coordinate that has to exist in floor space is this one. Deriving
-       * it back out of the corner at each use site is how the two drift. */
-      deskX: room.x + room.w / 2,
-      deskY: room.y + room.h * DESK_IN_ROOM,
+       * it back out of the corner at each use site is how the two drift.
+       *
+       * An open desk has no room to be local to, so it is its own centre. */
+      deskX: room ? room.x + room.w / 2 : open.x,
+      deskY: room ? room.y + room.h * DESK_IN_ROOM : open.y,
+      // How far below the desk its occupant sits. An open desk is drawn at
+      // 0.72, so its chair is closer to its own centre than a room desk's is.
+      seatDrop: room ? SEAT_DROP : OPEN_SEAT_DROP,
     }
   })
 }
@@ -890,17 +938,14 @@ function waitSpot(position) {
   return { x: WAIT_X0 + col * WAIT_DX, y: WAIT_Y0 + row * WAIT_DY }
 }
 
-/* Hot desks for the humans, along the left edge of the open floor.
+/* `HOT_DESKS` was here, and is now `OPEN_DESKS` above.
  *
- * Furniture, not state: nobody is assigned one and nothing lights up. They earn
- * their place by answering "why is this person standing here" — without them
- * the lower half is an empty field with a rug in it, and the two rooms read as
- * the only places in the office anyone could possibly be.
+ * It was furniture — two desks nobody was assigned and nothing lit up, there
+ * to answer "why is this person standing here". They are real desks now,
+ * because agents three and four sit at them. That is the better outcome: the
+ * lower half of the floor stopped being an empty field with a rug in it by
+ * acquiring people rather than by acquiring props.
  */
-const HOT_DESKS = [
-  { x: 9, y: 72 },
-  { x: 9, y: 91 },
-]
 
 /* How far below a desk's own centre its chair sits, in floor percent. The desk
  * stack is label, monitor, surface, chair from the top, all centred on the
@@ -921,6 +966,16 @@ const SEAT_DROP = 13
  * rest of it.
  */
 const VISITOR_DX = 11
+
+/* The seat drop for an open desk.
+ *
+ * `SEAT_DROP` is in floor percent, and the agent seated at a desk is a pawn on
+ * the floor rather than a child of the desk — so the 0.72 scale on `.opendesk`
+ * shrinks the furniture and leaves the character sitting 13% below it, well
+ * clear of the chair. Scaled by the same factor here, which is the whole
+ * reason the two numbers have to move together.
+ */
+const OPEN_SEAT_DROP = Math.round(SEAT_DROP * 0.72)
 
 /* How long the envelope takes to cross the floor. Must match the `left`/`top`
  * transition on `.envelope` in styles.css, for the same reason WALK_MS must
@@ -975,8 +1030,12 @@ function Envelope({ from, to, label }) {
 /* Fixed decor. Percentages for the same reason. Re-placed for the room plan:
  * the old positions sat where the project rooms now stand, and a potted plant
  * inside somebody's office is a different claim than one in the corridor. */
+/* Fixed decor. Percentages for the same reason. The right-hand plant moved off
+ * the bottom-right corner when that corner became the second open desk — it
+ * was rendering as a brown box under Pam's chair. Now beside Iris's room, in
+ * the right margin, which nothing else uses. */
 const PLANTS = [
-  { x: 92, y: 91 },
+  { x: 97, y: 55 },
   { x: 16, y: 66 },
 ]
 
@@ -1057,7 +1116,7 @@ export function CanvasPanel({
           ? waiting.x
           : Math.max(0, Math.min(100, Number(member.x) || 0)),
       top: desk
-        ? desk.deskY + SEAT_DROP
+        ? desk.deskY + desk.seatDrop
         : waiting
           ? waiting.y
           : toFloor(Math.max(0, Math.min(100, Number(member.y) || 0))),
@@ -1139,58 +1198,66 @@ export function CanvasPanel({
           <span className="waiting__label">Waiting area</span>
         </div>
 
-        {/* Hot desks. Furniture — see HOT_DESKS. */}
-        {HOT_DESKS.map((spot, i) => (
-          <div
-            key={i}
-            className="hotdesk"
-            style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
-            aria-hidden="true"
-          >
-            <span className="hotdesk__surface" />
-            <span className="hotdesk__chair" />
-          </div>
-        ))}
+        {/* Every desk on this floor, drawn from the roster.
 
-        {/* The project rooms, each bound to a scheduler slot: walls, a doorway
-            onto the corridor, and the agent's desk inside. Before the pawns so
-            someone standing at a desk is in front of it, not behind it. */}
-        {rooms.map((room) => (
-          <div
-            key={room.slot_id}
-            className={`room ${room.busy ? 'room--busy' : ''}`}
-            style={{
-              left: `${room.x}%`,
-              top: `${room.y}%`,
-              width: `${room.w}%`,
-              height: `${room.h}%`,
-            }}
-            aria-hidden="true"
-          >
-            {/* A gap punched in the wall that faces the corridor. Without it
-                the rooms are two boxes; with it they are rooms somebody could
-                have walked into, which is most of what sells a plan view. */}
-            <span className="room__door" />
-
+            The first two get walls and a doorway onto the corridor — those are
+            the project rooms, and the doorway is most of what sells a plan
+            view. Everything hired after that is an open-plan desk: the same
+            desk, the same nameplate, the same monitor that lights when it is
+            working, without a private office. Before the pawns, so someone
+            standing at a desk is in front of it rather than behind it. */}
+        {rooms.map((room) =>
+          room.walled ? (
             <div
-              className={`desk ${room.busy ? 'desk--busy' : ''}`}
-              style={{ top: `${DESK_IN_ROOM * 100}%` }}
+              key={room.slot_id}
+              className={`room ${room.busy ? 'room--busy' : ''}`}
+              style={{
+                left: `${room.x}%`,
+                top: `${room.y}%`,
+                width: `${room.w}%`,
+                height: `${room.h}%`,
+              }}
+              aria-hidden="true"
             >
-              {/* Nameplate above the desk, not below it. People approach a desk
-                  from the chair side, so a label under the chair is guaranteed
-                  to end up behind somebody's head. The name reads as a person
-                  and the role as a job, which is the whole difference between
-                  a desk and a slot. */}
-              <span className="desk__label">{room.name}</span>
-              {room.role && <span className="desk__role">{room.role}</span>}
-              <span className="desk__monitor" />
-              <span className="desk__surface">
-                <span className="desk__keyboard" />
-              </span>
-              <span className="desk__chair" />
+              <span className="room__door" />
+
+              <div
+                className={`desk ${room.busy ? 'desk--busy' : ''}`}
+                style={{ top: `${DESK_IN_ROOM * 100}%` }}
+              >
+                {/* Nameplate above the desk, not below it. People approach a
+                    desk from the chair side, so a label under the chair is
+                    guaranteed to end up behind somebody's head. The name reads
+                    as a person and the role as a job, which is the whole
+                    difference between a desk and a slot. */}
+                <span className="desk__label">{room.name}</span>
+                {room.role && <span className="desk__role">{room.role}</span>}
+                <span className="desk__monitor" />
+                <span className="desk__surface">
+                  <span className="desk__keyboard" />
+                </span>
+                <span className="desk__chair" />
+              </div>
             </div>
-          </div>
-        ))}
+          ) : (
+            <div
+              key={room.slot_id}
+              className={`opendesk ${room.busy ? 'opendesk--busy' : ''}`}
+              style={{ left: `${room.deskX}%`, top: `${room.deskY}%` }}
+              aria-hidden="true"
+            >
+              <div className={`desk ${room.busy ? 'desk--busy' : ''}`}>
+                <span className="desk__label">{room.name}</span>
+                {room.role && <span className="desk__role">{room.role}</span>}
+                <span className="desk__monitor" />
+                <span className="desk__surface">
+                  <span className="desk__keyboard" />
+                </span>
+                <span className="desk__chair" />
+              </div>
+            </div>
+          ),
+        )}
 
         {PLANTS.map((plant, i) => (
           <div
@@ -1220,7 +1287,7 @@ export function CanvasPanel({
             <div
               key={`agent-${room.slot_id}`}
               className={`pawn pawn--agent pawn--seated ${room.busy ? 'pawn--busy' : ''}`}
-              style={{ left: `${room.deskX}%`, top: `${room.deskY + SEAT_DROP}%` }}
+              style={{ left: `${room.deskX}%`, top: `${room.deskY + room.seatDrop}%` }}
             >
               <span className="bubble">
                 {agentStatus(room.agent, noteFor?.(room.agent), true)}

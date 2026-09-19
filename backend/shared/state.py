@@ -36,9 +36,9 @@ TEAM_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,30}$")
 # isolation a deployment step rather than a property of the product.
 DEFAULT_TEAM_BUDGET = int(os.environ.get("TOKEN_BUDGET", "1000000"))
 
-# One slot row per agent on the roster. Derived rather than repeated: a third
-# agent should be one entry in `agents.AGENTS` and nothing else.
-SLOT_IDS = agents.IDS
+# `SLOT_IDS` is gone. The roster is no longer a constant this module can hold —
+# it is per workspace and lives in the `AGENT#` rows, because a floor you staff
+# has a different set of desks in every room. Read it with `roster(team)`.
 
 
 def clean_team(name):
@@ -410,15 +410,32 @@ def ensure_team(team, passphrase=None, admin_token=None):
         if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
             raise
 
-    for slot_id in SLOT_IDS:
+    # The starting roster, written with its identity on the row.
+    #
+    # Still conditional, so a workspace that already exists is never rewritten
+    # — which is why `agents.from_row` falls back by slot id. Every board
+    # created before this phase keeps a bare `AGENT#coder` row and still reads
+    # as Ada, without a backfill.
+    #
+    # `created_at` is spaced by index rather than taken from one clock read:
+    # desks are ordered by it, and two rows written in the same millisecond
+    # would order by the id tiebreak instead, putting Iris before Ada.
+    for index, seed in enumerate(agents.STARTING_ROSTER):
         try:
             table().put_item(
                 Item={
                     "PK": pk,
-                    "SK": f"AGENT#{slot_id}",
-                    "slot_id": slot_id,
+                    "SK": f"AGENT#{seed['id']}",
+                    "slot_id": seed["id"],
                     "status": "IDLE",
                     "current_user": None,
+                    "name": seed["name"],
+                    "role": seed["role"],
+                    "tagline": seed["tagline"],
+                    "persona": seed["persona"],
+                    "character": seed["character"],
+                    "project": seed["project"],
+                    "created_at": f"{now_iso()}#{index:03d}",
                 },
                 ConditionExpression="attribute_not_exists(PK)",
             )
@@ -547,23 +564,119 @@ def idle_slots(team):
     }
 
 
-def slot_holder(team, slot_id):
-    """Who is sitting at one desk right now, or None if it is free.
+def roster(team):
+    """Every desk in one workspace, in the order they sit on the floor.
 
-    A single GetItem rather than a slice of `idle_slots`, because the caller
-    that needs this — the manual release route — needs the *name*, not whether
-    the desk is busy, and it needs it to decide whether to refuse.
+    This replaces the `SLOT_IDS` constant that used to answer "which agents
+    exist". It is a per-workspace question now, so it is a read rather than a
+    module attribute, and every caller that used to iterate the constant
+    iterates this instead.
 
-    `current_user` is written as NULL when a desk is freed, so a free desk and
-    a desk whose row predates the attribute both read as None. Both mean the
-    same thing here.
+    Ordered by `created_at`, so the desks, the claim fallback order and the
+    floor plan all agree — and a newly hired agent appears at the end rather
+    than shuffling the room. A row written before this phase has no
+    `created_at` at all and sorts first, which is correct: those are the two
+    the workspace opened with.
     """
-    response = table().get_item(
-        Key={"PK": team_pk(team), "SK": f"AGENT#{slot_id}"},
-        ProjectionExpression="#u",
-        ExpressionAttributeNames={"#u": "current_user"},
+    return sorted(
+        query_team(team, "AGENT#"),
+        key=lambda item: (item.get("created_at") or "", item.get("slot_id") or ""),
     )
-    return (response.get("Item") or {}).get("current_user")
+
+
+def agent_row(team, slot_id):
+    """One desk's row, or None. For the runner, which needs the persona."""
+    response = table().get_item(
+        Key={"PK": team_pk(team), "SK": f"AGENT#{slot_id}"}
+    )
+    return response.get("Item")
+
+
+def hire_agent(team, fields):
+    """Put a new desk on the floor. Returns its row, or None if the floor is full.
+
+    Hiring is free and deliberately open to any member, not just the owner.
+    Spawning an agent costs nothing — *running* one is what spends the budget,
+    and the ceiling already governs that no matter how many desks share it. A
+    governance product that made you an administrator to add a colleague would
+    be governing the wrong thing.
+
+    The cap is checked with a read and is therefore racy: two simultaneous
+    hires can both see five desks and both write, leaving seven. That is the
+    right trade here — the alternative is a counter on the METADATA row updated
+    conditionally, which buys strict enforcement of a *cosmetic* limit at the
+    cost of a second write on every hire. The floor draws what it has room for
+    and the ceiling is unaffected either way.
+    """
+    existing = roster(team)
+    if len(existing) >= agents.MAX_AGENTS:
+        print(f"[state] hire refused — {clean_team(team)} already has "
+              f"{len(existing)} desks")
+        return None
+
+    name = agents.clean(fields.get("name"), agents.MAX_NAME, "Agent")
+    slot_id = agents.new_slot_id(name)
+    item = {
+        "PK": team_pk(team),
+        "SK": f"AGENT#{slot_id}",
+        "slot_id": slot_id,
+        "status": "IDLE",
+        "current_user": None,
+        "name": name,
+        "role": agents.clean(fields.get("role"), agents.MAX_ROLE, "Generalist"),
+        "tagline": agents.clean(fields.get("tagline"), agents.MAX_TAGLINE),
+        "persona": agents.clean(fields.get("persona"), agents.MAX_PERSONA),
+        "character": (
+            fields.get("character")
+            if fields.get("character") in agents.CHARACTERS
+            else agents.CHARACTERS[len(existing) % len(agents.CHARACTERS)]
+        ),
+        "project": agents.clean(fields.get("project"), agents.MAX_PROJECT),
+        "created_at": now_iso(),
+    }
+
+    # Conditional on the id being free. The suffix in `new_slot_id` makes a
+    # collision vanishingly unlikely; this is what makes it impossible.
+    table().put_item(Item=item, ConditionExpression="attribute_not_exists(PK)")
+    print(f"[state] hired {name!r} as slot={slot_id} in {clean_team(team)}")
+    return item
+
+
+def fire_agent(team, slot_id):
+    """Take a desk off the floor. Returns the reason it could not, or None.
+
+    Two rules, both of which exist because the scheduler reads this roster:
+
+    * **Only while idle.** Deleting a row mid-task leaves the runner holding a
+      desk that no longer exists; its release would then write a row back with
+      `set_idle`'s update, resurrecting a fired agent as a ghost with no name.
+    * **Never the last one.** A floor with no desks accepts tasks it can never
+      dispatch — every claim fails, everything queues, and nothing ever frees a
+      slot to drain it.
+    """
+    row = agent_row(team, slot_id)
+    if not row:
+        return "no such desk"
+    if row.get("status") == "BUSY":
+        return "that desk is working — halt it first"
+    if len(roster(team)) <= 1:
+        return "a floor needs at least one agent"
+
+    table().delete_item(Key={"PK": team_pk(team), "SK": f"AGENT#{slot_id}"})
+    print(f"[state] fired slot={slot_id} from {clean_team(team)}")
+    return None
+
+
+# `slot_holder` was here and is now `agent_row` above.
+#
+# It was added in PR #1 so the release route would not read the table directly,
+# and it projected `current_user` alone because that was the only thing the
+# route needed. The route now needs one more thing — whether the desk exists at
+# all, which used to be answerable for free against a module constant and is a
+# read since the roster became per-workspace data. `agent_row` answers both
+# from the same GetItem, so keeping a second function that answers half of it
+# would be one more thing to keep in step. The rule it was written to protect
+# is intact: `router/app.py` still contains no raw table access.
 
 
 def queue_view(team, items=None):
@@ -647,18 +760,20 @@ def add_tokens(team, count, estimated=False):
 # --- Snapshot --------------------------------------------------------------
 
 
-def _desk_rank(slot_id):
-    """Position on the roster. Anything unknown sorts to the end by id.
+def _desk_rank(desk):
+    """Where a desk sits on the floor: when it was hired, then its id.
 
-    A slot row can outlive the roster entry that created it — an agent removed
-    from `agents.py` leaves its `AGENT#` row behind in every workspace that
-    already existed — and a board that dropped or reordered on that would be
-    worse than one that shows it last.
+    This used to be a position in the `agents.py` tuple, which stopped meaning
+    anything the moment the roster became per-workspace data. Ordering by
+    `created_at` keeps the two desks a board opened with at the front and puts
+    every hire after them, so hiring never reshuffles the room somebody is
+    watching. The two seeded rows carry an index suffix on their timestamp for
+    exactly that reason — see `ensure_team`.
+
+    A row written before this phase has no `created_at` and sorts first, which
+    is where those desks belong.
     """
-    try:
-        return (0, agents.IDS.index(slot_id))
-    except ValueError:
-        return (1, slot_id or "")
+    return (desk.get("created_at") or "", desk.get("slot_id") or "")
 
 
 def state_snapshot(team, is_admin=False):
@@ -683,17 +798,18 @@ def state_snapshot(team, is_admin=False):
         elif sk.startswith("QUEUE#"):
             waiting.append(item)
         elif sk.startswith("AGENT#"):
-            # The row carries only what varies at runtime; who sits there comes
-            # from the roster in `agents.py`. Joined here so a client never has
-            # to hold a second copy of the names — the board renders desks
-            # from this frame alone (CONTRACT.md).
+            # The row now carries its own identity as well as its runtime
+            # state. `public` reads it back with the starting-roster fallback
+            # and drops the persona, so the board renders every desk from this
+            # frame alone (CONTRACT.md) and no browser is ever handed the text
+            # that steers an agent.
             desks.append(
                 {
-                    "slot_id": item.get("slot_id"),
                     "agent_type": item.get("slot_id"),
                     "status": item.get("status"),
                     "current_user": item.get("current_user"),
-                    **agents.public(item.get("slot_id")),
+                    "created_at": item.get("created_at"),
+                    **agents.public(item),
                 }
             )
         elif sk.startswith("CONN#"):
@@ -725,7 +841,7 @@ def state_snapshot(team, is_admin=False):
         # Roster order, not alphabetical: it is the order the desks sit in on
         # the floor and the order a claim falls back through, and a client that
         # renders them in a different order is showing a different room.
-        "agents": sorted(desks, key=lambda d: _desk_rank(d["slot_id"])),
+        "agents": sorted(desks, key=_desk_rank),
         "tokens_used": used,
         "token_budget": budget,
         "pct_used": pct_used(used, budget),

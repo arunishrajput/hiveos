@@ -6,9 +6,11 @@ Read this file, `PROGRESS.md`, and `BUILD_PLAN.md` before doing anything else. T
 
 ## Project identity
 
-**HiveOS** is a cloud-deployed team workspace where human members request shared AI agents through an OS-style queue, with a real-time token budget visible to everyone. Built entirely on AWS.
+**HiveOS** is a cloud-deployed office where a team hires and runs a floor of AI agents together — everyone watches them work at their desks in real time, on one shared, server-enforced token budget. Built entirely on AWS.
 
-**One sentence:** HiveOS is the OS scheduler for your team's shared AI budget — queue management for AI agents, visible to everyone in real time.
+**One sentence:** HiveOS is Munder Difflin for teams, in the cloud — hire a floor of AI agents, watch them work, and the whole office runs on one enforced budget.
+
+> **Pivoted 2026-09-19 (Phase 17), on user decision.** The product was "a team queues for two shared agent slots" and the scheduler was the headline. It is now a floor you staff: agents are hired, named and briefed, and they sit at desks. The scheduler, the fair queue and the enforced ceiling did not go anywhere — they became the governance layer inside the office rather than the pitch. What cannot be copied from the reference is its mechanism: Munder Difflin spawns local PTY processes running your own CLI agents, and a Lambda behind a public URL cannot do that. Take the interaction model, never claim the mechanism.
 
 Teams sharing AI agents have no visibility into usage, no fairness mechanism for access, and no real-time governance over token spend. One heavy agentic task can drain a monthly budget in minutes and nobody sees it happen. Operating systems solved this for CPU 50 years ago: scheduling, quotas, fair queueing. HiveOS applies that abstraction to team AI compute.
 

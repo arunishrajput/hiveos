@@ -71,36 +71,71 @@ If Bedrock is ever unblocked, swap the body of `llm.py:complete` and add `bedroc
 
 ## The agent roster
 
-`backend/shared/agents.py`. One entry per desk, and the single definition of
-which agents exist — `state.SLOT_IDS` and `scheduler.SLOTS` both derive from
-it, so the slot rows, the claim fallback order and the desks on the floor
-cannot disagree about the roster.
+**The roster is data, one `AGENT#` row per agent, and it is per workspace.**
+Two boards do not have the same desks. `state.roster(team)` is the single
+answer to "which agents exist here", and every caller that used to iterate a
+module constant reads it instead — so the slot rows, the claim fallback order
+and the desks on the floor cannot disagree.
+
+`state.SLOT_IDS` and `scheduler.SLOTS` are **gone**. A constant cannot answer a
+per-workspace question.
+
+### What stays in `backend/shared/agents.py`
+
+| | |
+|---|---|
+| `STARTING_ROSTER` | who a new workspace opens with — Ada the Engineer (`coder`) and Iris the Researcher (`researcher`) |
+| `CHARACTERS` | the eight faces the hire form offers. **Must stay in step with `AVATARS` in `frontend/src/sprites.js`** — the art derives a look from this string |
+| `MAX_AGENTS` | **4.** A floor limit, not a cost limit. It is how many places the floor plan has: two project rooms and two open desks |
+| `MAX_NAME` … `MAX_PROJECT` | what a hired field is truncated to, server-side |
+
+### The starting roster
 
 | id | name | role | takes |
 |---|---|---|---|
 | `coder` | **Ada** | Engineer | code, debugging, design, implementation |
 | `researcher` | **Iris** | Researcher | finding, checking, summarising |
 
-Each entry carries a `persona` — a paragraph prepended to the system prompt in
-place of the generic `SHARED_ROLE` line, so the two desks answer differently.
-Order is meaningful: it is both the fallback order for a claim and the
-left-to-right order of the desks.
+Order is meaningful and comes from `created_at`: it is both the fallback order
+for a claim and the order the desks sit in on the floor. The two seeded rows
+carry an index suffix on their timestamp so they cannot tie, and a hire always
+sorts after them — hiring never reshuffles a room somebody is watching.
 
-**The roster lives in code, not in DynamoDB.** The `AGENT#` row holds only what
-varies at runtime (`status`, `current_user`) and `state_snapshot` joins the
-two. Storing names on the row would have needed a backfill for every workspace
-that already exists — `ensure_team` writes slot rows conditionally, so existing
-rows are never updated — in exchange for per-workspace personas nobody asked
-for.
+### The fallback that means no board needs a migration
 
-**The ids are `coder` and `researcher` and are not renamed.** They are in
-deployed rows, in `seed.sh`, in `ws_smoke.py` and in every queued task. Adding
-a name to an id costs nothing; changing the id costs a migration.
+`ensure_team` writes slot rows **conditionally**, so a row that already exists
+is never updated. Every workspace created before the roster became data still
+holds a bare `AGENT#coder` row with no name on it.
 
-**`persona` never leaves the backend.** `agents.public()` sends `name`, `role`
-and `tagline` only: the persona is the model's instruction, not board state,
-and shipping it on every snapshot would make a prompt edit a frontend concern.
-`ws_smoke.py` asserts its absence.
+`agents.from_row` therefore falls back **field by field** to `STARTING_ROSTER`
+by slot id. Those boards read as Ada and Iris exactly as before — no backfill,
+no scan-and-update against a live table. `seed.sh` and `ws_smoke.py` both write
+those bare rows deliberately, so the compatibility path is exercised on every
+seed and every smoke run instead of being assumed.
+
+**The ids `coder` and `researcher` are not renamed.** They are in deployed
+rows, in `seed.sh`, in `ws_smoke.py` and in every queued task. A hired agent
+gets a fresh id slugged from its name plus four random hex characters —
+`jim-a3f2` — readable in a log line, and unique without a read or a lock.
+
+**`persona` never leaves the backend.** `agents.public()` drops it: the persona
+is the model's instruction, not board state, and shipping it on every snapshot
+would make a prompt edit a frontend concern *and* hand anyone on a public URL
+the text steering the agents. `ws_smoke.py` asserts its absence from both
+`state_snapshot` and `agent_spawned`.
+
+### Hiring is not an admin action
+
+Anyone in a workspace may `spawn_agent`. Hiring costs nothing; **running** an
+agent spends the budget, and the ceiling governs that identically however many
+desks share it. Requiring the owner to add a colleague would be governing the
+wrong thing.
+
+`dismiss_agent` has two rules, both because the scheduler reads this roster:
+only while the desk is `IDLE` (deleting a row mid-task leaves the runner
+holding a desk that no longer exists, and its release would write the row back
+as a nameless ghost), and never the last desk (a floor with no desks accepts
+tasks it can never dispatch).
 
 ### Requested versus ran
 
@@ -132,7 +167,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 |---|---|---|
 | `TEAM#<team>` | `METADATA` | `name`, `token_budget` (N), `tokens_used` (N), `created_at` |
 | `TEAM#<team>` | `CONN#<connectionId>` | `user_id`, `avatar`, `x` (N), `y` (N), `connected_at` |
-| `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`. **No name or persona** — those come from the roster |
+| `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`, **plus its identity**: `name`, `role`, `tagline`, `persona`, `character`, `project`, `created_at`. A row written before the roster became data has the runtime fields only and is filled in from `STARTING_ROSTER` by `agents.from_row` |
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
 
@@ -271,6 +306,15 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   always the slot it ran on — and `requested_agent` is set only when that was
   not the one asked for. See *Requested versus ran*.
 
+  **`agent_name` and `handoff_from_name` are written onto the row at the moment
+  the work ran, not joined on when the ledger is read.** While the roster was a
+  fixed constant the two were equivalent. They are not now: an agent can be
+  dismissed, so a late join would report its finished work under a raw slot id
+  — or, worse, credit it to whoever is hired into that id next. A ledger is a
+  record of what happened and who did it is part of what happened. Rows written
+  before this fall back to the id, which for those rows is `coder` or
+  `researcher`. It also drops N lookups from every snapshot.
+
   **`task_id` is the job; the row is one leg of it.** A handed-over task runs
   as two agent tasks and writes two rows, and they share one `task_id` — that
   is what lets the ledger say "this piece of work cost the team 1,982 tokens
@@ -359,6 +403,8 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `release_agent` | `{agent_type}` | Free the slot if the sender holds it, then dispatch the next waiting task |
 | `send_message` | `{text}` | Broadcast to team chat as `chat_message` |
 | `move_avatar` | `{x, y}` | Update `CONN#` row, broadcast `avatar_moved` |
+| `spawn_agent` | `{name, role, tagline, persona, character, project}` | Hire a desk onto this floor. **Any member may** — see *Hiring is not an admin action*. Every field is truncated server-side; refused with an error once the floor holds `MAX_AGENTS`. Broadcasts `agent_spawned` |
+| `dismiss_agent` | `{agent_type}` | Take a desk off the floor. Refused while it is `BUSY`, and refused for the last desk. Broadcasts `agent_dismissed` |
 
 **`agent_type` on `claim_agent` is a preference, not a reservation.** It is tried first, then the remaining slots in `SLOTS` order. Nobody queues behind an idle agent — and the agent that actually took it is named in the reply. Anything not in `SLOTS` becomes "no preference" rather than an error.
 
@@ -392,6 +438,8 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `user_joined` | `{user_id, avatar, x, y}` | `$connect` |
 | `user_left` | `{user_id}` | `$disconnect` or `GoneException` |
 | `avatar_moved` | `{user_id, x, y}` | `move_avatar` runs |
+| `agent_spawned` | `{slot_id, agent_type, name, role, tagline, character, project, status, current_user, created_at, hired_by}` | A desk was hired onto this floor. Carries everything needed to draw it, so a client appends rather than waiting for the next snapshot. **No `persona`.** The receiving client guards against a duplicate — the 500 ms re-sync can land a snapshot already carrying this desk |
+| `agent_dismissed` | `{slot_id, agent_type, dismissed_by}` | A desk was taken off the floor |
 | `error` | `{message}` | Any handled failure worth surfacing |
 
 `queue[]` entries are `{user_id, agent_type, queue_position}`, oldest first, `queue_position` 1-based.
