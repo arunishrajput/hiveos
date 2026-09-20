@@ -94,6 +94,14 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
+      # Only `IDEMPOTENCY#` rows set `expires_at`; every other row omits the
+      # attribute and is therefore never swept. Those markers guard against SQS
+      # redelivery and have no readers, so keeping them past the queue's
+      # one-hour retention would grow a partition that `state_snapshot` reads
+      # whole on every `hello`.
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
 
   # -------------------------------------------------------------------------
   # PHASE 1 — WebSocket API + Router Lambda

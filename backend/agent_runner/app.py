@@ -12,7 +12,7 @@ Everything around the model is what the product actually claims:
   - `tokens_used` is incremented atomically and broadcast to every client
   - the budget ceiling is **enforced** — the agent is not invoked at 100%
 
-Three invariants live here:
+Four invariants live here:
 
 1. **The slot is released even when the task fails.** A leaked slot deadlocks
    the workspace, and on a recording that is indistinguishable from the
@@ -23,13 +23,19 @@ Three invariants live here:
    degraded call can never be laundered into a billed-looking meter.
 3. **A task holds its slot for a visible minimum.** The scheduler is the
    product; a 400 ms call would make BUSY and a queue position illegible.
+4. **A task is charged for once.** SQS is at-least-once, so a redelivery is a
+   normal event, and running the model again would bill the team twice for one
+   piece of work. `_already_delivered` is the gate — and it sits *inside* the
+   try, because invariant 1 outranks it: a redelivery must still be able to
+   free a desk the previous run died holding.
 """
 
 import json
 import time
 import traceback
-from botocore.exceptions import ClientError
 from collections import namedtuple
+
+from botocore.exceptions import ClientError
 
 from shared import agents, broadcast, history, llm, memory, scheduler, state
 
@@ -48,6 +54,13 @@ FAIL_SENTINEL = "__hiveos_fail__"
 # where no provider counted anything; a real response reports usage directly
 # and `estimated` becomes False.
 CHARS_PER_TOKEN = 4
+
+# How long an `IDEMPOTENCY#` marker is kept. It only has to outlive the window
+# in which SQS could still redeliver the task it guards: the queue retains a
+# message for an hour (`template.yaml`), so a day is generous by a wide margin
+# and DynamoDB's TTL sweep is best-effort anyway. Without it these rows would
+# accumulate forever in a partition that `state_snapshot` reads whole.
+MARKER_TTL_SECONDS = 86_400
 
 AgentResult = namedtuple("AgentResult", "text tokens estimated")
 
@@ -82,27 +95,6 @@ def _handle(task):
         f"task={task.get('task_id')} hops={task.get('hops', 0)} "
         f"conn={task.get('connection_id')}"
     )
-    task_id = task.get("task_id")
-    if task_id:
-        try:
-            state.table().put_item(
-                Item={
-                    "PK": state.team_pk(team),
-                    "SK": f"IDEMPOTENCY#{task_id}",
-                    "slot_id": slot_id,
-                    "user_id": user_id,
-                    "claimed_at": state.now_iso(),
-                },
-                ConditionExpression="attribute_not_exists(SK)",
-            )
-        except ClientError as exc:
-            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
-                print(
-                    f"[runner] duplicate SQS delivery for task {task_id!r} — skipping"
-                )
-                return
-            raise
-    # The roster, read once for the whole task.
 
     # The roster, read once for the whole task.
     #
@@ -116,8 +108,10 @@ def _handle(task):
 
     handoff = None
     try:
-        # Returning here still runs `finally`, so a refused task releases its
-        # slot exactly like a completed one.
+        # Returning here still runs `finally`, so a duplicate or a refused task
+        # releases its slot exactly like a completed one.
+        if _already_delivered(team, task):
+            return
         if _refuse_over_budget(team, task, names):
             return
         result, handoff = _run_agent(team, task, desks)
@@ -168,6 +162,61 @@ def _handle(task):
             scheduler.hand_off(team, task, handoff["target"], handoff["note"])
 
     print(f"[runner] done slot={slot_id} user={user_id}")
+
+
+# --- Exactly once ----------------------------------------------------------
+
+
+def _already_delivered(team, task):
+    """True if this task has run before and must not be charged for twice.
+
+    SQS is at-least-once, so the same task can arrive more than once: either
+    the delivery genuinely duplicated, or the previous run died holding its
+    desk and the message came back after the visibility timeout. Running it
+    again would call the model a second time and bill the team for it — and on
+    a product whose headline number is the meter, a double charge is not a
+    cosmetic bug.
+
+    The gate is a conditional write, like every other exactly-once decision
+    here: whoever wins the `IDEMPOTENCY#` put owns the task. A task with no
+    `task_id` has nothing to key on and is let through — the alternative is
+    dropping real work to guard against a duplicate that cannot be detected.
+
+    **Called from inside the try, so a duplicate still reaches the `finally`
+    and still releases the desk.** That placement is the whole point. The
+    previous run may have died *holding* its slot, and this redelivery is the
+    only thing left that can free it (see the `finally` in `_handle`) — a gate
+    that returned before the release would convert the one available recovery
+    path into a permanent deadlock.
+    """
+    task_id = task.get("task_id")
+    if not task_id:
+        return False
+
+    try:
+        state.table().put_item(
+            Item={
+                "PK": state.team_pk(team),
+                "SK": f"IDEMPOTENCY#{task_id}",
+                "slot_id": task.get("slot_id"),
+                "user_id": task.get("user_id"),
+                "claimed_at": state.now_iso(),
+                # Swept by DynamoDB rather than kept forever. Nothing reads
+                # this row back — its existence *is* the value — so it has no
+                # reason to outlive the redelivery window it guards.
+                "expires_at": state.ttl_after(MARKER_TTL_SECONDS),
+            },
+            ConditionExpression="attribute_not_exists(SK)",
+        )
+    except ClientError as exc:
+        # Only a lost race means "already delivered". Throttling must not be
+        # laundered into a silent skip — that would drop the task outright.
+        if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+        print(f"[runner] duplicate delivery of task {task_id!r} — not running it again")
+        return True
+
+    return False
 
 
 # --- The budget ceiling ----------------------------------------------------

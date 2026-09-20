@@ -69,6 +69,19 @@ def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def ttl_after(seconds):
+    """A DynamoDB TTL value — Unix epoch seconds, `seconds` from now.
+
+    Epoch integers rather than the ISO strings everything else in this schema
+    uses, because TTL is the one field DynamoDB itself reads and that is the
+    only format it accepts.
+
+    Only `IDEMPOTENCY#` rows carry this. Every other row in the table is state
+    somebody can still read, so nothing else should ever expire.
+    """
+    return int(datetime.now(timezone.utc).timestamp()) + int(seconds)
+
+
 def now_iso_micros():
     """Microsecond-precision timestamp, used only for QUEUE# sort keys.
 

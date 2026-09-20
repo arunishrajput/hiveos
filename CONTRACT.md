@@ -188,6 +188,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 | `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`, **plus its identity**: `name`, `role`, `tagline`, `persona`, `character`, `project`, `created_at`. A row written before the roster became data has the runtime fields only and is filled in from `STARTING_ROSTER` by `agents.from_row` |
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
+| `TEAM#<team>` | `IDEMPOTENCY#<taskId>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). **The only row in the schema that expires.** Written conditionally by the runner; its existence *is* the value and nothing ever reads it back |
 
 ### Teams
 
@@ -359,6 +360,25 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
 
   `created_at` is the **write** time, so an upsert refreshes it and `facts()`
   orders by most-recently-set.
+
+- **IDEMPOTENCY#** — one per task that reached the runner, keyed on `task_id`.
+  SQS is at-least-once, so the same task can arrive twice; without this the
+  second arrival called the model again and charged the team for one piece of
+  work twice. The row is written with `attribute_not_exists(SK)` and never
+  read back — winning the put *is* the answer, exactly like the `QUEUE#`
+  delete being the dispatch gate.
+
+  **The gate runs inside the runner's `try`, not before it.** A redelivery is
+  also the only thing that can free a desk whose previous run died holding it,
+  so the duplicate must still fall through to the `finally` that releases the
+  slot. Returning earlier would make a leaked desk permanent — trading a
+  double charge for a deadlocked workspace, which is the worse of the two.
+
+  **The only row in the schema with an expiry.** `expires_at` is epoch seconds
+  (DynamoDB TTL accepts nothing else) and is set a day out, comfortably past
+  the queue's one-hour `MessageRetentionPeriod`. Nothing reads these rows, and
+  `state_snapshot` queries the whole partition on every `hello`, so keeping
+  them forever would grow that read without bound.
 
 - **METADATA `usage_estimated`** — set when any spend folded into
   `tokens_used` was an estimate rather than billed model usage. Sticky: never

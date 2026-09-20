@@ -15,9 +15,9 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
 | **Current phase** | **Phase 6 — demo readiness.** The video is **recorded, uploaded and verified public**. **One task is left in the entire project: submit.** The remaining world phases (20, 21, 23–27) are **deferred past submission by user decision on 2026-09-20 — not cut** |
-| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is `BLOCKED — WAITING FOR MANUAL ACTION` on task 9 alone** — tasks 6 and 7 (record, upload) were completed by the user on 2026-09-20; task 9 (submit) is the only thing outstanding. Gates after Phase 22: `pytest` **27/27**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is `BLOCKED — WAITING FOR MANUAL ACTION` on task 9 alone** — tasks 6 and 7 (record, upload) were completed by the user on 2026-09-20; task 9 (submit) is the only thing outstanding. Gates after Phase 22: `pytest` **38/38** (was 27/27; +11 from PR #4, merged 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. **`main` is one `sam deploy` ahead of the stack** — PR #4 (runner idempotency + table TTL) is merged but **not deployed**, held deliberately: the recorded video and the verified public URL both run the current stack, and submission is the only task left. Deploy after submitting, or before it only if there is time to re-run `ws_smoke.py`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -727,7 +727,8 @@ the `ConditionExpression` and the authorisation branch fails 3 of them.
 **Not addressed, and deliberately.** SQS duplicate delivery still
 double-charges the meter — the guard stops a redelivery from taking
 someone else's desk, not from running. The author flagged it as
-separate work and it is Post-Hackathon.
+separate work and it is Post-Hackathon. **Closed on 2026-09-20 by
+PR #4, from the same author — see below.**
 
 ---
 
@@ -784,6 +785,70 @@ which asserted by substring (`SLOT_ID in str(call)`) rather than on
 arguments, and one of which only covered the dropped `task_id` change.
 Verified by mutation: against the pre-fix `scheduler.py` the six
 recovery tests fail and the two success-path tests pass. Suite is 22.
+
+---
+
+**PR #4 — 2026-09-20 — the runner charges for a task once
+(Phantom9869 / Kamal Choubey)**
+
+Third outside contribution, same author, and it closes the hole PR #1
+recorded as deliberately left open: SQS is at-least-once, and a
+redelivered task called the model again and charged the team twice for
+one piece of work. The fix is an `IDEMPOTENCY#<task_id>` row written
+with `attribute_not_exists(SK)` — whoever wins the put owns the task,
+the same shape as the `QUEUE#` delete being the dispatch gate. The
+mechanism was right as submitted. Where it sat was not.
+
+**What review changed, and why:**
+
+- **The gate moved inside the `try`.** This is the whole of the review.
+  The PR ran it before the try/finally and returned on a duplicate — so
+  a duplicate never reached the release. That inverts the runner's
+  first invariant. The `finally` is deliberately unwrapped because a
+  failed release leaks a desk and **an SQS redelivery is the only thing
+  that can still free it** — the reasoning is in the code, and PR #3's
+  record above restates it. A Lambda timeout, an OOM, or a throwing
+  `release_and_dispatch` would have written the marker, kept the desk
+  `BUSY`, and then had the one recovery path return early: the desk
+  deadlocks forever and every task queued behind it stops. The PR
+  traded a double charge for a dead workspace. Inside the try, both
+  hold — a duplicate is not charged *and* still releases the desk.
+- **A non-conditional `ClientError` is no longer raised out.** With the
+  gate inside the try it is caught like any other mid-task failure:
+  ledger row, error to the requester, desk freed. That matches the
+  adjacent `_refuse_over_budget`, whose `budget_state` read has always
+  been treated this way. What still must not happen — and is tested —
+  is a throttle being read as "already ran", which would drop the task
+  while looking like a successful skip.
+- **The markers expire.** The PR's rows were permanent. Nothing reads
+  them back, and `state_snapshot` queries the whole partition on every
+  `hello`, so they were unbounded growth on a hot read. Added
+  `state.ttl_after`, an `expires_at` a day out (the queue retains for
+  one hour), and `TimeToLiveSpecification` on the table.
+  **This is the one part that needs a deploy to take effect.**
+- **`CONTRACT.md` gained the row.** A new SK prefix that is not in the
+  schema authority is exactly the drift `CLAUDE.md` warns about.
+- **An orphaned comment and a misplaced import.** The PR was cut from a
+  base 19 commits behind `main` and re-added a `# The roster, read once
+  for the whole task.` line that already exists, leaving it duplicated
+  after the merge. `botocore` was imported between two stdlib imports.
+
+**The tests did not run — they hung.** Written against that stale base,
+they patch `shared.state.table` but not `shared.state.roster`, and
+`_handle` has read the roster since Phase 17. `state.query_team`
+paginates until `LastEvaluatedKey` is falsy and a bare `MagicMock`
+returns a truthy one forever, so two of the five spun in an infinite
+loop — CI would hang, not fail. Also: `_reply` was stubbed, which made
+"a duplicate does not charge the team" vacuously true, since
+`add_tokens` is only reachable through it.
+
+**Tests.** `tests/test_runner_idempotency.py`, 11 tests, rewritten.
+`_reply` runs for real against stubbed dependencies, and there is a
+positive control asserting a *first* delivery does charge — without it
+the duplicate assertions prove nothing. Verified by mutation: hoisting
+the gate back out of the try fails 2, dropping the
+`ConditionExpression` fails 1, dropping `expires_at` fails 1. Suite is
+**38**, and runs in 0.09s.
 
 ---
 
