@@ -86,7 +86,14 @@ and a ≤500-char use-case description. The submission is shared with Anthropic.
 
 ---
 
-## MANUAL ACTION 2b — AWS Paid Plan upgrade ⚠️ OUTSTANDING
+## MANUAL ACTION 2b — AWS Paid Plan upgrade — ✅ MOOT, DO NOT DO THIS
+
+> **This is no longer outstanding and should not be actioned.** Bedrock was abandoned, not
+> unblocked: inference runs on **Groq** (`shared/llm.py`), Phase 3 closed on that basis, and
+> `ARCHITECTURE.md` decision 7 records the reasoning. Upgrading the plan would spend money to
+> unblock a service the product no longer calls. Kept below only as the record of what was
+> investigated. A paid card *was* added during the investigation and did **not** lift the
+> restriction — do not repeat that either.
 
 **Reason:** Bedrock invocation is quota-blocked account-wide. **42 of 44** per-model per-day
 token quotas are `0` and **all are `adjustable=False`**, so a Service Quotas increase request

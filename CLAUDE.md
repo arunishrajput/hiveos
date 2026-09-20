@@ -4,6 +4,18 @@ Read this file, `PROGRESS.md`, and `BUILD_PLAN.md` before doing anything else. T
 
 ---
 
+## 🏁 The hackathon is over. It was submitted.
+
+**The deliverable shipped and the submission went in — confirmed by the user on 2026-09-21, inside the 2026-09-20 deadline.** Phase 6 is `COMPLETE`, task 9 included.
+
+**Do not tell the user to submit. Do not ask whether they submitted. Do not list submission as outstanding, pending, blocked, or as a "next action".** It is done, and being reminded of it repeatedly is worse than useless.
+
+This overrides anything further down in this file or in any other doc that still reads as though a submission were pending. Older phase records are kept as history of how things stood when they closed — they are **not** live to-do lists, and a line in one is never a reason to reopen this. The only reason to discuss submission again is if the user raises it first.
+
+**What this means for a new session:** there is no deadline, nothing is owed to anyone, and nothing is waiting. The project is in a finished, deployed, submitted state. Phases 20, 21, 23–27 remain fully specified and buildable, but they are **available, not due** — start one only when the user asks. If you have nothing assigned, ask the user what they want rather than inventing work.
+
+---
+
 ## Project identity
 
 **HiveOS** is a cloud-deployed office where a team hires and runs a floor of AI agents together — everyone watches them work at their desks in real time, on one shared, server-enforced token budget. Built entirely on AWS.

@@ -13,9 +13,10 @@
 |---|---|
 | **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
-| **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 6 — demo readiness.** The video is **recorded, uploaded and verified public**. **One task is left in the entire project: submit.** The remaining world phases (20, 21, 23–27) are **deferred past submission by user decision on 2026-09-20 — not cut** |
-| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is `BLOCKED — WAITING FOR MANUAL ACTION` on task 9 alone** — tasks 6 and 7 (record, upload) were completed by the user on 2026-09-20; task 9 (submit) is the only thing outstanding. Gates after Phase 22: `pytest` **42/42** (was 27/27; +15 from PR #4, merged and deployed 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **Deadline** | 2026-09-20 — **met. Submitted.** |
+| **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
+| **Current phase** | **None — the hackathon build is closed.** Every phase that was in scope is `COMPLETE` and submitted. The remaining world phases (20, 21, 23–27) are **post-submission work, deferred by user decision on 2026-09-20 — not cut**. Phase 20 is the next one if the user asks for more; **do not start one unprompted** |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. Gates after Phase 22: `pytest` **42/42** (was 27/27; +15 from PR #4, merged and deployed 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. **`main` and the stack are in step** — PR #4 (runner idempotency + table TTL) deployed 2026-09-20 **after submission**, re-verified at `ws_smoke.py` **109/113**. DynamoDB TTL is now `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
@@ -25,8 +26,9 @@
 | **Repository** | https://github.com/arunishrajput/hiveos (public, `main`) |
 | **AWS account** | `890608337320` · `us-east-1` · IAM user `hiveos-dev` (AdministratorAccess) |
 
-> **There is a submittable deliverable as of now.** The Phase 4 gate — a deployed public URL
-> showing live shared state — is met. Everything remaining is enhancement.
+> **The deliverable shipped and was submitted.** The Phase 4 gate — a deployed public URL
+> showing live shared state — was met long before the deadline, and the submission went in.
+> Everything remaining is enhancement, and none of it is owed to anyone.
 
 ---
 
@@ -61,7 +63,7 @@
 | 25 | Desert Outpost | `NOT STARTED` — **deferred past submission, not cut** |
 | 26 | Ancient Ruins | `NOT STARTED` — **deferred past submission, not cut** |
 | 27 | World polish and Random World | `NOT STARTED` — **deferred past submission, not cut** |
-| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — **tasks 1–8 done. Only task 9, submit, remains.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch |
+| 6 | Demo readiness | `COMPLETE` — **all nine tasks.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch. **Task 9 — submit — was done by the user and confirmed 2026-09-21** |
 
 **Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
 Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
@@ -78,8 +80,11 @@ ambient-is-about-confusability reading, and the meaning of `--tile`.
 > deadline on 2026-09-20 the user asked for **Phase 22 only**, then for the project to be closed
 > out for the recording. Phases **20, 21, 23, 24, 25 and 26** remain fully specified and
 > individually shippable, and **27** still depends on whichever worlds have shipped — which is now
-> 19 and 22. Nothing in those briefs has been deleted or reduced; they are the first work after
-> submission.
+> 19 and 22. Nothing in those briefs has been deleted or reduced.
+>
+> **The submission has since gone in (2026-09-21), so "after submission" is now.** That makes
+> these available to build, not due. There is no deadline behind them and nothing is waiting on
+> them — **start one only if the user asks for it.**
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -1761,13 +1766,13 @@ corrected order.
 Neither was a product bug, and `python scripts/ws_smoke.py` is **49/49** with the board
 correctly seeded. But both would have cost real time at 2 a.m. the night before a deadline.
 
-**Not done — these are the user's, and Phase 6 is not complete until they are:**
-recording the take, uploading to YouTube and verifying it signed-out, and submitting.
-See *Manual actions pending*.
+**Left to the user at the time this phase was written:** recording the take, uploading to
+YouTube and verifying it signed-out, and submitting.
 
-> **Updated 2026-09-20.** The first two are done: the take is recorded and uploaded at
-> <https://www.youtube.com/watch?v=VBSuDCQa4y4>, and the signed-out check passed. **Only
-> submitting remains.**
+> **All three are now done, and Phase 6 is `COMPLETE`.** The take was recorded and uploaded at
+> <https://www.youtube.com/watch?v=VBSuDCQa4y4> on 2026-09-20 and the signed-out check passed;
+> **the submission went in and was confirmed by the user on 2026-09-21.** Nothing from this
+> phase is outstanding.
 
 **Phase 3 without Bedrock — 2026-09-18 — memory, token accounting, enforced ceiling**
 
@@ -2152,8 +2157,10 @@ slot scheduler, token accounting, WebSocket sync and the deployed URL are all bu
 > set as default — it did not unblock Bedrock, do not repeat it. The model API key: the SSM
 > SecureString `/hiveos/groq-api-key` exists and the agent is live against it.
 
-**One thing now stands between the repo and a submission.** Everything buildable is done,
-deployed and rehearsed; the video is recorded, uploaded and verified.
+**Nothing stands between the repo and the submission any more — it is in.** Everything buildable
+is done, deployed and rehearsed; the video is recorded, uploaded and verified; the deliverable was
+submitted. Items 1–3 below are kept as the closed record of how that happened, **not as a to-do
+list.** Only items 4 and 5 are live, and neither blocks anything.
 
 1. ~~**Record the demo.**~~ ✅ **Done 2026-09-20.** Recorded as a narrated 14-scene cut — five
    scenes of the deployed board inside nine deck scenes, voiced by Amazon Polly (Matthew,
@@ -2164,8 +2171,9 @@ deployed and rehearsed; the video is recorded, uploaded and verified.
    3:00 limit. **The signed-out check is done and passed**, by fetching the watch page
    unauthenticated: `playabilityStatus: OK`, `isPrivate: false`, `isUnlisted: false`. The link
    is in `SUBMISSION.md`, `README.md`, `BUILD_PLAN.md` and `DEMO.md`.
-3. **Submit** before the 2026-09-20 deadline, with the public URL, the repo link and
-   `SUBMISSION.md`. **⬅ This is the only open item in the project.**
+3. ~~**Submit** with the public URL, the repo link and `SUBMISSION.md`.~~ ✅ **Done — confirmed
+   by the user 2026-09-21.** The deadline was met. **This item is closed. Do not re-raise it, do
+   not ask whether it happened, and do not treat it as pending in any future session.**
 
 Housekeeping, not blocking:
 
@@ -2196,8 +2204,8 @@ Housekeeping, not blocking:
    restriction (42 of 43 per-day token quotas at zero, `adjustable=False`, first-party Amazon
    Nova included). Nothing waits on it any more — inference runs on Groq and Phase 3 is closed.
 
-Items 4 and 5 do not block the submission. Items 1–3 **are** the submission, and 1 and 2 are
-closed.
+Items 1–3 **were** the submission and are **all closed**. Items 4 and 5 never blocked it and
+still don't — 4 is a two-minute inbox click worth doing, 5 is optional and post-hackathon.
 
 ---
 
@@ -2492,22 +2500,33 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**One thing is open, and it is the user's: submit.**
+**Nothing is open. The project shipped and was submitted — ask the user what they want.**
 
-**Phase 6 task 9.** The video is recorded, uploaded and verified public
-(**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38). Tasks 1–8 are closed. Submit the
-public URL, the repo link and `SUBMISSION.md` before the deadline.
+**Phase 6 is closed, task 9 included.** The video is recorded, uploaded and verified public
+(**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38), and the user **confirmed on 2026-09-21
+that the submission is in**. The deadline was met.
+
+> **To any future session: do not tell the user to submit.** It is done. Do not ask whether it
+> was done, do not list it as outstanding, and do not reopen it because an older line further
+> down this file still reads as though it were pending — those are historical records of phases
+> as they closed, and this section outranks them. The only reason to raise submission again is
+> if the user brings it up first.
+
+**So there is no "next action" the repo can hand you.** Everything in scope is complete,
+deployed, verified and submitted. What happens next is the user's call, and the realistic menu
+is: the deferred world phases (**20** first), the housekeeping in *Manual actions pending* items
+4 and 5, or nothing at all. **Do not start any of it unprompted.**
 
 > **The run sheet below is retained on purpose, not by neglect.** It is what the board segments
-> of the recorded take were shot against, and it is the only thing that makes a re-take possible
-> inside the remaining window. `DEMO.md` → *As recorded* explains how the finished cut differs
+> of the recorded take were shot against, and it is what would make a re-take possible if one
+> were ever wanted. `DEMO.md` → *As recorded* explains how the finished cut differs
 > from it: a narrated 14-scene edit with an Amazon Polly voice track, rather than one continuous
 > three-window capture. Everything about framing, identities and beat order still applies.
 
-**The build is closed out for submission.** On 2026-09-20 the user asked for Phase 22 only and
+**The build was closed out and submitted.** On 2026-09-20 the user asked for Phase 22 only and
 then for the project to be finalised for the recording. Phases **20, 21, 23–27 are deferred, not
-cut** — every brief in `BUILD_PLAN.md` is intact and each is still an isolated two-file diff. They
-are the first work after submission, not lost scope.
+cut** — every brief in `BUILD_PLAN.md` is intact and each is still an isolated two-file diff. With
+the submission in, they are available to build rather than owed.
 
 **A fresh session should not start a new phase.** If one is asked for anyway, the next to build is
 **Phase 20 — Enchanted Forest**, and the route in is:
@@ -2529,10 +2548,11 @@ are the first work after submission, not lost scope.
   math in `components.jsx` reads the same number and CSS cannot tell it anything.
 - Pick a breakpoint carefully if you touch one: **the demo records at 960 and 540.**
 
-> **The deadline is today (2026-09-20).** `main` is recordable right now: Paper Office is still
-> the default and is proven byte-for-byte unchanged, so no world phase has ever put the recording
-> at risk. Three worlds are in the picker — Paper Office, Night Watch, Alien Colony — which is
-> enough to make the world switch a real beat on camera if the script wants one.
+> **The deadline (2026-09-20) was met and the submission is in.** `main` stayed recordable
+> throughout: Paper Office is still the default and is proven byte-for-byte unchanged, so no world
+> phase ever put the recording at risk. Three worlds are in the picker — Paper Office, Night
+> Watch, Alien Colony — which is enough to make the world switch a real beat on camera if a
+> future re-cut ever wants one.
 
 **`DEMO.md` has been re-measured and re-rehearsed against the office (2026-09-19). Follow it
 as written — the figures in it are measured, not estimated.** What it now says, in brief:

@@ -211,13 +211,14 @@ Every phase ends with: verify → update `PROGRESS.md` → update docs → inspe
 6. Record in a single clean take; three browser windows visible.
 7. Upload to YouTube (public or unlisted); **verify the link opens in a signed-out browser**.
 8. Write the submission writeup: problem, build, where AWS fits, what was learned, AI tools used.
-9. Submit before the deadline.
+9. ~~Submit before the deadline.~~ ✅ **Done, confirmed 2026-09-21.**
 
-> **Tasks 6 and 7 are done, 2026-09-20.**
-> **<https://www.youtube.com/watch?v=VBSuDCQa4y4>** — 2:38, 1920×1080, H.264 + AAC.
-> Verified public by fetching the watch page unauthenticated: `playabilityStatus: OK`,
-> `isPrivate: false`, `isUnlisted: false`, `lengthSeconds: 158`. Task 8 was already done.
-> **Only task 9 — submit — remains, and it is the user's.**
+> **Phase 6 is COMPLETE — all nine tasks.**
+> Tasks 6 and 7 done 2026-09-20: **<https://www.youtube.com/watch?v=VBSuDCQa4y4>** — 2:38,
+> 1920×1080, H.264 + AAC. Verified public by fetching the watch page unauthenticated:
+> `playabilityStatus: OK`, `isPrivate: false`, `isUnlisted: false`, `lengthSeconds: 158`. Task 8
+> was already done. **Task 9 — submit — was done by the user and confirmed 2026-09-21, inside
+> the deadline. Nothing in this phase is outstanding; do not raise submission again.**
 >
 > **The recorded take is not the take this phase planned, and the difference is deliberate.**
 > Task 6 says *"a single clean take, three browser windows visible."* What was recorded is a
@@ -244,7 +245,7 @@ Every phase ends with: verify → update `PROGRESS.md` → update docs → inspe
 - Public URL works from a device that has never visited it — ✅ re-checked cold, HTTP 200
 - Repo is public and its history matches the event dates — ✅
 
-**Gate.** Video and URL submitted. **Video: done. Submission: the user's, outstanding.**
+**Gate.** Video and URL submitted — ✅ **passed. Both done; the submission went in 2026-09-21.**
 
 ### Demo script beats
 

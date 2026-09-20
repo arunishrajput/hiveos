@@ -126,6 +126,9 @@ The 3-minute video is the **only** judge touchpoint. There is no live demo and n
 
 ## Success criteria
 
+> ✅ **All of these were met, and the project was submitted (confirmed 2026-09-21).** This is the
+> bar that was cleared, not a checklist still to work through.
+
 **Minimum viable submission**
 - Public URL loads and shows live shared state across two browsers
 - Slot claim and release work end to end
