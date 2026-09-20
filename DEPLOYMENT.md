@@ -6,7 +6,20 @@ Operational AWS guide. Every step is tagged **`AUTOMATED`** (Claude Code runs it
 |---|---|
 | Region | `us-east-1` |
 | Stack | `hiveos` |
-| Account | Free Plan, ~$134 credit at project start |
+| Account | `890608337320` — **your own Free Tier account**, Free Plan, ~$134 credit at project start |
+
+> **This is not the workshop sandbox, and nothing needs migrating.** The organisers mailed
+> every attendee on 2026-09-20 telling them not to deploy to the temporary workshop sandbox.
+> That mail does not apply here — HiveOS has only ever been deployed to your own account.
+> Verified 2026-09-20 against AWS itself: the account's registered contact is your own name,
+> address and phone; it belongs to **no AWS Organization** (a vended sandbox is always in the
+> organiser's org); its sole IAM principal is the long-lived user `hiveos-dev` you created on
+> 2026-09-17, authenticating with a permanent `AKIA…` key rather than the expiring `ASIA…`
+> SSO credentials a sandbox issues; and it carries the `My Zero-Spend Budget` that AWS
+> creates only for self-signed-up Free Tier accounts.
+>
+> **Do not "migrate to a Free Tier account" in response to that mail.** Redeploying to a new
+> account would destroy a verified, live stack and burn hours that belong to the recording.
 
 ---
 

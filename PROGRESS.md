@@ -2102,6 +2102,23 @@ and add `bedrock:InvokeModel` to the Agent Runner role in `template.yaml` (the P
 records where). Nothing else changes — which is the point of having moved the call behind that
 seam.
 
+> **Re-checked 2026-09-20 on user request. Still blocked, identically. Inference stays on
+> Groq and no code changed.** Both failure modes are byte-for-byte what Phase 3 recorded, so
+> nothing about the account has moved in three days:
+>
+> | Probe | Result |
+> |---|---|
+> | `converse` → `us.amazon.nova-lite-v1:0` | `ThrottlingException: Too many tokens per day` |
+> | `converse` → `us.amazon.nova-micro-v1:0` | `ThrottlingException: Too many tokens per day` |
+> | `converse` → `us.anthropic.claude-haiku-4-5…` | `AccessDeniedException: INVALID_PAYMENT_INSTRUMENT` |
+> | `service-quotas` "tokens per day", `us-east-1` | **35 of 35 are `0.0`, and `0 of 35` are adjustable** |
+>
+> The quota table is the part that closes this. Every per-day token quota on the account is
+> zero **and** carries `Adjustable: false`, so there is no Service Quotas request that can
+> raise one — it is an account-level restriction that only AWS Support can lift, and not
+> inside the hackathon window. **Do not re-run this probe.** It costs nothing but it answers
+> the same way every time, and the answer has been the same since Phase 3.
+
 ### Standing gotchas for the recording
 
 - **Point the recording windows at `/#/workspace`, not `/`.** `/` is the landing page now. It is
