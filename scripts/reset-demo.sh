@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Restore a known-good demo board, then prove it is actually clean.
 #
-#   ./scripts/reset-demo.sh                 # standard board, budget 5000
+#   ./scripts/reset-demo.sh                 # standard board, budget 500000
 #   TOKEN_BUDGET=60 ./scripts/reset-demo.sh # near-spent, for the ceiling beat
 #   SKIP_WARM=1 ./scripts/reset-demo.sh     # skip the Lambda pre-warm
 #
@@ -34,7 +34,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 1,000,000 a ~58-token task moves the meter 0.006% — invisible on camera,
 # which is the one thing the recording cannot afford. Exporting it also means
 # the operator cannot get this wrong by running the script bare at 2am.
-export TOKEN_BUDGET="${TOKEN_BUDGET:-5000}"
+export TOKEN_BUDGET="${TOKEN_BUDGET:-500000}"
 
 stack_output() {
   aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
