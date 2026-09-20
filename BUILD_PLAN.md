@@ -531,6 +531,22 @@ there was a submittable deliverable at every point.
 
 ## Phases 18–27 — the worlds *(added 2026-09-20, user decision)*
 
+> ### ▶ These are the active phases as of 2026-09-21
+>
+> The hackathon is over and submitted. **Only two worlds shipped before the deadline — 19 Night
+> Watch and 22 Alien Colony** (Paper Office is the Phase 12 default, not a world phase). The user
+> is now building the rest, one phase per session.
+>
+> **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
+> **20 → 21 → 23 → 24 → 25 → 26 → 27.**
+>
+> 19–26 depend on 18 and on nothing else, so that order is a convention and the user may reorder
+> or drop any of them. **27 is genuinely last** — it depends on whichever worlds actually shipped.
+> `PROGRESS.md`'s phase board is the live record of what is done; check it rather than assuming.
+>
+> **No deadline applies any more. The gates are unchanged** — the recolour test, the
+> state-legibility contract and the shared Validation block still decide whether a phase is done.
+
 **One board, many worlds.** HiveOS renders exactly one look — the paper office Phase 12 painted
 and Phase 17 put a shell around. These phases make the look pluggable: a picker in the title bar
 swaps the whole workspace into a different environment, and the same live board — the same

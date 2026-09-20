@@ -15,8 +15,8 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **Current phase** | **None — the hackathon build is closed.** Every phase that was in scope is `COMPLETE` and submitted. The remaining world phases (20, 21, 23–27) are **post-submission work, deferred by user decision on 2026-09-20 — not cut**. Phase 20 is the next one if the user asks for more; **do not start one unprompted** |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. Gates after Phase 22: `pytest` **42/42** (was 27/27; +15 from PR #4, merged and deployed 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **▶ Current phase** | **Phase 20 — Enchanted Forest. `NOT STARTED`, and it is the next thing to build.** The world phases are the active work again as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 20.** Queue after it: **21 → 23 → 24 → 25 → 26 → 27** (27 last — it depends on every world that shipped) |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Alien Colony — and the board wears any of them. **Only two of the eight world phases shipped during the hackathon; seven remain and are now queued.** Gates after Phase 22: `pytest` **42/42** (was 27/27; +15 from PR #4, merged and deployed 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. **`main` and the stack are in step** — PR #4 (runner idempotency + table TTL) deployed 2026-09-20 **after submission**, re-verified at `ws_smoke.py` **109/113**. DynamoDB TTL is now `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
@@ -55,14 +55,14 @@
 | 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 18 | World system foundation | `COMPLETE` — deployed and verified 2026-09-20. The only one of the ten that touches shared code; ships no new world, by design |
 | 19 | Night Watch | `COMPLETE` — deployed and verified 2026-09-20. The picker is a control now |
-| 20 | Enchanted Forest | `NOT STARTED` — **deferred past submission, not cut** |
-| 21 | Reef Station | `NOT STARTED` — **deferred past submission, not cut** |
+| 20 | Enchanted Forest | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 20 |
+| 21 | Reef Station | `QUEUED` — position 2 |
 | 22 | Alien Colony | `COMPLETE` — deployed and verified 2026-09-20. Built out of order on the user's instruction; three worlds in the picker |
-| 23 | Cloud City | `NOT STARTED` — **deferred past submission, not cut** |
-| 24 | Arctic Base | `NOT STARTED` — **deferred past submission, not cut** |
-| 25 | Desert Outpost | `NOT STARTED` — **deferred past submission, not cut** |
-| 26 | Ancient Ruins | `NOT STARTED` — **deferred past submission, not cut** |
-| 27 | World polish and Random World | `NOT STARTED` — **deferred past submission, not cut** |
+| 23 | Cloud City | `QUEUED` — position 3 |
+| 24 | Arctic Base | `QUEUED` — position 4 |
+| 25 | Desert Outpost | `QUEUED` — position 5 |
+| 26 | Ancient Ruins | `QUEUED` — position 6 |
+| 27 | World polish and Random World | `QUEUED` — **position 7, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
 | 6 | Demo readiness | `COMPLETE` — **all nine tasks.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch. **Task 9 — submit — was done by the user and confirmed 2026-09-21** |
 
 **Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
@@ -76,15 +76,19 @@ Between them: the pre-paint key, the three `--ink`-means-dark overrides, the pal
 honey/amber hue separation, the world-card hover fix, the mid-floor `daylight` fixture, the
 ambient-is-about-confusability reading, and the meaning of `--tile`.
 
-> **Deferred past submission, 2026-09-20, on user decision — explicitly not cut.** With the
-> deadline on 2026-09-20 the user asked for **Phase 22 only**, then for the project to be closed
-> out for the recording. Phases **20, 21, 23, 24, 25 and 26** remain fully specified and
-> individually shippable, and **27** still depends on whichever worlds have shipped — which is now
-> 19 and 22. Nothing in those briefs has been deleted or reduced.
+> **▶ Resumed 2026-09-21, on user decision. These phases are the active work.** They were
+> deferred — never cut — when the 2026-09-20 deadline forced the user to take **Phase 22 only**
+> and close the project out for the recording. **Only two of the eight world phases shipped: 19
+> and 22.** The submission is in, so the user is now finishing the rest.
 >
-> **The submission has since gone in (2026-09-21), so "after submission" is now.** That makes
-> these available to build, not due. There is no deadline behind them and nothing is waiting on
-> them — **start one only if the user asks for it.**
+> **A session told "Start the next phase" builds the first phase in the board above that is not
+> `COMPLETE` — right now that is Phase 20, Enchanted Forest.** Then 21 → 23 → 24 → 25 → 26, and
+> **27 last**, because it depends on whichever worlds actually shipped. 19–26 depend only on 18,
+> so that order is a convention the user may reorder or cut from; 27's position is not.
+>
+> Nothing in those briefs was ever deleted or reduced — `BUILD_PLAN.md` carries each in full.
+> There is no deadline behind any of it, which changes the pace, not the bar: **the shared
+> Validation block and the recolour test still gate every one of them.**
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -2500,11 +2504,18 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Nothing is open. The project shipped and was submitted — ask the user what they want.**
+### ▶ Build **Phase 20 — Enchanted Forest**.
 
-**Phase 6 is closed, task 9 included.** The video is recorded, uploaded and verified public
-(**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38), and the user **confirmed on 2026-09-21
-that the submission is in**. The deadline was met.
+That is the answer to "Start the next phase". It is the first phase on the board that is not
+`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 20 — Enchanted Forest*, and the route in is
+below. Queue after it: **21 → 23 → 24 → 25 → 26 → 27**, with 27 last.
+
+**Why this is live work again.** The hackathon is over and **the submission is in** — the video
+is recorded, uploaded and verified public
+(**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38), and the user confirmed on 2026-09-21
+that it was submitted inside the deadline. Phase 6 is closed, task 9 included. With that done,
+the user is finishing the world phases the deadline cut short: **only two of the eight shipped —
+19 Night Watch and 22 Alien Colony.** Seven remain and they are the current work.
 
 > **To any future session: do not tell the user to submit.** It is done. Do not ask whether it
 > was done, do not list it as outstanding, and do not reopen it because an older line further
@@ -2512,10 +2523,9 @@ that the submission is in**. The deadline was met.
 > as they closed, and this section outranks them. The only reason to raise submission again is
 > if the user brings it up first.
 
-**So there is no "next action" the repo can hand you.** Everything in scope is complete,
-deployed, verified and submitted. What happens next is the user's call, and the realistic menu
-is: the deferred world phases (**20** first), the housekeeping in *Manual actions pending* items
-4 and 5, or nothing at all. **Do not start any of it unprompted.**
+**There is no deadline behind the remaining phases, and that changes the pace, not the bar.**
+The shared **Validation** block, the **recolour test** and the **state-legibility contract** gate
+every world phase exactly as they did during the hackathon. One phase per session, as always.
 
 > **The run sheet below is retained on purpose, not by neglect.** It is what the board segments
 > of the recorded take were shot against, and it is what would make a re-take possible if one
@@ -2523,13 +2533,12 @@ is: the deferred world phases (**20** first), the housekeeping in *Manual action
 > from it: a narrated 14-scene edit with an Amazon Polly voice track, rather than one continuous
 > three-window capture. Everything about framing, identities and beat order still applies.
 
-**The build was closed out and submitted.** On 2026-09-20 the user asked for Phase 22 only and
-then for the project to be finalised for the recording. Phases **20, 21, 23–27 are deferred, not
-cut** — every brief in `BUILD_PLAN.md` is intact and each is still an isolated two-file diff. With
-the submission in, they are available to build rather than owed.
+**How the remaining phases were left.** On 2026-09-20 the user asked for Phase 22 only and then
+for the project to be finalised for the recording. Phases **20, 21, 23–27 were deferred, not
+cut** — every brief in `BUILD_PLAN.md` is intact and each is still an isolated two-file diff.
+They are now the active queue.
 
-**A fresh session should not start a new phase.** If one is asked for anyway, the next to build is
-**Phase 20 — Enchanted Forest**, and the route in is:
+**The route into Phase 20 — Enchanted Forest**, and into every world phase after it:
 
 - Read the `## Phases 18–27` section of `BUILD_PLAN.md` first — it carries two contracts (the
   recolour test and the state-legibility contract) a session will otherwise not infer, and both
@@ -2547,6 +2556,13 @@ the submission in, they are available to build rather than owed.
 - **A world stylesheet must never set `--walk-top`** — the registry owns it, because the walk
   math in `components.jsx` reads the same number and CSS cannot tell it anything.
 - Pick a breakpoint carefully if you touch one: **the demo records at 960 and 540.**
+- **Phase 20's own trap, from its brief: foliage green is not `--safe` green.** Paper Office
+  already keeps `--foliage` muted away from the budget jade for exactly this reason, and a whole
+  forest makes the collision far easier to cause. A healthy quota strip must not read as
+  scenery — check it against the clearing before calling the phase done.
+- **`agentDesigns` is the right tool for Phase 20.** Its characters are woodland animals — fox,
+  owl, badger — so ears and beak are the `A` layer and eyes are `D`, the same split Phase 22's
+  colonists and robots used.
 
 > **The deadline (2026-09-20) was met and the submission is in.** `main` stayed recordable
 > throughout: Paper Office is still the default and is proven byte-for-byte unchanged, so no world

@@ -12,7 +12,37 @@ Read this file, `PROGRESS.md`, and `BUILD_PLAN.md` before doing anything else. T
 
 This overrides anything further down in this file or in any other doc that still reads as though a submission were pending. Older phase records are kept as history of how things stood when they closed — they are **not** live to-do lists, and a line in one is never a reason to reopen this. The only reason to discuss submission again is if the user raises it first.
 
-**What this means for a new session:** there is no deadline, nothing is owed to anyone, and nothing is waiting. The project is in a finished, deployed, submitted state. Phases 20, 21, 23–27 remain fully specified and buildable, but they are **available, not due** — start one only when the user asks. If you have nothing assigned, ask the user what they want rather than inventing work.
+**What this means:** there is no deadline and nothing is owed to anyone. The project is in a finished, deployed, submitted state, and every change from here is an improvement to something that already works.
+
+---
+
+## ▶ The active work: the remaining worlds
+
+**The project is live again as of 2026-09-21, on user decision.** With the hackathon closed, the user is building out the world/theme phases that time ran out on. **This is the current work. "Start the next phase" means the next world phase.**
+
+Only **two** worlds shipped during the hackathon — **19 Night Watch** and **22 Alien Colony** — alongside **Paper Office**, which is the Phase 12 default and is not a world phase. Seven phases remain, all fully specified in `BUILD_PLAN.md` → *Phases 18–27 — the worlds*.
+
+**The queue, in order. Take the first one the `PROGRESS.md` phase board does not mark `COMPLETE`:**
+
+| Order | Phase | World | File |
+|---|---|---|---|
+| 1 | **20** | Enchanted Forest | `frontend/src/worlds/forest.css` |
+| 2 | **21** | Reef Station | `frontend/src/worlds/underwater.css` |
+| 3 | **23** | Cloud City | `frontend/src/worlds/cloudcity.css` |
+| 4 | **24** | Arctic Base | `frontend/src/worlds/arctic.css` |
+| 5 | **25** | Desert Outpost | `frontend/src/worlds/desert.css` |
+| 6 | **26** | Ancient Ruins | `frontend/src/worlds/ruins.css` |
+| 7 | **27** | World polish + Random World | **last — it depends on every world that shipped** |
+
+Phases 19–26 depend on 18 and on nothing else, so this order is a convention, not a constraint — the user may reorder or drop any of them. **27 genuinely runs last.** Check the phase board in `PROGRESS.md` for live status before assuming; it is the record of what actually shipped.
+
+**Before starting any world phase, read in this order:**
+
+1. `BUILD_PLAN.md` → the `## Phases 18–27` intro — the fixed scope, **the recolour test**, and **the state-legibility contract**. Both are applied at every world gate and a session will not infer them.
+2. **Phase 19's four findings and Phase 22's four**, same file — every shared-code trap found so far. Most have a fix already written in `worlds/nightsky.css` or `worlds/alien.css` to copy rather than rediscover.
+3. The brief for the phase itself, then the shared **Validation** block that every world phase must pass.
+
+**The traps that have already cost time, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed. **Paper Office is the default and must stay byte-for-byte unchanged.** A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number. Frontend only: no backend, no protocol, no schema, no new dependency.
 
 ---
 
