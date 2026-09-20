@@ -158,6 +158,8 @@ Path, duration and accessible label untouched.
 | Colour literals outside the token block | **zero** (all 50 inside `:root[data-world='alien']`) |
 | `pytest` | **27/27** |
 | `ws_smoke.py` | **109/113** — the four documented CONN# false positives, and this run proves *why* they are false positives (below) |
+| `rehearse.py` | **15/15**, one clean unattended take, **15.3s** of product time against a 110s allowance — the recorded sequence is unregressed |
+| Cold visitor on the deployed URL | landing page renders Paper Office (`#fff8e7`, `light`) with its preview floor; **zero console errors**; picker offers all three worlds with Paper Office selected |
 
 **One defect found and fixed, and it was not this world's.** Hovering the *selected* card in the
 world picker replaced its amber fill with the page ground while keeping near-black text —
@@ -2312,7 +2314,8 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered |
 | Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
-| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com |
+| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 32**, Phase 22 build |
+| Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Alien Colony** — read back from the live picker |
 
 **The Amplify app is not managed by CloudFormation.** This is deliberate and matches
 `BUILD_PLAN.md` Phase 4 task 5 and `DEPLOYMENT.md`: manual-deploy mode needs no GitHub OAuth
