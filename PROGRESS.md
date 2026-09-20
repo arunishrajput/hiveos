@@ -3,7 +3,7 @@
 > Current execution state. A fresh Claude Code session reads this to know exactly where things stand.
 > Keep it operational and short. Not a diary — history lives in git.
 
-**Last updated:** 2026-09-20
+**Last updated:** 2026-09-21
 
 ---
 
@@ -106,6 +106,52 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**PR #6 — 2026-09-21 — the demo budget stopped tracking the cost of a task**
+
+An outside contribution (Phantom9869) against `reset-demo.sh`, raising its default
+`TOKEN_BUDGET`. The one-line change was **right about the bug and wrong about the number**, and
+reviewing it turned up a second copy of the same defect.
+
+**The bug.** `reset-demo.sh` defaulted to **5,000**, calibrated in Phase 3 when the agent was a
+stub costing ~58 tokens a task — one task, one segment of the strip. A task costs **~800** now (a
+real model plus tool schemas in every prompt), so 5,000 is **four or five tasks and the board is
+spent**. Harmless while the only thing reading that default was a camera; not harmless once the
+URL is public and judges arrive cold, because the second visitor finds a dead floor.
+
+`rehearse.py:595` had tracked this correctly for the ceiling beat — 60 → 500 → 1600, with a
+comment saying *"if a task's cost changes again, this has to follow it"*. The standard budget
+never got the same treatment. It is the same class of defect, in the number nobody re-derived.
+
+**Why not the 500,000 the PR proposed.** One task would move the meter 0.16% — about a ninth of a
+segment on a ~1.5%-per-segment strip. That reproduces on the demo board exactly the defect
+already recorded under *Known issues* for self-created workspaces at 1,000,000: an unpainted bar
+on a product whose headline mechanic is the meter. **100,000** is the Phase 3 calibration
+re-derived at the real cost — ~125 tasks of headroom, one task at 0.8%, so the bar visibly moves
+across a short session. User's call, taken on the arithmetic above.
+
+**The second door, which the PR did not close.** `rehearse.py` held `STANDARD_BUDGET = 5000` and
+restores it in a `finally`, so every rehearsal reset the live board to the small budget anyway.
+One constant was doing two jobs: what a take *runs on* and what the board is *left on*. Split
+into `RECORDING_BUDGET = 5000` and `STANDARD_BUDGET = 100_000`, which is now the normal restore
+path rather than only the `--ceiling` cleanup.
+
+**What changed:** `scripts/reset-demo.sh` (default 100,000; the comment block that argued for
+5,000 rewritten, since it had been left standing and arguing against the PR's own value; stale
+`TOKEN_BUDGET=60` in the header corrected to 1600) · `scripts/rehearse.py` (constant split) ·
+`DEMO.md` (a take now asks for `TOKEN_BUDGET=5000` explicitly — the bare command is the live
+board, not the recording board).
+
+**Verified:** `bash -n` and `ast.parse` clean on both scripts; both constants traced to their use
+sites; no harness asserts on an absolute budget — every check is relational (`>=`, identical
+across screens, the 100% clamp), so `ws_smoke.py` and `rehearse.py` are unaffected by the value.
+**Not re-run against AWS:** no backend file changed, and re-running `rehearse.py` would spend
+real tokens on the live board for a change to two operator scripts and a run sheet.
+
+**The general shape, worth keeping:** a constant calibrated against a measured cost is only
+correct until that cost moves. This one was derived from a stub, survived the stub's removal, and
+stayed wrong for four phases because nothing asserts on it — the harnesses all check
+*relationships* between numbers, which is what let the absolute value rot unnoticed.
 
 **Phase 22 — Alien Colony — 2026-09-20 — deployed and verified**
 
@@ -2126,10 +2172,16 @@ Housekeeping, not blocking:
 3b. **Decide the default token budget for self-created workspaces.** `DEFAULT_TEAM_BUDGET`
    is 1,000,000, which makes the headline mechanic invisible to a judge who types their own
    workspace name: a real 666-token task moves the meter 0.1% and paints no bar. **The
-   recording is not affected** — `reset-demo.sh` seeds `alpha` at 5,000 and `DEMO.md` records
+   recording is not affected** — a take seeds `alpha` at 5,000 explicitly and `DEMO.md` records
    there — so this only touches the judge who explores after watching. Measured on the
    deployed build 2026-09-20: the same board at a 8,000 ceiling reads 81.2% in vivid red.
    Not changed unilaterally because it is a spend-policy call. If you want it:
+
+   > **Half of this is done as of PR #6 (2026-09-21).** The *seeded* boards now default to
+   > 100,000 — one ~800-token task at 0.8%, ~125 tasks of headroom. This item is now only
+   > about `DEFAULT_TEAM_BUDGET`, the workspace a judge creates by typing a new name, which
+   > is a stack parameter and needs a redeploy rather than a reseed. 25,000 below is still
+   > the suggestion; it is the same reasoning applied to a board nobody reseeds.
 
    ```bash
    # samconfig.toml → parameter_overrides, NOT template.yaml's Default:
@@ -2200,10 +2252,13 @@ closed.
   and `{"action": 7}` all became `AttributeError` → `"internal error"` → a stack trace per
   frame. The generic handler did its job; it just answered for the wrong party.
 - **The default token budget makes the product's headline mechanic invisible.**
-  `DEFAULT_TEAM_BUDGET` is 1,000,000 and a real task costs ~600, so a self-created workspace
-  shows 0.1% and an unpainted bar. Not a bug — `reset-demo.sh` owns the demo default of
-  5,000 and the recording is unaffected — but it is what a judge sees if they open the URL
-  and make their own room. See *Manual actions pending* item 3b for the one-line change.
+  `DEFAULT_TEAM_BUDGET` is 1,000,000 and a real task costs ~600-800, so a self-created workspace
+  shows 0.1% and an unpainted bar. Not a bug — `reset-demo.sh` owns the seeded boards — but it is
+  what a judge sees if they open the URL and make their own room. See *Manual actions pending*
+  item 3b for the one-line change. **PR #6 (2026-09-21) fixed the seeded half of this**: the demo
+  default is 100,000, sized so one task is 0.8% and the bar moves. `DEFAULT_TEAM_BUDGET` is the
+  half still outstanding, and it is a stack parameter, so it needs a redeploy rather than a
+  reseed.
 - **A reasoning model's thinking is charged against `max_tokens`, and a cap sized for the answer
   buys nothing.** `gpt-oss-120b` spent 398 of a 400-token output cap on `reasoning_tokens` and
   returned empty content. Every layer above read that correctly and still produced the wrong

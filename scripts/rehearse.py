@@ -54,12 +54,22 @@ HIRE_ROLE = "Analyst"
 # talking over a static board and cost no product time.
 DEMO_BUDGET_SECONDS = 110
 
-# The board every other tool expects to find. `--ceiling` seeds a tiny budget
-# on purpose, and leaving it behind is a trap: ws_smoke.py resets `tokens_used`
-# but not `token_budget`, so the next smoke run silently inherits a 60-token
+# What a take runs on, and what this script rehearses against. Small on
+# purpose: the meter climbing is the beat, and at ~800 tokens a task 5,000 puts
+# a rehearsed take at 50-57% — the figure DEMO.md's Beat 3 quotes.
+RECORDING_BUDGET = 5000
+
+# What the board is left on afterwards, and the same number `reset-demo.sh`
+# defaults to. The two must agree: the live URL is public and judges arrive at
+# it cold, so a rehearsal that walked away leaving the recording board behind
+# would hand the next visitor four tasks' worth of floor.
+#
+# Restoring at all is not optional. `--ceiling` seeds a tiny budget on purpose,
+# and leaving it behind is a trap: ws_smoke.py resets `tokens_used` but not
+# `token_budget`, so the next smoke run silently inherits the 1,600-token
 # ceiling and fails two checks for reasons that have nothing to do with the
 # code. Restored unconditionally when this script exits.
-STANDARD_BUDGET = 5000
+STANDARD_BUDGET = 100_000
 
 # Which workspace to rehearse in, and how to get into it. Defaults keep the
 # behaviour every earlier run had.
@@ -171,9 +181,11 @@ def reset(budget):
 def restore_standard_budget(used_budget):
     """Put the board back to the budget every other tool assumes.
 
-    Only does work if this run moved it. Runs on the failure path too — a
-    rehearsal that aborts mid-ceiling is exactly when the small budget is most
-    likely to be forgotten.
+    Every ordinary run now moves it — a take is rehearsed on RECORDING_BUDGET
+    and the board is left on STANDARD_BUDGET — so this is the normal path, not
+    just the `--ceiling` cleanup. Runs on the failure path too: a rehearsal
+    that aborts mid-ceiling is exactly when a small budget is most likely to be
+    forgotten, and the board it would be forgotten on is public.
     """
     if used_budget == STANDARD_BUDGET:
         return
@@ -598,7 +610,7 @@ def main():
     # two round trips plus the tool schema in every prompt, which took a task
     # from roughly 270 tokens to roughly 800. If a task's cost changes again,
     # this has to follow it or the beat stops being watchable.
-    budget = args.budget or (1600 if args.ceiling else STANDARD_BUDGET)
+    budget = args.budget or (1600 if args.ceiling else RECORDING_BUDGET)
     beat = run_ceiling if args.ceiling else run_demo
 
     print(f"Endpoint: {url}")
