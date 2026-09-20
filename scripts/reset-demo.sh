@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Restore a known-good demo board, then prove it is actually clean.
 #
-#   ./scripts/reset-demo.sh                 # standard board, budget 500000
-#   TOKEN_BUDGET=60 ./scripts/reset-demo.sh # near-spent, for the ceiling beat
-#   SKIP_WARM=1 ./scripts/reset-demo.sh     # skip the Lambda pre-warm
+#   ./scripts/reset-demo.sh                   # live board, budget 100000
+#   TOKEN_BUDGET=5000 ./scripts/reset-demo.sh # recording board, meter visible on camera
+#   TOKEN_BUDGET=1600 ./scripts/reset-demo.sh # near-spent, for the ceiling beat
+#   SKIP_WARM=1 ./scripts/reset-demo.sh       # skip the Lambda pre-warm
 #
 # Run this between every take. `seed.sh` owns the DynamoDB demo state and is
 # called from here rather than duplicated — two definitions of "a clean board"
@@ -30,11 +31,27 @@ STACK="${STACK_NAME:-hiveos}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Defaulted here, not in seed.sh. seed.sh is the generic seeder and keeps its
-# 1,000,000 production-shaped default; this is the demo-facing script, and at
-# 1,000,000 a ~58-token task moves the meter 0.006% — invisible on camera,
-# which is the one thing the recording cannot afford. Exporting it also means
-# the operator cannot get this wrong by running the script bare at 2am.
-export TOKEN_BUDGET="${TOKEN_BUDGET:-500000}"
+# 1,000,000 production-shaped default; this is the demo-facing script, so it
+# owns the demo's number — and that number tracks the cost of a task, exactly
+# the way `--ceiling` does in rehearse.py. Sized wrong in either direction the
+# meter stops telling the truth about the product.
+#
+# It was 5,000 while the agent was a stub costing ~58 tokens a task, which put
+# one task at almost exactly one segment of the strip. A task costs ~800 now —
+# a real model, plus the tool schemas in every prompt — so 5,000 is four or
+# five tasks and then the board is spent. That was harmless while the only
+# thing reading this default was a camera. It is not harmless now: the URL is
+# public, judges arrive at it cold, and the second visitor finds a dead floor.
+#
+# 100,000 is that same calibration re-derived at the real cost — ~125 tasks of
+# headroom, one task at 0.8% of a strip whose segments are ~1.5%, so the bar
+# visibly moves across a short session instead of never painting at all.
+#
+# A recorded take still wants the small board and asks for it explicitly:
+# `TOKEN_BUDGET=5000`, which is what DEMO.md's pre-flight now says. Exporting
+# the default here means the operator cannot get the *live* board wrong by
+# running the script bare at 2am.
+export TOKEN_BUDGET="${TOKEN_BUDGET:-100000}"
 
 stack_output() {
   aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \

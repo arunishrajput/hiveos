@@ -85,11 +85,18 @@ export DEMO_TEAM=demo-stage
 export DEMO_PASSPHRASE='pick something'
 
 python3 scripts/rehearse.py --takes 2  # rehearses in that workspace
-./scripts/reset-demo.sh                # clean board, SQS drained, Lambdas warm, verified
+TOKEN_BUDGET=5000 ./scripts/reset-demo.sh  # clean board, SQS drained, Lambdas warm, verified
 ```
 
 Both scripts honour those two variables. Unset, everything behaves exactly as
 before and uses the open default workspace.
+
+**`TOKEN_BUDGET=5000` is not optional for a take, and it is not the default.**
+Bare, `reset-demo.sh` seeds **100,000** — the size the *live public board* needs,
+where judges arrive cold and a four-task floor reads as a broken product. A take
+needs the opposite: a meter that visibly climbs, which at ~800 tokens a task
+means 5,000. `rehearse.py` already seeds the recording budget for you and puts
+the board back to 100,000 when it exits; only the manual reset above has to ask.
 
 At the gate, each browser enters the same **workspace** name and the same
 **passphrase**. The first one in creates it and becomes its administrator.
@@ -109,9 +116,9 @@ Show `/` itself in the opening seconds if you want the pitch on screen, then
 cut to the board windows. It is a still page; nothing on it moves and nothing
 on it connects.
 
-It prints `snapshot clean — 2 desks IDLE (Ada, Iris), 0/5000 tokens, queue and memory empty`.
-If it prints `DIRTY`, or warns that connection rows were live, **close every browser tab
-pointed at the deployed URL and run it again.**
+The reset above prints `snapshot clean — 2 desks IDLE (Ada, Iris), 0/5000 tokens, queue and
+memory empty`. If it prints `DIRTY`, or warns that connection rows were live, **close every
+browser tab pointed at the deployed URL and run it again.**
 
 > ### The framing, measured on the deployed build (2026-09-19)
 >
