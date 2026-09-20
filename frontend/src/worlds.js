@@ -168,6 +168,125 @@ const NIGHT_HOODS = [
   '#83a398', // sage
 ]
 
+/* --- The Enchanted Forest's cast --------------------------------------------
+ *
+ * Woodland animals working the clearing. The first cast in the ten worlds that
+ * is not bipedal-humanoid-shaped at all, and the first where the `A` and `D`
+ * layers Phase 18 added are actually load-bearing: an ear, a beak and an eye
+ * are exactly the three things a recoloured office worker cannot have.
+ *
+ *   H  head fur        --sp-hair    per-character, from the palette below
+ *   F  muzzle / blaze  --sp-skin    the pale fur of a snout or a facial disc
+ *   S  the body        --sp-shirt
+ *   A  ears / beak     --sp-accent  warm
+ *   D  the eyes        --sp-detail
+ *
+ * From directly above you see the top of a head, so the silhouette above the
+ * eyes is the whole of identity at this size — which is lucky, because ears are
+ * the one part of an animal that reads instantly from above. Five designs, and
+ * every one of them is a different pair of ears: pricked, tufted, none at all,
+ * long, and antlered. The badger has no ears worth drawing from above and is
+ * identified by its blaze instead, which is the only design here that carries
+ * its identity in a marking rather than in an outline.
+ *
+ * The last row is legs and nothing else in every design, because `stepFrame`
+ * and `seatedFrame` replace exactly that row.
+ */
+const WOODLAND = [
+  // 0 — fox: pricked ears, a narrow pale snout
+  [
+    '.A.....A.',
+    '.AHHHHHA.',
+    '.HHHHHHH.',
+    'HHDHHHDHH',
+    '.HHFFFHH.',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — owl: ear tufts, a broad facial disc, a beak between the eyes
+  [
+    '..H...H..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HFFFFFFFH',
+    'HFDFAFDFH',
+    '.HFFFFFH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — badger: no ears from above, and the blaze instead
+  [
+    '...HFH...',
+    '.HHHFHHH.',
+    'HHHHFHHHH',
+    'HHDHFHDHH',
+    '.HHHFHHH.',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — hare: the ears are most of the character
+  [
+    '..A...A..',
+    '..A...A..',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHDHHHDHH',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — stag: branching antlers, which is the widest silhouette in the set
+  [
+    'A.A...A.A',
+    '.AA...AA.',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHDHHHDHH',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+]
+
+/* One coat colour per marker.
+ *
+ * Pitched to read against moss — all eight clear 4.5:1 on the clearing floor,
+ * inside a hollow and on the dirt path — and spread across the hue circle
+ * rather than kept inside the world's greens, because eight greens are one
+ * green at sprite size.
+ *
+ * Every one is desaturated to 0.04-0.44 where the four state hues run
+ * 0.57-0.64. That gap is the whole safety argument and it matters more here
+ * than in either dark world before it: this is a green world whose budget-jade
+ * has to stay legible, so an identity that wandered into a saturated green or a
+ * saturated cyan would be competing with the two hues the board reports with.
+ * The fox is the closest call — 26.7deg is honey's hue — and it is held at 0.44
+ * against honey's 0.60, on the same guarantee that separates honey from the
+ * brand amber: honey is only ever a word, and a fox is never one.
+ */
+const FOREST_COATS = [
+  '#bd8f6a', // fox
+  '#bda87c', // tawny
+  '#aeb6b4', // badger
+  '#a8b487', // hare
+  '#b39a86', // hazel
+  '#c2a0bc', // dusk
+  '#c69a9a', // finch
+  '#8fb2be', // kingfisher
+]
+
 /* --- The Alien Colony's cast ------------------------------------------------
  *
  * The first world to use `agentDesigns`, and the first where the two casts are
@@ -399,6 +518,30 @@ const REGISTRY = [
     agentDesigns: null,
     layers: DEFAULT_LAYERS,
     palette: NIGHT_HOODS,
+  },
+  {
+    id: 'forest',
+    label: 'Enchanted Forest',
+    blurb: 'A clearing of hollow stumps and carved benches, under a dappled canopy.',
+    colorScheme: 'dark',
+    // `--cream` in worlds/forest.css. Literal for the same reason the others
+    // are: the browser needs it before a stylesheet exists.
+    themeColor: '#0e1710',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the hollows at
+    // y=14, so a world that raised its band would run the treeline behind
+    // them.
+    walkTop: 14,
+    designs: WOODLAND,
+    // One cast, deliberately, and the reasoning is Night Watch's rather than
+    // the colony's. A clearing where the animals work the benches together is
+    // the same claim the night deck makes: the agents live here. The obvious
+    // second species would be will-o'-wisps — and that is exactly the one this
+    // world may not have, because the wisp is already spoken for. It is what a
+    // working slab lights up as, and a floor with wisps walking around on it
+    // could not also use a wisp to mean BUSY.
+    agentDesigns: null,
+    layers: DEFAULT_LAYERS,
+    palette: FOREST_COATS,
   },
   {
     id: 'alien',

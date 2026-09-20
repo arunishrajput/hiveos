@@ -1,0 +1,1389 @@
+/* Enchanted Forest — the office as a clearing in a wood.
+ *
+ * The same floor, the same rooms, the same scheduler. Where Night Watch is a
+ * big sky over a small room, this is a small clearing inside a large forest:
+ * the treeline closes the back, undergrowth closes both sides, and the light
+ * that reaches the moss has come through leaves to get there.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one of them is re-tuned for moss and
+ *    none of them is reassigned. The words — `working`, `idle`, `queued #N`,
+ *    `HALT`, `WAITING AREA` — are untouched; this file contains no `content`
+ *    that carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *    THIS IS THE WORLD THAT FIRST TESTS THAT SPLIT, and the brief says so: a
+ *    resting bench sits under a warm lantern, the canopy drops warm dapples on
+ *    the moss, and a shaft of late sun falls through the gap. None of it means
+ *    anything. When an agent goes BUSY a will-o'-wisp cyan JOINS it — the slab
+ *    lights and the hollow glows from inside — and that is the thing that
+ *    means something.
+ *
+ * THE RISK THIS WORLD IS NAMED FOR. Foliage green is not `--safe` green, and a
+ * whole forest makes that collision far easier to cause than a room with two
+ * pot plants in it did. The defence is measured rather than hoped for:
+ * `--foliage` sits at hue 90deg against `--safe` at 142.6deg — a 52.6deg gap,
+ * where Paper Office's own ferns-vs-jade gap is 25.4deg — and every green on
+ * the scenery is held at value 0.07-0.55 against the jade's 0.83. A healthy
+ * quota strip is a saturated bright bar; nothing growing in this clearing is.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="forest"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every surface
+ * in the product including the chrome and the landing page; and the scoped
+ * rules, which re-dress the objects on the floor. A world that stopped at the
+ * first half would be a colour scheme, which is the one thing a world is not
+ * allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,3,0) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy` and `.desk--busy .desk__monitor` below exist for
+ * exactly that reason as much as for the art.
+ */
+
+:root[data-world='forest'] {
+  /* A dark room, and it says so before a single pixel is painted. The
+   * pre-paint script in index.html stamps `data-world` and replays
+   * `hiveos.world.paint` from localStorage, so this lands with the stylesheet
+   * rather than after React mounts. Inherited from Phase 19 — this world adds
+   * nothing to index.html. */
+  color-scheme: dark;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Three greens, close together, separated by hairlines rather than by
+   * contrast — the paper office's construction, inverted. `--sand` is the
+   * *raised* surface, so on dark it is the lightest of the three. */
+  --cream: #0e1710;
+  --paper: #15201a;
+  --sand: #1e2c23;
+
+  /* `--ink` is "the mark on the page", not "a dark colour" — so it inverts
+   * with the page and becomes the palest thing in the system. That is what
+   * keeps `--text`, the solid `.btn--ink`, and every `--on` selection border
+   * correct for free. The three places where the base stylesheet uses
+   * `--ink-rgb` to mean *dark* rather than *maximum contrast* — the two scrims
+   * and the chair's under-edge — are re-pointed at `--cream-rgb` below. Phase
+   * 19's finding 2, written up front here rather than discovered again. */
+  --ink: #e8f0e4;
+  --rule: #2c3f31;
+  --rule-soft: #223026;
+  --rule-strong: #405a44;
+
+  --dim: #bacdb8;
+  --faint: #9bb09a;
+
+  /* Brand, still fills only, and deepened well below #ffca54 for the two
+   * reasons Night Watch found: at full brightness an amber button on a
+   * near-black page is the loudest thing on the board, and the quota strip has
+   * to stay the loudest thing on the board; and it buys the value headroom
+   * `--honey` needs below. Its dark label clears at 8.51:1. */
+  --amber: #d9a63a;
+  --amber-deep: #c4922e;
+  --on-amber: #141105;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Lifted until each one carries a word on moss. Measured against all eight
+   * of this world's surfaces, worst case 4.86:1 — the table is in PROGRESS.md.
+   *
+   * Three separations were searched rather than guessed:
+   *
+   * SAFE vs THE SCENERY. This world's own problem, and the one its brief names.
+   * See the note at the top of the file: 52.6deg of hue and 0.29 of value
+   * between the jade and the ferns, against Paper Office's 25.4deg and 0.01.
+   *
+   * COOL vs SAFE. A will-o'-wisp cyan and a budget jade both want to be the
+   * bright thing on a dark green ground, so they are held 49.6deg apart —
+   * `--cool` at 192.2deg, `--safe` at 142.6deg, against the paper office's
+   * 43deg. They are never the same kind of mark either — `--cool` lights an
+   * object in the clearing, `--safe` fills a meter in the chrome — but the hues
+   * have to survive being seen one after the other.
+   *
+   * HONEY vs AMBER. Phase 19's finding 4: on a dark ground "darker" is not
+   * available, so a text-weight warn hue has to come *up*, which is where the
+   * brand amber already sits. The separation moves to hue. Honey is an orange
+   * at 24.9deg, amber a yellow at 40.8deg — 15.8deg, where the paper office has
+   * 5.4deg. The guarantee underneath is the one that actually holds: amber is
+   * only ever a filled rectangle with dark text on it, honey is only ever a
+   * word. */
+  --cool: #56cfee;
+  --safe: #5ad488;
+  --honey: #ffa565;
+  --alarm: #f7776b;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 232, 240, 228;
+  --cream-rgb: 14, 23, 16;
+  --paper-rgb: 21, 32, 26;
+  --amber-rgb: 217, 166, 58;
+  --cool-rgb: 86, 207, 238;
+  --alarm-rgb: 247, 119, 107;
+
+  /* The quota strip's empty track. */
+  --tick: #233322;
+
+  /* --- The clearing ------------------------------------------------------ *
+   *
+   * Moss, and a worn path of packed earth crossing it. `--tile` is the path,
+   * which is Phase 22's finding 4 taken at its word: the token means "the other
+   * ground colour", not "lighter than the floor" — a crater was darker than its
+   * regolith, and a trodden path is browner and lighter than the moss beside
+   * it. */
+  --floor: #1a2817;
+  --tile: #3a2f1f;
+  /* Inside a hollow: leaf litter over packed earth, a shade above the moss
+   * outside. */
+  --room-floor: #23311e;
+  /* The wash of a lit slab up the inside of a hollow, and the only place a
+   * hollow takes a hue. */
+  --room-floor-busy: #1b3340;
+
+  /* Carved workbenches. Cut timber rather than laminate. */
+  --desk: #7a5a33;
+  --desk-edge: #33240f;
+  --desk-edge-rgb: 51, 36, 15;
+  --desk-top: #96723f;
+
+  /* The handoff is a folded leaf in this world, so `--envelope-edge` stops
+   * being a hairline around a piece of paper and becomes the leaf's own rim and
+   * midrib. Same token, same rules in the base stylesheet, different object —
+   * which is the whole reason these are named for the thing and not for the
+   * colour. */
+  --envelope-edge: #8fa87c;
+  --envelope-contact-rgb: 0, 6, 2;
+
+  /* A dormant scrying slab, and a woken one. The woken value keeps the extra
+   * brightness `--cool` gives up to stay legible as text — a light source is
+   * not a label, and the two have to read as the same hue at different weights.
+   * 3deg apart in hue, and it should stay that way. */
+  --screen-off: #1e2a24;
+  --screen-on: #6ee6f5;
+  --screen-on-rgb: 110, 230, 245;
+
+  /* The ferns. An olive green rather than the mid-green the office uses, and
+   * that is the single most load-bearing value in this file — see the risk note
+   * at the top. A fern one step bluer would start arguing with the budget
+   * meter, in a world that has ferns in two corners and moss everywhere. */
+  --foliage: #6a8a4a;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become a
+   * bark notice board and a water cooler become a stone well without the token
+   * names going wrong. */
+  --mug: #c9a06a; /* the acorn cup on the bench */
+  --board-face: #2b2015; /* the notice board's bark face */
+  --board-frame: #6b4f30; /* the branch it is lashed to */
+  --bottle: #8e8b76; /* the well's stone rim */
+  --bottle-base: #5c5a4a;
+  --cooler-body: #6b6857; /* the well's shaft */
+  --glass-sky: #8a9a7c; /* pale sky at the top of the canopy gap */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The coat colour is per-character and arrives inline from `lookFor`; these
+   * are the four layers every animal in the clearing shares. See WOODLAND in
+   * worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the body, and it is the one value here that was measured
+   * rather than picked — Night Watch's lesson, that a mid-tone torso which
+   * reads beautifully on cream dissolves entirely on a dark floor. This clears
+   * 4.15:1 on the moss, 3.69:1 inside a hollow and 3.52:1 on the path, while
+   * staying at value 0.58 against the palest coat's 0.78 and the darkest's
+   * 0.70 — so identity still reads from the top down, which for an animal seen
+   * from above is the only way it can read at all.
+   *
+   * `--sp-accent` is an ear and a beak, and it is warm. It reports nothing.
+   * `--sp-skin` is the pale fur of a snout, a facial disc or a badger's blaze. */
+  --sp-skin: #e8d9bd;
+  --sp-shirt: #948267;
+  --sp-accent: #e0a86a;
+  --sp-detail: #0d1408;
+
+  /* Structure. The wall band is a treeline and the trim is the bark the hollows
+   * and the canopy gap share. */
+  --wall: #0a120b;
+  --wall-trim: #55402a;
+  --rug: #243420; /* the mossy hollow the queue waits in */
+  --rug-edge-rgb: 150, 180, 128;
+  --chair: #8a6c3f; /* the heartwood of a cut log round */
+  --glass: #34412c; /* the far end of the canopy gap */
+
+  /* Shadows go black-green rather than brown, and harder: a 0.22 shadow that
+   * reads on cream is invisible under a canopy. */
+  --shadow-rgb: 0, 6, 2;
+  --shadow: rgba(var(--shadow-rgb), 0.5);
+  --vignette-rgb: 3, 10, 4;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a pale button with dark text here, so its hover settles
+   * *down* rather than lifting. */
+  --ink-hover: #d2dccd;
+  --engage-flash: #1d3f47;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because a treeline, a
+   * dirt path, a canopy dapple, a toadstool and a folded leaf are objects the
+   * paper office does not have, and inventing a shared token for them would put
+   * Paper Office's stylesheet in the business of describing a world it is not.
+   */
+  --canopy-low: #1c2c19; /* the misty base of the treeline */
+  --canopy-rgb: 16, 28, 14; /* leaf mass, for the shade it casts */
+  --trunk: #2e2416;
+  --trunk-lit: #4a3a23;
+  --mist-rgb: 96, 124, 90;
+  /* The path, in channels, because a path has to fade out at its edges and a
+   * hex cannot. Keep it in step with `--tile`. */
+  --tile-rgb: 58, 47, 31;
+  --moss-rgb: 74, 106, 58; /* the lighter clumps in the mottle */
+  --litter-rgb: 9, 17, 8; /* leaf litter, and deep shade under things */
+  /* Every warm light in this world: the dapples, the shaft through the gap, and
+   * the light falling into an open hollow. Ambient, and it reports nothing. */
+  --sun-rgb: 255, 212, 137;
+  --lantern: #ffd9a0;
+  --lantern-dim: #c98f45;
+  --lantern-rgb: 255, 217, 160;
+  --spore-rgb: 224, 236, 198;
+  /* The folded leaf that carries a handoff. Near-neutral on purpose — see the
+   * handoff block at the bottom of this file. */
+  --leaf: #cdd9bb;
+  --leaf-lit: #dde6cf;
+  /* The scrap of birch bark on a bench. `--paper` is the *panel* surface and
+   * has gone dark with the rest of the chrome, so anything that has to read as
+   * a pale sheet needs its own token — Phase 19's finding 3. */
+  --sheet: #dcd6c0;
+  --chalk-rgb: 226, 232, 214; /* marks on the notice board */
+  --toadstool: #e6dcc2;
+  --toadstool-edge: #b9ab8a;
+  --toadstool-rgb: 230, 220, 194;
+  --stalk: #d8cdae;
+  --well-water: #14201c;
+  --vine: #4e7a3f;
+  --foliage-dark: #4c6a37;
+  --tussock: #2e4224;
+  --chair-ring: #6b5129; /* the growth rings in a log round */
+  --stool-bark: #3b2a14;
+  /* The bark ring inside a hollow's rim. Channels rather than a hex because it
+   * is only ever used at one alpha, over the grain behind it. */
+  --bark-rgb: 59, 42, 20;
+  --undergrowth: #16240f; /* the bushes closing both sides of the clearing */
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. The paper office's recipe is a wall band over two
+ * offset 45deg checkers; this is a treeline over mottled moss with a trodden
+ * path through it.
+ *
+ * The checkers go entirely. A tiled surface is a floor somebody laid, and moss
+ * is not laid — so the tile field becomes two offset radial fields of lighter
+ * clumps and darker litter, at tile sizes sharing no useful factor so the
+ * mottle never resolves into a grid. That is Phase 19's lesson about lattices,
+ * which a ground texture walks straight into.
+ *
+ * The path is the piece of ground art with a job beyond atmosphere. It is
+ * placed against the constants in components.jsx — the corridor is the 20% gap
+ * between ROOMS at x 40-60, the doors sit at x 23 and x 77 on the rooms' bottom
+ * edge at y 62, and the open desks are at x 8 and x 91 — so the route every
+ * dispatch walks happens *on* something rather than across open moss. It still
+ * reports nothing: the path is identical whether anyone is queued or not.
+ *
+ * Both runs are ellipses rather than linear gradients, and that is Phase 19's
+ * fix rather than a preference: a linear gradient fades along one axis and
+ * stops dead on the other two edges, which at the 1440 width draws a visible
+ * cut where the path begins. An ellipse has no edges.
+ *
+ * The treeline layers are opaque and first in the list, so the moss tiling
+ * underneath never shows above it — and the path, which starts at y 12%,
+ * emerges from under the trees rather than beginning in mid-air. Same trick the
+ * base file uses, and the reason neither needs a mask.
+ */
+:root[data-world='forest'] .floor {
+  background-image:
+    /* the line where the trunks meet the ground, transparent above it so the
+       forest behind shows through */
+    linear-gradient(transparent 0 calc(100% - 1px), var(--wall-trim) calc(100% - 1px) 100%),
+    /* the forest itself, dark at the top and misting out at its base */
+      linear-gradient(var(--wall) 34%, var(--canopy-low)),
+    /* the spur out to the left-hand open desk */
+      radial-gradient(
+        ellipse 50% 50% at 50% 50%,
+        rgba(var(--tile-rgb), 0.95) 0 34%,
+        rgba(var(--tile-rgb), 0) 84%
+      ),
+    /* and the right-hand one */
+      radial-gradient(
+        ellipse 50% 50% at 50% 50%,
+        rgba(var(--tile-rgb), 0.95) 0 34%,
+        rgba(var(--tile-rgb), 0) 84%
+      ),
+    /* The path itself, down the corridor from the treeline to the hollow.
+       The solid core runs to 62% rather than 40%: at 40% the packed earth was
+       a short smear in the middle of a long fade, and on the 260px-tall floor
+       the 540 framing uses that read as a shadow between the stumps rather
+       than as ground anybody had walked on. It is the route every dispatch
+       takes, so it has to be legible at the framing the demo records at. */
+      radial-gradient(
+        ellipse 50% 50% at 50% 50%,
+        rgba(var(--tile-rgb), 0.95) 0 62%,
+        rgba(var(--tile-rgb), 0) 92%
+      ),
+    /* Moss, as eight large irregular blotches that DO NOT TILE.
+       Two earlier versions tiled — first two dot fields, then four offset
+       clump fields — and both read as a dot grid on a dark green card, which
+       is precisely the artefact Phase 19 and Phase 22 each warned about. The
+       lesson those two phases drew was "two lattices whose tile sizes share no
+       useful factor", and it is the wrong lesson for this surface: pocked
+       regolith and a star field are made of small discrete things, so a lattice
+       of them can be broken up, but moss is a continuous variation in colour
+       and ANY periodicity in it reads as a rendering artefact. So there is no
+       `repeat` here at all — eight blotches at irregular positions, sizes and
+       aspect ratios, sized off `--tile-size` so they keep their shape at both
+       framings and grow with the room in the wide layout. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.9) calc(var(--tile-size) * 1.15) at 19% 34%,
+        rgba(var(--moss-rgb), 0.15),
+        rgba(var(--moss-rgb), 0) 72%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.35) calc(var(--tile-size) * 1.6) at 68% 24%,
+      rgba(var(--moss-rgb), 0.12),
+      rgba(var(--moss-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 2.2) calc(var(--tile-size) * 0.95) at 44% 88%,
+      rgba(var(--moss-rgb), 0.13),
+      rgba(var(--moss-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.15) calc(var(--tile-size) * 1.45) at 88% 62%,
+      rgba(var(--moss-rgb), 0.11),
+      rgba(var(--moss-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.6) calc(var(--tile-size) * 1.05) at 31% 66%,
+      rgba(var(--litter-rgb), 0.3),
+      rgba(var(--litter-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.25) calc(var(--tile-size) * 1.3) at 78% 41%,
+      rgba(var(--litter-rgb), 0.26),
+      rgba(var(--litter-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.05) calc(var(--tile-size) * 0.85) at 7% 74%,
+      rgba(var(--litter-rgb), 0.32),
+      rgba(var(--litter-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.45) calc(var(--tile-size) * 0.9) at 57% 52%,
+      rgba(var(--litter-rgb), 0.22),
+      rgba(var(--litter-rgb), 0) 74%
+    );
+  background-size:
+    100% var(--walk-top),
+    100% var(--walk-top),
+    16% 13%,
+    16% 13%,
+    13% 74%,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  /* The four-value form, and every percentage below was solved rather than
+   * nudged. `left p%` offsets by p% of (container − image), so the centre of a
+   * sized layer lands at `(p/100)(W−w) + w/2`. Setting that equal to the
+   * constant in components.jsx and solving for p gives the numbers here — and
+   * because w is itself a percentage of W, p comes out the SAME at both demo
+   * framings, which is the only reason a path can be pinned to a desk at all.
+   *
+   *   spurs   -> OPEN_DESKS x 8 and x 91, y 78   (16% wide => p = 0 and 98.8)
+   *   path    -> the corridor between ROOMS, x 40-60, centred at 50 */
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 82.2%,
+    left 98.8% top 82.2%,
+    left 50% top 11%,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat: no-repeat;
+  background-color: var(--floor);
+  /* Deeper and wider than the paper office's warm vignette, and deeper than
+   * either dark world before it. This is the one thing in the brief that is
+   * about *composition* rather than about objects: a small clearing inside a
+   * large forest means the edges of the floor have to fall away into the trees,
+   * not simply be dim. */
+  box-shadow: inset 0 0 64px 16px rgba(var(--vignette-rgb), 0.62);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * The trunks, standing in the band the paper office uses for its back wall.
+ *
+ * Nine of them rather than a `repeating-linear-gradient`, and that is the same
+ * lattice lesson again from the other direction: evenly spaced trunks read as a
+ * fence. These are at irregular x positions, in three widths and four heights,
+ * and each is shaded across its width so it reads as a cylinder rather than as
+ * a bar.
+ *
+ * Positions are chosen around the two fixtures that hang in this band — the
+ * notice board at x 44-56% and the canopy gap at x 10-22% — so the treeline
+ * reads as trees rather than as bars disappearing behind furniture.
+ *
+ * Each layer takes its own width in px and its height from `--walk-top`, which
+ * is what confines all nine to the band without a mask. The band is 606x35 at
+ * the demo framing and roughly 1000x126 in the wide layout, so the trunks
+ * thicken relative to the floor as the room grows — which is correct: they are
+ * the only thing here that is nearer to the viewer than the floor is.
+ */
+:root[data-world='forest'] .worldlayer--sky {
+  background-image:
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk)),
+    linear-gradient(90deg, var(--trunk) 0 22%, var(--trunk-lit) 55%, var(--trunk));
+  background-size:
+    4px var(--walk-top),
+    3px calc(var(--walk-top) * 0.86),
+    5px var(--walk-top),
+    3px calc(var(--walk-top) * 0.72),
+    4px var(--walk-top),
+    3px calc(var(--walk-top) * 0.8),
+    5px var(--walk-top),
+    3px calc(var(--walk-top) * 0.9),
+    4px var(--walk-top);
+  background-position:
+    left 2% top 0,
+    left 26% top 0,
+    left 31% top 0,
+    left 37% top 0,
+    left 61% top 0,
+    left 68% top 0,
+    left 76% top 0,
+    left 86% top 0,
+    left 95% top 0;
+  background-repeat: no-repeat;
+}
+
+/* The canopy mass closing the top of the band, and the mist standing between
+ * the trunks at their feet. Both are what make nine bars read as a wood with
+ * depth in it rather than as a row of posts. */
+:root[data-world='forest'] .worldlayer--sky::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: var(--walk-top);
+  background-image:
+    linear-gradient(to bottom, rgba(var(--litter-rgb), 0.8), rgba(var(--litter-rgb), 0)),
+    linear-gradient(to top, rgba(var(--mist-rgb), 0.15), rgba(var(--mist-rgb), 0));
+  background-size:
+    100% 38%,
+    100% 48%;
+  background-position:
+    left 0 top 0,
+    left 0 bottom 0;
+  background-repeat: no-repeat;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * Dappled canopy light: nine pools of warm light on the moss, where the sun
+ * found a way through.
+ *
+ * Irregular in size and position on purpose. Dappling is the one natural
+ * texture everybody has actually looked at, so a regular field of identical
+ * discs would be noticed as wrong by someone who could not say why.
+ *
+ * Warm, and this is the world where "ambient warmth decorates" is first
+ * actually load-bearing. Held at 0.05-0.085 alpha, far below the 0.34 wash a
+ * working hollow takes, so the one cool thing on this floor is never competing
+ * with an ambient one. Placed clear of the two desks at the hollows' centres
+ * and clear of the shaft at (17%, 46%), so no dapple ever lands where a state
+ * is being reported.
+ */
+:root[data-world='forest'] .worldlayer--ground {
+  /* Radii in LENGTHS, not percentages, and this is the same class of mistake
+   * the daylight cone taught Phase 18. The floor is 516x260 at the 540 framing
+   * and 515x622 at 960, so an `ellipse 5% 11%` is a round dapple at one and a
+   * tall smear at the other. `--tile-size` is 44px at both, so a dapple sized
+   * off it is the same shape wherever it is seen — and grows with the room in
+   * the wide layout, which is where the light would otherwise stay a puddle. */
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.62) calc(var(--tile-size) * 0.4) at 33% 22%,
+      rgba(var(--sun-rgb), 0.085),
+      rgba(var(--sun-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.4) calc(var(--tile-size) * 0.28) at 47% 44%,
+      rgba(var(--sun-rgb), 0.07),
+      rgba(var(--sun-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.5) calc(var(--tile-size) * 0.34) at 58% 29%,
+      rgba(var(--sun-rgb), 0.06),
+      rgba(var(--sun-rgb), 0) 73%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.76) calc(var(--tile-size) * 0.46) at 29% 72%,
+      rgba(var(--sun-rgb), 0.075),
+      rgba(var(--sun-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.44) calc(var(--tile-size) * 0.32) at 66% 58%,
+      rgba(var(--sun-rgb), 0.055),
+      rgba(var(--sun-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.68) calc(var(--tile-size) * 0.42) at 84% 38%,
+      rgba(var(--sun-rgb), 0.08),
+      rgba(var(--sun-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.38) calc(var(--tile-size) * 0.26) at 11% 27%,
+      rgba(var(--sun-rgb), 0.05),
+      rgba(var(--sun-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.56) calc(var(--tile-size) * 0.36) at 72% 87%,
+      rgba(var(--sun-rgb), 0.07),
+      rgba(var(--sun-rgb), 0) 73%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.42) calc(var(--tile-size) * 0.3) at 45% 93%,
+      rgba(var(--sun-rgb), 0.055),
+      rgba(var(--sun-rgb), 0) 74%
+    );
+  background-repeat: no-repeat;
+}
+
+/* The undergrowth closing the left and right edges of the clearing.
+ *
+ * This is the other half of the composition note — the treeline closes the
+ * back, and without something on the sides the clearing is a field with trees
+ * at one end of it. Each side is a scalloped edge of leaf mass at two tile
+ * heights that share no useful factor, over a gradient fading inward, so the
+ * bushes never resolve into a scallop pattern.
+ *
+ * Below the rooms in DOM order, so a hollow paints over the strip and only the
+ * outermost few percent of it show — which is exactly right, because ROOMS
+ * start at x 6 and end at x 94. Below the people too, so somebody walking the
+ * edge of the clearing passes in front of the bushes.
+ */
+:root[data-world='forest'] .worldlayer--ground::before,
+:root[data-world='forest'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  background-repeat: repeat-y, repeat-y, no-repeat;
+}
+
+:root[data-world='forest'] .worldlayer--ground::before {
+  left: 0;
+  background-image:
+    radial-gradient(circle at 0% 50%, var(--undergrowth) 0 34%, transparent 36%),
+    radial-gradient(circle at 0% 50%, var(--undergrowth) 0 26%, transparent 28%),
+    linear-gradient(to right, rgba(var(--litter-rgb), 0.6), rgba(var(--litter-rgb), 0));
+  background-size:
+    100% 27px,
+    100% 17px,
+    100% 100%;
+  background-position:
+    left 0 top 0,
+    left 0 top 9px,
+    left 0 top 0;
+}
+
+:root[data-world='forest'] .worldlayer--ground::after {
+  right: 0;
+  background-image:
+    radial-gradient(circle at 100% 50%, var(--undergrowth) 0 34%, transparent 36%),
+    radial-gradient(circle at 100% 50%, var(--undergrowth) 0 26%, transparent 28%),
+    linear-gradient(to left, rgba(var(--litter-rgb), 0.6), rgba(var(--litter-rgb), 0));
+  background-size:
+    100% 23px,
+    100% 15px,
+    100% 100%;
+  background-position:
+    left 0 top 5px,
+    left 0 top 0,
+    left 0 top 0;
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Drifting spores. Faint by a wide margin: this layer sits above every pawn,
+ * and anything strong enough to notice would be strong enough to sit on
+ * somebody's name label.
+ *
+ * Two fields rather than two layers on one element, which is Phase 19's trick
+ * and the whole reason this does not read as a rendering artefact: a single
+ * tiled dot field is a lattice, and one lattice over a mottled floor looks like
+ * a bug. Two lattices whose tile sizes share no useful factor, drifting at
+ * different speeds, never resolve into one grid. Each seam-free loop needs its
+ * translate to be a whole tile, so they cannot share an element.
+ *
+ * Drifting diagonally, where Night Watch's motes and the colony's dust both
+ * moved along one axis — spores rise on warm air rather than blow past. That
+ * costs nothing extra: a translate of exactly one tile in *each* direction is
+ * as seam-free as one tile along a single axis, provided the element has room
+ * above and below to do it in, which is what the tall inset below buys.
+ */
+:root[data-world='forest'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='forest'] .worldlayer--air::before,
+:root[data-world='forest'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Wider and much taller than the floor, so a diagonal drift never reaches an
+   * edge on either axis. */
+  inset: -80% -60%;
+}
+
+:root[data-world='forest'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--spore-rgb), 0.12) 0 0.7px,
+    transparent 1.5px
+  );
+  background-size: 149px 97px;
+}
+
+:root[data-world='forest'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--spore-rgb), 0.08) 0 0.8px,
+    transparent 1.6px
+  );
+  background-size: 83px 61px;
+  background-position: 23px 13px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='forest'] .worldlayer--air::before {
+    animation: forest-spores-far 190s linear infinite;
+  }
+
+  :root[data-world='forest'] .worldlayer--air::after {
+    animation: forest-spores-near 124s linear infinite;
+  }
+
+  @keyframes forest-spores-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(149px, -97px, 0);
+    }
+  }
+
+  @keyframes forest-spores-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(83px, -61px, 0);
+    }
+  }
+}
+
+/* --- Hollow stumps ---------------------------------------------------------
+ *
+ * The project rooms become hollowed-out stumps standing in the clearing, with
+ * the grain of the inner wall running up the sides and light falling in through
+ * the open top.
+ *
+ * Rounded where the office rooms are squared and the colony's modules are
+ * squarer still — nothing in this world was built, it grew, and the top corners
+ * round off as well even though they sit against the treeline, because a stump
+ * standing in front of the trees is exactly the read wanted.
+ *
+ * The border stays 2px and keeps the base geometry. The thickness of bark comes
+ * from an inset ring instead, which costs nothing and keeps the room's padding
+ * box — and therefore where DESK_IN_ROOM puts the bench — identical to every
+ * other world.
+ */
+:root[data-world='forest'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* light falling in through the open top of the stump — warm, ambient, and
+       meaning nothing at all */
+    radial-gradient(
+      ellipse 78% 62% at 50% 6%,
+      rgba(var(--sun-rgb), 0.055),
+      rgba(var(--sun-rgb), 0) 72%
+    ),
+    /* the grain of the inner wall */
+      repeating-linear-gradient(90deg, rgba(var(--litter-rgb), 0.34) 0 1px, transparent 1px 7px);
+  border: 2px solid var(--wall-trim);
+  border-radius: 9px 9px 13px 13px;
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--bark-rgb), 0.55),
+    inset 0 0 20px 6px rgba(var(--vignette-rgb), 0.42);
+}
+
+/* The doorway: a gap in the bark with the path arriving at it, and a fringe of
+ * vine hanging over the opening.
+ *
+ * The gap is painted in the *path's* colour rather than the corridor floor's,
+ * which is a one-token change that does a surprising amount — it says the way
+ * in and the way across the clearing are the same trodden ground. */
+:root[data-world='forest'] .room__door {
+  background: var(--tile);
+}
+
+/* The vine. Hanging into the corridor rather than sitting inside the doorway,
+ * because a drape you can see under is what makes an opening read as an
+ * opening. `.room` has no `overflow: hidden`, so it is free to hang. */
+:root[data-world='forest'] .room__door::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: -1px;
+  height: calc(5px * var(--furn));
+  background-image: radial-gradient(circle at 50% 0%, var(--vine) 0 42%, transparent 44%);
+  background-size: 6px 100%;
+  background-repeat: repeat-x;
+  opacity: 0.85;
+}
+
+/* BUSY, and this is the state expression whose *form* this world changes.
+ *
+ * Paper Office announces a working room by tinting its floor. A hollow
+ * announces it by GLOWING FROM INSIDE — the will-o'-wisp at the slab fills the
+ * stump and comes up its inner wall, which is what a lit hollow looks like from
+ * across a clearing. Same hue family, same `--cool` token, same label text; a
+ * different shape of light, and it wells up from the middle rather than falling
+ * from the roof the way Night Watch's dome does.
+ *
+ * The lantern above it does not go out. That is the ambient/state split doing
+ * its job in the one place it is visible: the warm light was always there and
+ * still means nothing, and the cool light is what arrived.
+ *
+ * Restated at this specificity on purpose. The `.room` rule above is (0,3,0)
+ * and the base `.room--busy` is (0,2,0), so without this the hollow would keep
+ * its unlit interior while BUSY and the whole beat would vanish. */
+:root[data-world='forest'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse 72% 60% at 50% 58%,
+      rgba(var(--cool-rgb), 0.3),
+      rgba(var(--cool-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse 78% 62% at 50% 6%,
+      rgba(var(--sun-rgb), 0.05),
+      rgba(var(--sun-rgb), 0) 72%
+    ),
+    repeating-linear-gradient(90deg, rgba(var(--litter-rgb), 0.28) 0 1px, transparent 1px 7px);
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cool-rgb), 0.26),
+    inset 0 0 20px 6px rgba(var(--vignette-rgb), 0.22);
+}
+
+/* The lantern hanging in the hollow.
+ *
+ * `.room` has no pseudo-element in the base stylesheet, so this is free. It is
+ * deliberately NOT restated under `.room--busy` — a lantern that changed when
+ * the agent started working would be a second status light, and this world's
+ * whole argument is that there is exactly one.
+ *
+ * Small, and held at a low alpha: the point is that the clearing has warmth in
+ * it, not that the corner is bright. It sits high and right, clear of the bench
+ * stack that DESK_IN_ROOM puts at 38% of the hollow's height.
+ */
+:root[data-world='forest'] .room::before {
+  content: '';
+  position: absolute;
+  right: 11%;
+  top: 9%;
+  width: calc(7px * var(--furn));
+  height: calc(7px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, var(--lantern) 0 42%, var(--lantern-dim) 78%);
+  box-shadow:
+    0 0 7px 2px rgba(var(--lantern-rgb), 0.2),
+    0 0 16px 7px rgba(var(--lantern-rgb), 0.08);
+}
+
+/* --- Carved workbenches ----------------------------------------------------
+ *
+ * The desk becomes a bench cut from a plank, and the monitor becomes a scrying
+ * slab standing at the back of it: a river stone, dormant, that wakes when the
+ * agent is working.
+ *
+ * The slab keeps most of the monitor's footprint rather than becoming a
+ * genuinely small stone, and that is a legibility decision over an art one —
+ * "this desk is working" is the single most important thing this floor says,
+ * and it says it by this element lighting up at recording size.
+ */
+:root[data-world='forest'] .desk__surface {
+  border-radius: 3px 3px 2px 2px;
+  background-image:
+    /* the plank's grain, running along the bench */
+    repeating-linear-gradient(0deg, rgba(var(--litter-rgb), 0.22) 0 1px, transparent 1px 7px),
+    linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.08),
+    inset 0 -4px 0 0 var(--desk-edge),
+    0 4px 7px var(--shadow);
+}
+
+:root[data-world='forest'] .desk__monitor {
+  position: relative;
+  width: calc(27px * var(--furn));
+  height: calc(19px * var(--furn));
+  /* A stone, not a screen. Deliberately uneven on all four corners — a slab
+   * with one radius is a lozenge, which reads as manufactured. */
+  border-radius: 48% 42% 46% 52% / 46% 52% 42% 48%;
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 2px 4px 0 rgba(var(--litter-rgb), 0.55);
+}
+
+/* The polished face of the stone, catching what light there is. */
+:root[data-world='forest'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  left: 30%;
+  top: 18%;
+  width: 34%;
+  height: 26%;
+  transform: rotate(-12deg);
+  border-radius: 50%;
+  background: rgba(var(--sheen-rgb), 0.07);
+}
+
+/* The slab wakes. Restated here for the same specificity reason as
+ * `.room--busy`, and re-tuned besides: the base alphas are deliberately strong
+ * because a glow has to fight a cream floor. Against moss a glow is additive
+ * and barely has to try, and at 0.72/0.34 the bench went white. */
+:root[data-world='forest'] .desk--busy .desk__monitor {
+  background: var(--screen-on);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    0 0 12px 2px rgba(var(--screen-on-rgb), 0.42),
+    0 8px 26px 8px rgba(var(--screen-on-rgb), 0.2);
+}
+
+/* The polish becomes a highlight on a lit surface. */
+:root[data-world='forest'] .desk--busy .desk__monitor::before {
+  background: rgba(var(--sheen-rgb), 0.45);
+}
+
+/* The acorn cup, where the mug was. */
+:root[data-world='forest'] .desk__surface::before {
+  border-radius: 50% 50% 42% 42%;
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--litter-rgb), 0.35);
+}
+
+/* A scrap of birch bark, where the loose paper was. Its own pale token rather
+ * than `--paper`, which is the panel surface and has gone dark. */
+:root[data-world='forest'] .desk__surface::after {
+  background: var(--sheet);
+  box-shadow: 0 0 0 1px rgba(var(--desk-edge-rgb), 0.55);
+}
+
+/* Two styluses in a groove along the near edge, where the keyboard was. */
+:root[data-world='forest'] .desk__keyboard {
+  height: calc(5px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--desk-edge);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 24%,
+    var(--stalk) 24% 29%,
+    transparent 29% 42%,
+    var(--stalk) 42% 47%,
+    transparent 47%
+  );
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.05);
+}
+
+/* The stool becomes a cut log round, seen end-on from above: growth rings, a
+ * bark rim, and the pith at the middle.
+ *
+ * Height unchanged at 18px so the bench stack — and therefore where the
+ * nameplate lands under it — is exactly where every other world puts it.
+ *
+ * The base rule shades the near edge with `rgba(--ink-rgb, 0.32)`, which means
+ * "a dark line" and would come out pale here, because `--ink` is the palest
+ * thing in this world. Re-pointed at the page ground, which is what it actually
+ * wanted. Phase 19's finding 2, third of three. */
+:root[data-world='forest'] .desk__chair {
+  width: calc(18px * var(--furn));
+  height: calc(18px * var(--furn));
+  border-radius: 50%;
+  background: repeating-radial-gradient(
+    circle at 46% 44%,
+    var(--chair) 0 2px,
+    var(--chair-ring) 2px 3px
+  );
+  box-shadow:
+    inset 0 0 0 2px var(--stool-bark),
+    inset 0 -2px 0 0 rgba(var(--cream-rgb), 0.5),
+    0 3px 6px var(--shadow);
+}
+
+/* The pith. */
+:root[data-world='forest'] .desk__chair::before {
+  left: 46%;
+  top: 40%;
+  width: calc(3px * var(--furn));
+  height: calc(3px * var(--furn));
+  border-radius: 50%;
+  background: var(--stool-bark);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> bark notice board: a slab of bark lashed to a branch, with
+ * chalk marks on it. */
+:root[data-world='forest'] .fixture--board {
+  border-radius: 3px 6px 4px 7px;
+  background-color: var(--board-face);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(var(--litter-rgb), 0.5) 0 1px, transparent 1px 6px),
+    linear-gradient(160deg, rgba(var(--sheen-rgb), 0.05), rgba(var(--sheen-rgb), 0) 55%);
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 3px 6px var(--shadow);
+}
+
+/* The marks become chalk dashes rather than continuous strokes — charcoal on
+ * bark skips, and a solid bar on a striated surface read as a sticker. */
+:root[data-world='forest'] .board__scribble {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--chalk-rgb), 0.5) 0 5px,
+    transparent 5px 8px
+  );
+}
+
+/* Water cooler -> a stone well. The bottle becomes the well's mouth, seen from
+ * above: a stone rim with dark water inside it; the body becomes the shaft.
+ *
+ * Dark water rather than lit water, and that is the ambient/state rule again:
+ * a well glowing cool would be a second, silent status light in a clearing
+ * whose whole argument is that there is exactly one. */
+:root[data-world='forest'] .cooler__bottle {
+  /* Stacked over the apron below it, which is a later flex sibling and would
+   * otherwise paint across the bottom of the rim. The mouth of a well is the
+   * nearest thing to the eye; it goes on top. */
+  position: relative;
+  z-index: 1;
+  width: calc(15px * var(--furn));
+  height: calc(15px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    var(--well-water) 0 50%,
+    var(--bottle) 54%,
+    var(--bottle-base) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--litter-rgb), 0.5),
+    0 2px 5px var(--shadow);
+}
+
+/* The apron of stones the rim stands on.
+ *
+ * WIDER than the rim, which is the whole of what makes this read as a well.
+ * The first version was narrower — a circle on a small box, which from above is
+ * a magnifying glass, not a well. A stone apron spreading out under the mouth
+ * is what a well looks like from directly overhead, and it is the one view this
+ * floor ever has. */
+:root[data-world='forest'] .cooler__body {
+  width: calc(21px * var(--furn));
+  height: calc(7px * var(--furn));
+  margin-top: calc(-3px * var(--furn));
+  border-radius: 40% 40% 50% 50%;
+  background: var(--cooler-body);
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--litter-rgb), 0.35),
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.06),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> a gap in the canopy. The glazing goes: a mullion and a transom are
+ * exactly what a hole in a canopy should not have.
+ *
+ * NOT ONE CLEAN OPENING, and that took two tries to get right. This fixture is
+ * 70x28 — a wide, low box — and any wide low pale shape in it reads as a LEAF,
+ * which in the world whose handoff is a folded leaf is the single worst thing
+ * it could be. Breaking the rim with lobes was not enough: a leaf with a ragged
+ * edge is still a leaf.
+ *
+ * So there is no single opening at all. The ground is leaf mass, and the sky is
+ * FOUR CHINKS of different sizes showing through it — which is what a canopy
+ * actually looks like from underneath, and is unmistakably not one object. The
+ * chinks are sized in lengths off `--tile-size` rather than in percentages, for
+ * the reason the dapples are. */
+:root[data-world='forest'] .fixture--window {
+  border-radius: 58% 42% 52% 48% / 55% 48% 52% 45%;
+  background-color: var(--glass);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.3) calc(var(--tile-size) * 0.17) at 27% 38%,
+      var(--glass-sky) 0 62%,
+      rgba(var(--canopy-rgb), 0) 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.19) calc(var(--tile-size) * 0.12) at 53% 62%,
+      var(--glass-sky) 0 58%,
+      rgba(var(--canopy-rgb), 0) 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.14) calc(var(--tile-size) * 0.1) at 71% 31%,
+      var(--glass-sky) 0 56%,
+      rgba(var(--canopy-rgb), 0) 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.1) calc(var(--tile-size) * 0.08) at 40% 77%,
+      var(--glass-sky) 0 54%,
+      rgba(var(--canopy-rgb), 0) 100%
+    );
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 3px rgba(var(--canopy-rgb), 0.75),
+    0 0 0 1px var(--wall-trim);
+}
+
+/* The base rule's `::before` is a glazing bar, which a hole in a canopy must
+ * not have. Gone — the leaf mass is the fixture's own ground now, so nothing
+ * has to be drawn over the rim to break it up. */
+:root[data-world='forest'] .fixture--window::before {
+  display: none;
+}
+
+/* The branch crossing the opening, with three leaves on it.
+ *
+ * Held INSIDE the opening on both sides. The first version ran to `right: -2%`
+ * with leaf shadows reaching 23px further, which put the whole assembly outside
+ * the blob — and a pale blob with a stem coming off it reads as one large leaf,
+ * which is the one thing this fixture must not look like in a world whose
+ * handoff is a leaf. */
+:root[data-world='forest'] .fixture--window::after {
+  left: 16%;
+  right: 16%;
+  top: 58%;
+  height: calc(2px * var(--furn));
+  transform: rotate(-7deg);
+  border-radius: 2px;
+  background: var(--trunk-lit);
+  box-shadow:
+    4px -3px 0 -1px var(--foliage-dark),
+    11px 2px 0 -1px var(--foliage-dark),
+    18px -2px 0 -1px var(--foliage-dark);
+}
+
+/* Daylight -> the shaft of late sun through the gap.
+ *
+ * The fixture keeps its role exactly: it is a pool of light in a fixed place at
+ * (17%, 46%), directly under the canopy gap at (16%, 9%), so the shaft lands
+ * where the opening is. This is the one case the brief names for `daylight`
+ * that is genuinely *light* rather than an object — Phase 22's finding 2 was
+ * about worlds that tried to put a celestial body here, and a shaft of sun is
+ * the opposite of that problem.
+ *
+ * Held far below the strength of a woken slab so the two can never be confused
+ * — 0.13 against the slab's 0.42 — and warm, which it is allowed to be for the
+ * same reason Paper Office's is: sunlight on a floor is the purest possible
+ * case of a colour that reports nothing. */
+:root[data-world='forest'] .fixture--daylight {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--sun-rgb), 0.13),
+    rgba(var(--sun-rgb), 0) 68%
+  );
+}
+
+/* Plants -> ferns, and one cluster of mushrooms.
+ *
+ * The brief asks for both, and there are exactly two plants on this floor. They
+ * are adjacent siblings — PLANTS.map in components.jsx renders them back to
+ * back with nothing between — so `+` is what tells them apart. `:nth-of-type`
+ * would not: it counts divs, and these sit among a great many other divs.
+ *
+ * If that adjacency ever breaks the failure is that the clearing has two ferns
+ * in it, which is a fine thing for a clearing to have. */
+:root[data-world='forest'] .decor__leaves {
+  width: calc(4px * var(--furn));
+  height: calc(13px * var(--furn));
+  border-radius: 60% 60% 30% 30%;
+  background: var(--foliage);
+  box-shadow:
+    -7px 3px 0 -1px var(--foliage-dark),
+    7px 3px 0 -1px var(--foliage-dark),
+    -4px -1px 0 -1px var(--foliage),
+    4px -1px 0 -1px var(--foliage);
+}
+
+:root[data-world='forest'] .decor__pot {
+  width: calc(13px * var(--furn));
+  height: calc(6px * var(--furn));
+  margin-top: calc(1px * var(--furn));
+  border-radius: 50% 50% 40% 40%;
+  background: var(--tussock);
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--litter-rgb), 0.4),
+    0 3px 5px var(--shadow);
+}
+
+:root[data-world='forest'] .decor--plant + .decor--plant .decor__leaves {
+  width: calc(9px * var(--furn));
+  height: calc(7px * var(--furn));
+  border-radius: 50% 50% 42% 42%;
+  background: var(--toadstool);
+  box-shadow:
+    -6px 4px 0 -2px var(--toadstool),
+    6px 3px 0 -1px var(--toadstool-edge),
+    0 0 0 1px rgba(var(--litter-rgb), 0.35);
+}
+
+:root[data-world='forest'] .decor--plant + .decor--plant .decor__pot {
+  width: calc(4px * var(--furn));
+  height: calc(7px * var(--furn));
+  margin-top: 0;
+  border-radius: 1px 1px 3px 3px;
+  background: var(--stalk);
+  box-shadow: 0 3px 5px var(--shadow);
+}
+
+/* --- The mossy hollow ------------------------------------------------------
+ *
+ * The waiting area becomes a dip in the clearing floor with a ring of
+ * toadstools in it, and a queued member stands on one.
+ *
+ * The toadstools are placed against the queue's own constants in
+ * components.jsx: WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the
+ * first row land at floor x 38, 47, 56, 65 and 74. The hollow runs from 21% to
+ * 79%, so those are 29%, 45%, 60%, 76% and 91% of its width. Standing *on* a
+ * toadstool rather than near one is the difference between a queue and a crowd
+ * — and the toadstools are there whether anyone is queued or not, so they
+ * report nothing.
+ *
+ * Cream-capped, not red. A red toadstool would put a large soft shape 5deg off
+ * `--alarm` on the floor, five times over, in the one place people stand when
+ * the board is trying to tell them something.
+ *
+ * Still soft-edged and borderless for the reason the rug was — a bordered
+ * rectangle on the floor reads as another UI panel dropped onto the room — but
+ * the edge inverts: on cream it was a pale inset ring, here it is a pale rim
+ * with the dark closing in behind it. The corner radii are uneven so the dip
+ * reads as ground rather than as a card, and kept modest so `.waiting__label`,
+ * which is pinned 10px from the top right, still sits inside the shape.
+ */
+:root[data-world='forest'] .waiting {
+  border-radius: 16px 20px 22px 18px / 18px 16px 20px 22px;
+  background-color: var(--rug);
+  background-image:
+    /* Radii in LENGTHS, not percentages, for the reason the dapples are: this
+     * box is 298x83 at the 540 framing and 298x199 at 960, so an `ellipse
+     * 3.4% 11%` is a cap at one and a standing egg at the other. Sized off
+     * `--tile-size`, a cap is a cap at both. */
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.16) at 29% 50%,
+      var(--toadstool) 0 56%,
+      var(--toadstool-edge) 56% 74%,
+      rgba(var(--litter-rgb), 0.5) 74% 88%,
+      transparent 92%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.16) at 45% 50%,
+      var(--toadstool) 0 56%,
+      var(--toadstool-edge) 56% 74%,
+      rgba(var(--litter-rgb), 0.5) 74% 88%,
+      transparent 92%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.16) at 60% 50%,
+      var(--toadstool) 0 56%,
+      var(--toadstool-edge) 56% 74%,
+      rgba(var(--litter-rgb), 0.5) 74% 88%,
+      transparent 92%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.16) at 76% 50%,
+      var(--toadstool) 0 56%,
+      var(--toadstool-edge) 56% 74%,
+      rgba(var(--litter-rgb), 0.5) 74% 88%,
+      transparent 92%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.16) at 91% 50%,
+      var(--toadstool) 0 56%,
+      var(--toadstool-edge) 56% 74%,
+      rgba(var(--litter-rgb), 0.5) 74% 88%,
+      transparent 92%
+    ),
+    /* the moss the dip is carpeted in, on the same non-tiling construction the
+       clearing floor uses — and for the same reason: any periodic texture on a
+       continuous surface like moss reads as a rendering artefact */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 0.8) at 22% 34%,
+        rgba(var(--moss-rgb), 0.14),
+        rgba(var(--moss-rgb), 0) 72%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.95) at 74% 66%,
+      rgba(var(--litter-rgb), 0.26),
+      rgba(var(--litter-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.3) calc(var(--tile-size) * 0.7) at 52% 84%,
+      rgba(var(--moss-rgb), 0.1),
+      rgba(var(--moss-rgb), 0) 72%
+    );
+  background-size: auto;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--rug-edge-rgb), 0.26),
+    inset 0 0 26px 8px rgba(var(--vignette-rgb), 0.5);
+}
+
+/* --- The cast --------------------------------------------------------------
+ *
+ * The one-pixel rim around every sprite comes from `--ink-rgb`, which this
+ * world has inverted to the palest thing in the system — so what was a hard
+ * dark outline on cream becomes a lit edge on moss, which is both the right
+ * read for the world and the right physics for a clearing lit from above.
+ * Dropped to 0.32 because at the base 0.8 a pale rim is a halo. */
+:root[data-world='forest'] .sprite::before,
+:root[data-world='forest'] .agentface::before {
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.32));
+}
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * A folded leaf, crossing the clearing. The path is untouched, the 1100 ms
+ * timing is untouched and still comes from the base `.envelope` transition in
+ * step with `ENVELOPE_MS` in components.jsx, and the `aria-live` label is
+ * untouched because it lives in the markup and this file has no reach into it.
+ * Only the thing travelling changes.
+ *
+ * PALE, AND ALMOST NEUTRAL, WHICH IS THE WHOLE DECISION. The obvious leaf for a
+ * forest is green, and a green leaf is the one colour this world may not use
+ * for it: a saturated green object crossing the floor in a world whose budget
+ * meter is jade would be a state hue detaching from the chrome and flying
+ * across the room. So this is the pale underside of a leaf — value 0.90 at
+ * saturation 0.10 — which reads as a bright object against moss for exactly the
+ * reason Paper Office's envelope reads as one against cream, and just as
+ * unmistakably is not a status light.
+ *
+ * NO ADDED MOTION, and that is deliberate rather than an omission. Alien Colony
+ * was the phase the plan assigned the handoff restyle to, and it earned a
+ * pulsing ring by replacing the object entirely; this brief says "unchanged,
+ * restyled as a folded leaf". A leaf that tumbled would also have to fight the
+ * base `envelope-in` animation, which lives on `.envelope` itself and would be
+ * replaced by anything declared here.
+ */
+:root[data-world='forest'] .envelope {
+  width: calc(19px * var(--furn));
+  height: calc(13px * var(--furn));
+  /* Sharp at the top left and bottom right, round at the other two — which is
+   * a leaf, in one declaration. */
+  border-radius: 1px 62% 1px 62%;
+  border: 1px solid var(--envelope-edge);
+  background: linear-gradient(150deg, var(--leaf-lit), var(--leaf) 64%);
+  box-shadow:
+    0 3px 6px var(--shadow),
+    0 1px 2px rgba(var(--envelope-contact-rgb), 0.45);
+}
+
+/* The stem, on the leaf's own `::after` — which is free, because `.envelope`
+ * has no pseudo-elements in the base stylesheet. It is what stops the shape
+ * reading as a generic lozenge at the size a 540px recording sees. */
+:root[data-world='forest'] .envelope::after {
+  content: '';
+  position: absolute;
+  left: calc(-4px * var(--furn));
+  top: 0;
+  width: calc(5px * var(--furn));
+  height: 1px;
+  transform: rotate(26deg);
+  transform-origin: right center;
+  border-radius: 1px;
+  background: var(--envelope-edge);
+}
+
+/* The flap is clipped to the envelope's own box by the base rule; re-pointed at
+ * the leaf's outline so the midrib stops at the leaf's edge. */
+:root[data-world='forest'] .envelope__flap {
+  border-radius: 1px 62% 1px 62%;
+}
+
+/* The flap's own `::before` drew the paper flap's two creases as a rotated
+ * square. There is no crease on a leaf; there is a midrib, running corner to
+ * corner between the two sharp points.
+ *
+ * 34deg because the box is 19x13 and `atan(13/19)` is 34.4deg, and 121% because
+ * the diagonal of a 19x13 box is 23.0 — both of which hold at every `--furn`,
+ * since the leaf keeps its aspect ratio when the room grows. */
+:root[data-world='forest'] .envelope__flap::before {
+  left: 50%;
+  top: 50%;
+  width: 121%;
+  height: 1px;
+  transform: translate(-50%, -50%) rotate(34deg);
+  border: 0;
+  border-radius: 0;
+  background: var(--envelope-edge);
+}
+
+/* --- Chrome ----------------------------------------------------------------
+ *
+ * The two scrims are the other place the base stylesheet uses `--ink-rgb` to
+ * mean "dark" rather than "maximum contrast against the page". Re-pointed at
+ * the page ground, so a dialog still darkens the board behind it instead of
+ * washing it out. Phase 19's finding 2, first and second of three. */
+:root[data-world='forest'] .modal {
+  background: rgba(var(--cream-rgb), 0.74);
+}
+
+:root[data-world='forest'] .drawer {
+  background: rgba(var(--cream-rgb), 0.6);
+}

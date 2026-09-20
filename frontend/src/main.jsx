@@ -26,6 +26,7 @@ import './styles.css'
 // styles.css, which is what keeps the recorded demo safe from a world that is
 // still being built.
 import './worlds/nightsky.css'
+import './worlds/forest.css'
 import './worlds/alien.css'
 
 import App from './App'

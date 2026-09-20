@@ -533,12 +533,12 @@ there was a submittable deliverable at every point.
 
 > ### ▶ These are the active phases as of 2026-09-21
 >
-> The hackathon is over and submitted. **Only two worlds shipped before the deadline — 19 Night
-> Watch and 22 Alien Colony** (Paper Office is the Phase 12 default, not a world phase). The user
-> is now building the rest, one phase per session.
+> The hackathon is over and submitted. **Three worlds have shipped — 19 Night Watch, 20 Enchanted
+> Forest and 22 Alien Colony** (Paper Office is the Phase 12 default, not a world phase). The user
+> is building the rest, one phase per session.
 >
 > **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
-> **20 → 21 → 23 → 24 → 25 → 26 → 27.**
+> **21 → 23 → 24 → 25 → 26 → 27.**
 >
 > 19–26 depend on 18 and on nothing else, so that order is a convention and the user may reorder
 > or drop any of them. **27 is genuinely last** — it depends on whichever worlds actually shipped.
@@ -874,6 +874,54 @@ the clearing before calling the phase done.
 **Validation.** The shared block above, plus a side-by-side of `--safe` and the world's greens.
 
 **Gate.** The recolour test passes, and a healthy budget cannot be mistaken for scenery.
+
+**Shipped 2026-09-21. Four things the plan got wrong, corrected in flight — and the first three
+are findings for worlds 21 and 23–26 rather than details of this one:**
+
+1. **The two-lattice trick does not work on a continuous surface, and this is a correction to the
+   lesson Phases 19 and 22 both recorded.** Their rule — "two tiled fields whose tile sizes share
+   no useful factor never resolve into one grid" — was drawn from a star field and a crater field,
+   and it is right for *those*: both are made of small discrete objects, so a lattice of them can
+   be broken up by beating two periods against each other. Moss is not. It is a continuous
+   variation in colour, and **any** periodicity in it reads as a rendering artefact rather than as
+   ground. Two attempts proved it: first two dot fields, then four offset clump fields at 1.27×,
+   0.83×, 1.61× and 0.59× of the tile — both shipped a visible dot grid on a dark green card. The
+   fix is to stop tiling entirely: eight large irregular blotches at hand-picked positions with
+   `background-repeat: no-repeat`. **The real rule is about what the surface is made of, not about
+   choosing tile sizes** — discrete things may tile, continuous things may not. 21's sand and silt,
+   24's snow and 26's moss-on-flagstone all hit this.
+2. **Percentage gradient radii are the daylight-cone trap again, and worse.** Phase 18 found that
+   `.fixture--daylight` could not be sized in floor percentages because the floor is a different
+   shape at each framing. The same is true of every `radial-gradient(ellipse X% Y% …)` a world
+   paints: the floor is **516×260** at the 540 framing and **515×622** at 960, so `ellipse 5% 11%`
+   is a round dapple at one and a tall smear at the other. The waiting area is worse still — 298×83
+   against 298×199 — and its toadstool caps rendered as standing eggs at 960. Every radius in this
+   world is a **length** off `--tile-size`, which is 44px at both framings and grows in the wide
+   layout. **Any world putting shaped light or a marked spot on the floor has to do the same.**
+3. **A layer pinned to a layout constant can be solved rather than nudged, and the answer is
+   framing-independent.** `background-position: left p%` offsets by `p%` of (container − image), so
+   a sized layer's centre lands at `(p/100)(W−w) + w/2`. Setting that equal to the constant in
+   `components.jsx` and solving for `p` pins a path to a desk exactly — and because `w` is itself a
+   percentage of `W`, **`p` comes out the same at both framings**. The spurs to `OPEN_DESKS` at
+   x 8 and x 91 are `left 0` and `left 98.8%` at `top 82.2%`, and they land on 8.0 / 91.0 / 78.0
+   measured. A layer wider than twice its target's margin cannot be centred there at all, which is
+   what fixes the spur width at 16%.
+4. **The handoff is the one object whose obvious colour is forbidden, and it is forbidden by this
+   world specifically.** A forest's leaf is green; a green object crossing the floor in the world
+   whose budget meter is jade is a state hue detaching from the chrome and flying across the room.
+   The leaf is the **pale underside** — value 0.90 at saturation 0.10 — which reads as a bright
+   object on moss for the same reason the paper envelope reads on cream. Related, and the reason
+   `agentDesigns` is `null` here: the obvious second species for this world is the will-o'-wisp,
+   and it may not be one, because a wisp is already what a working slab lights up as. **A world
+   must check its cast and its handoff against the four state meanings before drawing either.**
+
+**Two notes that are not corrections.** The `.fixture--window` blob went through two versions
+before it stopped reading as a **leaf** — a 70×28 box with a pale fill is a leaf whatever its
+border-radius, and breaking the rim with lobes did not help because a leaf with a ragged edge is
+still a leaf. It is now dark leaf mass with four bright **chinks** of sky through it, which is both
+what a canopy looks like from underneath and unmistakably not one object. And the cooler's apron
+had to be made **wider** than the well's mouth: a circle sitting on a narrower box is a magnifying
+glass from above, not a well.
 
 ---
 

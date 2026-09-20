@@ -15,10 +15,10 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **▶ Current phase** | **Phase 20 — Enchanted Forest. `NOT STARTED`, and it is the next thing to build.** The world phases are the active work again as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 20.** Queue after it: **21 → 23 → 24 → 25 → 26 → 27** (27 last — it depends on every world that shipped) |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Alien Colony — and the board wears any of them. **Only two of the eight world phases shipped during the hackathon; seven remain and are now queued.** Gates after Phase 22: `pytest` **42/42** (was 27/27; +15 from PR #4, merged and deployed 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **▶ Current phase** | **Phase 21 — Reef Station. `NOT STARTED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 21.** Queue after it: **23 → 24 → 25 → 26 → 27** (27 last — it depends on every world that shipped) |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 20 `COMPLETE` — deployed and verified 2026-09-21. **Four looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Alien Colony — and the board wears any of them. **Three of the eight world phases have shipped; five remain and are queued.** Gates after Phase 20: `pytest` **42/42**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding the single live connection belonged to a stranger (`dana`) on the public URL — a real task in Enchanted Forest on the deployed board spending **758 tokens** with the hollow entering `--cool` at 325 ms, and Paper Office proven unchanged by a **73/73 custom-property, 2,329-property** computed-style diff against a HEAD build whose only four deltas were the live coordinates of a pawn. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. **`main` and the stack are in step** — PR #4 (runner idempotency + table TTL) deployed 2026-09-20 **after submission**, re-verified at `ws_smoke.py` **109/113**. DynamoDB TTL is now `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 33, the Phase 20 build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 20 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -55,34 +55,38 @@
 | 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 18 | World system foundation | `COMPLETE` — deployed and verified 2026-09-20. The only one of the ten that touches shared code; ships no new world, by design |
 | 19 | Night Watch | `COMPLETE` — deployed and verified 2026-09-20. The picker is a control now |
-| 20 | Enchanted Forest | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 20 |
-| 21 | Reef Station | `QUEUED` — position 2 |
-| 22 | Alien Colony | `COMPLETE` — deployed and verified 2026-09-20. Built out of order on the user's instruction; three worlds in the picker |
-| 23 | Cloud City | `QUEUED` — position 3 |
-| 24 | Arctic Base | `QUEUED` — position 4 |
-| 25 | Desert Outpost | `QUEUED` — position 5 |
-| 26 | Ancient Ruins | `QUEUED` — position 6 |
-| 27 | World polish and Random World | `QUEUED` — **position 7, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
+| 20 | Enchanted Forest | `COMPLETE` — deployed and verified 2026-09-21. Four worlds in the picker; the first non-human cast |
+| 21 | Reef Station | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 21 |
+| 22 | Alien Colony | `COMPLETE` — deployed and verified 2026-09-20. Built out of order on the user's instruction; it was the third look in the picker at the time |
+| 23 | Cloud City | `QUEUED` — position 2 |
+| 24 | Arctic Base | `QUEUED` — position 3 |
+| 25 | Desert Outpost | `QUEUED` — position 4 |
+| 26 | Ancient Ruins | `QUEUED` — position 5 |
+| 27 | World polish and Random World | `QUEUED` — **position 6, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
 | 6 | Demo readiness | `COMPLETE` — **all nine tasks.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch. **Task 9 — submit — was done by the user and confirmed 2026-09-21** |
 
 **Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
 Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
 **19–26 depend on 18 and on nothing else**, so their order can be reshuffled — or any of them
 dropped — without touching the rest. 27 depends on whichever worlds actually shipped.
-**A dark world should now read Phase 19's four findings *and* Phase 22's four in `BUILD_PLAN.md`
-before starting** — they are the shared-code traps a costume change walks into, and most of them
-have a fix already in `worlds/nightsky.css` or `worlds/alien.css` to copy rather than rediscover.
-Between them: the pre-paint key, the three `--ink`-means-dark overrides, the pale-sheet split, the
-honey/amber hue separation, the world-card hover fix, the mid-floor `daylight` fixture, the
-ambient-is-about-confusability reading, and the meaning of `--tile`.
+**A world should now read Phase 19's four findings, Phase 22's four *and* Phase 20's four in
+`BUILD_PLAN.md` before starting** — they are the shared-code traps a costume change walks into, and
+most of them have a fix already in `worlds/nightsky.css`, `worlds/alien.css` or `worlds/forest.css`
+to copy rather than rediscover. Between them: the pre-paint key, the three `--ink`-means-dark
+overrides, the pale-sheet split, the honey/amber hue separation, the world-card hover fix, the
+mid-floor `daylight` fixture, the ambient-is-about-confusability reading, the meaning of `--tile`,
+**when a texture may tile and when it may not**, **why a gradient radius must be a length and never
+a floor percentage**, **how to solve a `background-position` onto a layout constant**, and **that a
+world has to check its cast and its handoff against the four state meanings before drawing either.**
 
 > **▶ Resumed 2026-09-21, on user decision. These phases are the active work.** They were
 > deferred — never cut — when the 2026-09-20 deadline forced the user to take **Phase 22 only**
-> and close the project out for the recording. **Only two of the eight world phases shipped: 19
-> and 22.** The submission is in, so the user is now finishing the rest.
+> and close the project out for the recording. Two world phases shipped during the hackathon (19
+> and 22) and **Phase 20 shipped on 2026-09-21**, so three of eight are done. The submission is
+> in, so the user is finishing the rest.
 >
 > **A session told "Start the next phase" builds the first phase in the board above that is not
-> `COMPLETE` — right now that is Phase 20, Enchanted Forest.** Then 21 → 23 → 24 → 25 → 26, and
+> `COMPLETE` — right now that is Phase 21, Reef Station.** Then 23 → 24 → 25 → 26, and
 > **27 last**, because it depends on whichever worlds actually shipped. 19–26 depend only on 18,
 > so that order is a convention the user may reorder or cut from; 27's position is not.
 >
@@ -115,6 +119,90 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 20 — Enchanted Forest — 2026-09-21 — deployed and verified**
+
+The fourth look, and the first whose cast is not human. The office becomes a clearing inside a
+large wood: hollow stumps for rooms, carved benches for desks, a trodden path between them, and
+woodland animals working the floor.
+
+**What landed.** `frontend/src/worlds/forest.css` (new, 49 scoped rules), a registry entry plus a
+five-design cast and an eight-colour palette in `worlds.js`, one import line in `main.jsx`. **Three
+files and nothing else** — the first world to stay inside the two-file budget the brief predicted,
+because Phase 19's `index.html` pre-paint key covers every dark world after it.
+
+**The first non-human cast.** Fox, owl, badger, hare and stag, and the `A`/`D` layers Phase 18
+added are load-bearing for the first time: an ear, a beak and an eye are exactly what a recoloured
+office worker cannot have. Seen from directly above the silhouette above the eyes is the whole of
+identity, which is lucky — ears are the one part of an animal that reads instantly from overhead.
+Every design is a different pair of them; the badger, which has none worth drawing, is identified
+by its blaze instead.
+
+**One cast, deliberately, and for Night Watch's reason rather than the colony's.** A clearing where
+the animals work the benches together makes the same claim the night deck does: the agents live
+here. The obvious second species would be will-o'-wisps — and that is precisely the one this world
+may not have, because **the wisp is already what a working slab lights up as**, and a floor with
+wisps walking about could not also use one to mean BUSY.
+
+**The state expression whose form changed.** Paper Office tints a working room's floor; a bay
+lights its dome; a module lights its antenna array. **A hollow glows from inside** — the
+will-o'-wisp at the slab fills the stump and comes up its inner wall. Same `--cool` token, same
+label text, and the light wells up from the middle rather than falling from above.
+
+**The world where ambient-warm/cool-state is first actually visible.** The lantern hanging in each
+hollow does not change when the agent starts working. It is deliberately not restated under
+`.room--busy`: the warm light was always there and means nothing, the cool light is what arrived.
+
+**Verified, not assumed:**
+
+| Check | Result |
+|---|---|
+| `npm run build` | clean; `./scripts/deploy-frontend.sh` job **33 → SUCCEED** |
+| Real task in Enchanted Forest on the **deployed** board | **758 tokens**; hollow entered `--cool` at **325 ms**, border `rgb(86,207,238)`, label `Ada`, pawn state `working` — all unchanged |
+| Busy artwork, computed | `.desk--busy .desk__monitor` resolves to `rgb(110,230,245)` = `--screen-on` once its 220 ms transition settles; the world's (0,4,0) rules beat the base state rules correctly |
+| **Paper Office unchanged** | **73/73 custom properties identical** and **2,329 computed-style properties compared across 57 elements — 4 differences, all four `left/top/right/bottom` on `.pawn--mine`**, i.e. where a live pawn was standing, set inline from the socket. Zero style diffs |
+| Layout parity between worlds | floor box **516×260** at 540 and **515×622** at 960, and page height **1166**, byte-identical in both worlds, switching live |
+| Switch to Paper Office and back, no reload | returns byte-identical on every sampled property |
+| Contrast, measured from computed values | `--cool` **7.19** · `--safe` **6.98** · `--honey` **6.74** · `--alarm` **4.86** — worst case each, across all eight surfaces; `--screen-on` **8.90** as an indicator; `--on-amber` on `--amber` **8.51**. All clear 4.5:1 |
+| **The gate this phase is named for** | `--safe` at hue 142.6° vs `--foliage` at 90.0° — a **52.6°** gap where *Paper Office's own* jade-vs-ferns gap is 25.4°. No scenery green exceeds value **0.60** against the jade's **0.83**. Confirmed visually with the meter painted into the healthy band at 24.2% directly above the clearing |
+| Hue separation | cool↔safe **49.6°**, honey↔amber **15.8°**, honey↔alarm **19.8°** |
+| Every world rule scoped | **49/49** carry `:root[data-world='forest']`; 0 unscoped |
+| Colour literals outside the token block | **zero** — 64 hexes, all inside `:root[data-world='forest']`; zero raw `rgb()` anywhere |
+| `--walk-top` never set by the world | confirmed — the registry owns it |
+| `!important`, or `content:` carrying a word | **none of either** |
+| `prefers-reduced-motion` | **structurally** verified: both animations and both `@keyframes` are the only ones in the file and all four sit inside the single `no-preference` block. The world declares **zero** transitions of its own |
+| `ENVELOPE_MS` contract | computed `transition: left, top` at **1.1s, 1.1s** — inherited from the base stylesheet, untouched |
+| Pre-paint / cold load | stored paint `{"scheme":"dark","themeColor":"#0e1710"}`, inline script stamps `color-scheme: dark` before CSS, and **the registry's `themeColor` literal matches the world's own `--cream` token exactly** — asserted for all four worlds |
+| Responsive sweep | 1440 / 1100 / 900 / 540 / 390 — **zero horizontal overflow** at every width |
+| Console, deployed | **zero errors, zero warnings** — workspace and landing page |
+| Landing page in this world | repaints; preview floor shows two lit hollows, `for alice` / `working`, charlie queued, and the warn strip using `--honey` (`#ffa565`) rather than the brand amber |
+| Full floor, deployed | four desks — Ada and Pam in hollows, Zed and Nox at open desks with their path spurs under them |
+| Picker, deployed | **four looks**, Enchanted Forest selected and persisted across a reload |
+| Phase 22's world-card hover fix, in this world | holds — the selected card reads **8.51:1 at rest and 6.74:1 hovered**, against the 1.00–1.02:1 the pre-fix bug measured in dark worlds |
+| `pytest` | **42/42** |
+| `ws_smoke.py` | **109/113** — the four documented CONN# false positives; a scan immediately after found exactly **one** `CONN#` row, belonging to the stranger `dana` on `TEAM#alpha`, connected before the run and still there after. Every connection the suite opened was gone |
+
+**Four findings recorded in `BUILD_PLAN.md` under Phase 20**, three of which belong to worlds 21
+and 23–26. The largest is a **correction to a rule both previous world phases recorded**: "two
+lattices whose tile sizes share no useful factor" is right for star fields and crater pocks and
+wrong for moss, because that rule is about surfaces made of *discrete things*. A continuous
+surface may not tile at all — two attempts at it shipped a visible dot grid before the texture
+became eight non-repeating blotches. Also: a gradient radius must be a **length** off
+`--tile-size` and never a floor percentage, because the floor is 516×260 at one demo framing and
+515×622 at the other; a `background-position` can be **solved** onto a layout constant and the
+answer is framing-independent; and a world must check its cast and its handoff against the four
+state meanings before drawing either — which is why the handoff leaf is the *pale underside* of a
+leaf rather than a green one.
+
+**Not re-run:** `rehearse.py`. No backend file changed, Paper Office is the demo world and is
+proven unchanged above, and the shared Validation block only requires it when a world changes the
+demo framing — which none of them may.
+
+**Test partition left in the table:** `p20fern` (created here, budget set to 3,000 via the admin
+panel to paint the meter into the healthy band, ~725 tokens spent). Inert, like the others —
+Phase 9 partitions every row by team.
+
+---
 
 **PR #6 — 2026-09-21 — the demo budget stopped tracking the cost of a task**
 
@@ -2489,8 +2577,8 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered |
 | Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
-| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 32**, Phase 22 build |
-| Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Alien Colony** — read back from the live picker |
+| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 33**, Phase 20 build |
+| Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Alien Colony** — read back from the live picker |
 | Demo video | ✅ **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, `playabilityStatus: OK` on an unauthenticated fetch |
 
 **The Amplify app is not managed by CloudFormation.** This is deliberate and matches
@@ -2504,18 +2592,19 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-### ▶ Build **Phase 20 — Enchanted Forest**.
+### ▶ Build **Phase 21 — Reef Station**.
 
 That is the answer to "Start the next phase". It is the first phase on the board that is not
-`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 20 — Enchanted Forest*, and the route in is
-below. Queue after it: **21 → 23 → 24 → 25 → 26 → 27**, with 27 last.
+`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 21 — Reef Station*, and the route in is
+below. Queue after it: **23 → 24 → 25 → 26 → 27**, with 27 last.
 
 **Why this is live work again.** The hackathon is over and **the submission is in** — the video
 is recorded, uploaded and verified public
 (**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38), and the user confirmed on 2026-09-21
 that it was submitted inside the deadline. Phase 6 is closed, task 9 included. With that done,
-the user is finishing the world phases the deadline cut short: **only two of the eight shipped —
-19 Night Watch and 22 Alien Colony.** Seven remain and they are the current work.
+the user is finishing the world phases the deadline cut short. Two shipped during the hackathon —
+**19 Night Watch and 22 Alien Colony** — and **20 Enchanted Forest shipped on 2026-09-21**, so
+three of the eight are done. **Five remain and they are the current work.**
 
 > **To any future session: do not tell the user to submit.** It is done. Do not ask whether it
 > was done, do not list it as outstanding, and do not reopen it because an older line further
@@ -2536,16 +2625,17 @@ every world phase exactly as they did during the hackathon. One phase per sessio
 **How the remaining phases were left.** On 2026-09-20 the user asked for Phase 22 only and then
 for the project to be finalised for the recording. Phases **20, 21, 23–27 were deferred, not
 cut** — every brief in `BUILD_PLAN.md` is intact and each is still an isolated two-file diff.
-They are now the active queue.
+**20 has since shipped**; the rest are the active queue.
 
-**The route into Phase 20 — Enchanted Forest**, and into every world phase after it:
+**The route into Phase 21 — Reef Station**, and into every world phase after it:
 
 - Read the `## Phases 18–27` section of `BUILD_PLAN.md` first — it carries two contracts (the
   recolour test and the state-legibility contract) a session will otherwise not infer, and both
   are applied at every world gate.
-- Then read **Phase 19's four findings and Phase 22's four**, in the same file. Between them they
-  cover every shared-code trap found so far, and most have a fix already written in
-  `worlds/nightsky.css` or `worlds/alien.css` to copy rather than rediscover.
+- Then read **Phase 19's four findings, Phase 20's four and Phase 22's four**, in the same file.
+  Between them they cover every shared-code trap found so far, and most have a fix already written
+  in `worlds/nightsky.css`, `worlds/forest.css` or `worlds/alien.css` to copy rather than
+  rediscover.
 - Copy the shape of an existing registry entry in `worlds.js`. A dark world sets
   `colorScheme: 'dark'` and a `themeColor` matching its own page ground.
 - The floor's objects are all tokens — `--mug`, `--board-face`, `--bottle`, `--cooler-body`,
@@ -2556,19 +2646,23 @@ They are now the active queue.
 - **A world stylesheet must never set `--walk-top`** — the registry owns it, because the walk
   math in `components.jsx` reads the same number and CSS cannot tell it anything.
 - Pick a breakpoint carefully if you touch one: **the demo records at 960 and 540.**
-- **Phase 20's own trap, from its brief: foliage green is not `--safe` green.** Paper Office
-  already keeps `--foliage` muted away from the budget jade for exactly this reason, and a whole
-  forest makes the collision far easier to cause. A healthy quota strip must not read as
-  scenery — check it against the clearing before calling the phase done.
-- **`agentDesigns` is the right tool for Phase 20.** Its characters are woodland animals — fox,
-  owl, badger — so ears and beak are the `A` layer and eyes are `D`, the same split Phase 22's
-  colonists and robots used.
+- **Size anything shaped on the floor off `--tile-size`, never as a percentage of the floor.**
+  Phase 20's finding 2: the floor is **516×260** at the 540 framing and **515×622** at 960, so a
+  percentage gradient radius is a different shape at each. `--tile-size` is 44px at both.
+- **A continuous surface may not tile.** Phase 20's finding 1 corrects the "two lattices" rule
+  Phases 19 and 22 recorded: that rule holds for fields of *discrete* objects (stars, crater
+  pocks) and fails for anything continuous (moss, sand, snow), where any periodicity reads as a
+  rendering artefact. Use large non-repeating blotches instead.
+- **Phase 21's own trap, from its brief:** it is the hardest contrast case in the set — a blue
+  world that has to keep a blue busy state legible. Phase 20 hit the same shape of problem with
+  green and solved it by hue distance measured rather than eyeballed; do the same here, and
+  record the four numbers.
 
 > **The deadline (2026-09-20) was met and the submission is in.** `main` stayed recordable
 > throughout: Paper Office is still the default and is proven byte-for-byte unchanged, so no world
-> phase ever put the recording at risk. Three worlds are in the picker — Paper Office, Night
-> Watch, Alien Colony — which is enough to make the world switch a real beat on camera if a
-> future re-cut ever wants one.
+> phase ever put the recording at risk. Four looks are in the picker — Paper Office, Night
+> Watch, Enchanted Forest, Alien Colony — which is more than enough to make the world switch a
+> real beat on camera if a future re-cut ever wants one.
 
 **`DEMO.md` has been re-measured and re-rehearsed against the office (2026-09-19). Follow it
 as written — the figures in it are measured, not estimated.** What it now says, in brief:
