@@ -9,7 +9,7 @@ server-enforced token budget.
 | **Live URL** | <https://main.dbavt8jr66qxx.amplifyapp.com> — opens cold, no setup, no sign-in |
 | **Straight to the office** | <https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace> — skips the front page |
 | **Repository** | <https://github.com/arunishrajput/hiveos> |
-| **Video** | *(paste the YouTube link here before submitting)* |
+| **Video** | <https://www.youtube.com/watch?v=VBSuDCQa4y4> — 2:38, public |
 | **Track** | Ship It |
 | **Built by** | Arunish Rajput, solo, in ~72 hours |
 | **Region** | `us-east-1` |
@@ -87,6 +87,37 @@ directly — connections opened by the harness are gone from DynamoDB the moment
 
 Timings are click-to-paint across two separate browsers — a 20 ms DOM sampler in the *observing*
 browser compared against the acting browser's click — not a server-side round trip.
+
+---
+
+## The video
+
+**<https://www.youtube.com/watch?v=VBSuDCQa4y4>** — 2:38, public, 1920×1080.
+
+The 40 seconds from 0:23 to 1:03 are the deployed build at
+<https://main.dbavt8jr66qxx.amplifyapp.com> — the product doing each thing as it is described.
+The rest carries the problem, the architecture and the AWS map.
+
+| | |
+|---|---|
+| 0:00 | The problem — 79% of enterprises overran their AI budget, 36% have real-time control |
+| 0:13 | The OS analogy: scheduling, quotas, fair queueing, applied to shared AI compute |
+| 0:23 | **The floor** — one workspace, one board, every member seeing the same thing |
+| 0:30 | **A task runs** — the desk lights up on every screen, and the answer is priced in real tokens |
+| 0:39 | **The queue** — every desk busy, a third member gets a real position, a freed desk auto-dispatches |
+| 0:48 | **The ceiling and team memory** — a limit the server enforces, and a fact the next agent already knows |
+| 0:57 | **Hiring** — a third agent named and briefed, walking onto everybody's floor |
+| 1:03 | Architecture — React 19 on Vite, no game engine, one WebSocket held open |
+| 1:13 | The Router Lambda — the atomic conditional claim that makes two simultaneous clicks safe |
+| 1:30 | The Agent Runner — memory, ceiling, model, accounting, release, dispatch, broadcast |
+| 1:43 | One SAM template, one CloudFormation stack, **16 resources**, all serverless |
+| 1:52 | Service by service — API Gateway, two Lambdas, DynamoDB, SQS + DLQ, SSM, Amplify, scoped IAM |
+| 2:20 | **The honest note** — Bedrock is blocked account-wide, so inference is one outbound call to Groq |
+| 2:31 | Close |
+
+**The narration is Amazon Polly** (Matthew, generative engine), not a human voice track. That is
+a deliberate choice and it is said out loud in the video: the one AWS service the product itself
+does not use still ended up producing the thing the judges actually hear.
 
 ---
 

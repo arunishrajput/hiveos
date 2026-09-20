@@ -1,5 +1,62 @@
 # DEMO.md — the recording run sheet
 
+> ## ✅ RECORDED AND UPLOADED — 2026-09-20
+>
+> **<https://www.youtube.com/watch?v=VBSuDCQa4y4>** · 2:38 · 1920×1080 / 25fps · H.264 + AAC
+>
+> Verified public from an unauthenticated fetch of the watch page: `playabilityStatus: OK`,
+> `isPrivate: false`, `isUnlisted: false`, `lengthSeconds: 158`. The signed-out check that step
+> 2 of *After recording* demands is therefore done — and it is the check that turns a whole
+> build into a zero when it is skipped.
+>
+> **Everything below this box is still the run sheet, and it is still correct** — it is what the
+> board segments were recorded against. Read *As recorded* next for how those segments were cut
+> together, then use the rest of this file unchanged for any re-take.
+
+---
+
+## As recorded
+
+The take is a **narrated 14-scene cut**, not the single continuous screen capture the run sheet
+was written for. Five scenes are the live board; nine are deck. The voice is **Amazon Polly**
+(Matthew, generative engine), scripted rather than spoken.
+
+| Scene | Start | On screen |
+|---|---|---|
+| s01 | 0:00 | deck — 79% overran their AI budget, 36% have real-time control |
+| s02 | 0:13 | deck — the OS analogy: scheduling, quotas, fair queueing |
+| **s03** | **0:23** | **board** — one workspace, one floor, every member on the same board |
+| **s04** | **0:30** | **board** — alice gives Ada a task; the desk lights up on every screen |
+| **s05** | **0:39** | **board** — every desk busy → charlie queues → a freed desk picks it up |
+| **s06** | **0:48** | **board** — one shared meter, enforced server-side · team memory |
+| **s07** | **0:57** | **board** — hiring a third agent, live on everyone's floor |
+| s08 | 1:03 | deck — React 19 on Vite, no game engine, one WebSocket held open |
+| s09 | 1:13 | deck — Router Lambda, the atomic conditional claim, SQS vs. queue item |
+| s10 | 1:30 | deck — Agent Runner: memory, ceiling, model, accounting, release, dispatch, broadcast |
+| s11 | 1:43 | deck — one SAM template, one CloudFormation stack, 16 resources |
+| s12 | 1:52 | deck — API Gateway, two Lambdas, DynamoDB, SQS + DLQ, SSM, Amplify, scoped IAM |
+| s13 | 2:20 | deck — the honest note: Bedrock blocked account-wide, inference calls out to Groq |
+| s14 | 2:31 | deck — scales to zero, live right now |
+
+**Why it was cut this way.** The live sequence `rehearse.py` drives is ~95 seconds of board
+time, and `BUILD_PLAN.md`'s beat table spends 30 seconds on the problem and 45 on architecture —
+narration that was assumed to ride *over* the board. It cannot. The queue beat and the memory
+beat both need the viewer reading one number on two windows at once, and talking across them
+buries the exact thing the product exists to show. Cutting to a deck for the framing gave the
+board its 40 seconds uninterrupted, and a scripted track holds 2:38 exactly instead of drifting
+past 3:00 on the fourth retake.
+
+**Three claims in the narration were checked against the deployed system before upload**, because
+a number said out loud cannot be edited later: the stack really has **16 resources**
+(`describe-stack-resources`), the Lambdas really are **Python 3.13 on arm64** (`template.yaml`),
+and the frontend really is **React 19 on Vite** (`frontend/package.json`).
+
+**What did not survive the cut:** the *"what was learned"* beat, and the world-switch beat below.
+Fifteen seconds of lessons cost fifteen seconds of board, and the board wins. The lessons are in
+`SUBMISSION.md`, which judges read.
+
+---
+
 Everything needed to record the 3-minute video in one take. **No new features from here.**
 
 The sequence below is rehearsed automatically and passes 15/15 against deployed AWS:

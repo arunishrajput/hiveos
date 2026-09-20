@@ -19,6 +19,10 @@ Built for the **First Commit** hackathon (WeMakeDevs × AWS), Ship It track.
 The front page explains the product; the office itself is one click behind it, at
 [`/#/workspace`](https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace).
 
+**Demo video (2:38):** **https://www.youtube.com/watch?v=VBSuDCQa4y4** — the problem, then the
+deployed board running a task, queueing, enforcing the ceiling and hiring an agent, then the
+architecture and where AWS fits. `SUBMISSION.md` has the timestamp map.
+
 ![The HiveOS office — three agents on the floor, one shared meter, a real answer priced in tokens](docs/office.png)
 
 ---
@@ -134,8 +138,8 @@ Read in this order:
 | `ARCHITECTURE.md` | System design and every rejected alternative |
 | `CONTRACT.md` | Schemas, protocols, and interfaces that must not drift |
 | `DEPLOYMENT.md` | AWS setup, deploy commands, manual actions, troubleshooting |
-| `DEMO.md` | The recording run sheet — checklist, beats, narration, fallbacks |
-| `SUBMISSION.md` | The hackathon writeup |
+| `DEMO.md` | The recording run sheet — checklist, beats, fallbacks, and the as-recorded scene map |
+| `SUBMISSION.md` | The hackathon writeup, with the video's timestamp map |
 
 **Fastest path to understanding:** `README.md` → `PROGRESS.md` → `ARCHITECTURE.md`.
 

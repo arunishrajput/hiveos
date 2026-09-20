@@ -14,8 +14,9 @@
 | **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 6 — demo readiness** is the only thing between here and submission, and it is blocked on the user, not on code. The remaining world phases (20, 21, 23–27) are **deferred past submission by user decision on 2026-09-20 — not cut** |
-| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is still `BLOCKED — WAITING FOR MANUAL ACTION`** — tasks 6, 7 and 9 (record, upload, submit) are the user's. Gates after Phase 22: `pytest` **27/27**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **Current phase** | **Phase 6 — demo readiness.** The video is **recorded, uploaded and verified public**. **One task is left in the entire project: submit.** The remaining world phases (20, 21, 23–27) are **deferred past submission by user decision on 2026-09-20 — not cut** |
+| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is `BLOCKED — WAITING FOR MANUAL ACTION` on task 9 alone** — tasks 6 and 7 (record, upload) were completed by the user on 2026-09-20; task 9 (submit) is the only thing outstanding. Gates after Phase 22: `pytest` **27/27**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -60,7 +61,7 @@
 | 25 | Desert Outpost | `NOT STARTED` — **deferred past submission, not cut** |
 | 26 | Ancient Ruins | `NOT STARTED` — **deferred past submission, not cut** |
 | 27 | World polish and Random World | `NOT STARTED` — **deferred past submission, not cut** |
-| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done, with **4 and 5 re-done on 2026-09-19** against the Phase 17 office: `rehearse.py` now covers hiring and passes **15/15** twice, and `DEMO.md`'s framing, narration and beat timings were corrected against measurement. Tasks 6, 7 and 9 are the user's. **Not blocked by 18–27** — the recording can happen at any time |
+| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — **tasks 1–8 done. Only task 9, submit, remains.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch |
 
 **Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
 Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
@@ -1573,7 +1574,8 @@ No new features, per `BUILD_PLAN.md`. Two scripts and two documents:
   the time I have*. Every assertion is something a viewer can see on screen.
 - `DEMO.md` — the run sheet: pre-flight checklist, beat-by-beat narration, the exact wording
   for the SQS claim, the stub sentence, and the mid-take fallback table.
-- `SUBMISSION.md` — the writeup (`BUILD_PLAN.md` task 8), with the video link left blank.
+- `SUBMISSION.md` — the writeup (`BUILD_PLAN.md` task 8). *The video link was left blank here
+  and was filled in on 2026-09-20, along with a timestamp map of the finished cut.*
 
 **Rehearsed against deployed AWS — `python scripts/rehearse.py --takes 2`, 12/12 twice:**
 
@@ -1621,6 +1623,10 @@ correctly seeded. But both would have cost real time at 2 a.m. the night before 
 **Not done — these are the user's, and Phase 6 is not complete until they are:**
 recording the take, uploading to YouTube and verifying it signed-out, and submitting.
 See *Manual actions pending*.
+
+> **Updated 2026-09-20.** The first two are done: the take is recorded and uploaded at
+> <https://www.youtube.com/watch?v=VBSuDCQa4y4>, and the signed-out check passed. **Only
+> submitting remains.**
 
 **Phase 3 without Bedrock — 2026-09-18 — memory, token accounting, enforced ceiling**
 
@@ -1840,6 +1846,10 @@ The one honest line the video must still carry: **inference runs on Groq because
 quota-blocked on this account; everything else is AWS.** `DEMO.md` has the wording. Do **not**
 say the agent is stubbed — that was true until 2026-09-18 and is now false.
 
+> **Carried. 2026-09-20, scene s13 at 2:20** — *"Bedrock is blocked account-wide on this
+> account, so inference is a single outbound call to Groq. Everything else is AWS."* Said
+> plainly, in the recorded take, ahead of the closing line rather than buried.
+
 The diagnosis below is kept because it is the evidence for that sentence, and because a future
 session must not waste hours re-testing Bedrock hoping for a different answer. One `converse`
 call is enough to detect if it ever unlocks.
@@ -2001,18 +2011,20 @@ slot scheduler, token accounting, WebSocket sync and the deployed URL are all bu
 > set as default — it did not unblock Bedrock, do not repeat it. The model API key: the SSM
 > SecureString `/hiveos/groq-api-key` exists and the agent is live against it.
 
-**These three are the only things standing between the repo and a submission.** Everything
-buildable is done, deployed and rehearsed.
+**One thing now stands between the repo and a submission.** Everything buildable is done,
+deployed and rehearsed; the video is recorded, uploaded and verified.
 
-1. **Record the demo.** Follow `DEMO.md` exactly — its figures were measured on the deployed
-   build on 2026-09-19, not estimated. Run `python3 scripts/rehearse.py --takes 2` to confirm
-   the sequence still passes (expect **15/15**), then `./scripts/reset-demo.sh` (it pre-warms
-   the Lambdas and verifies the board). **Office window 960 wide, witness 540, separate
-   profiles, three identities.** Under 3:00.
-2. **Upload to YouTube** (public or unlisted) and **open the link in a signed-out browser.**
-   An accidentally-private video scores zero regardless of what was built. Paste the link into
-   `SUBMISSION.md`.
-3. **Submit** before 2026-09-20, with the public URL, the repo link and `SUBMISSION.md`.
+1. ~~**Record the demo.**~~ ✅ **Done 2026-09-20.** Recorded as a narrated 14-scene cut — five
+   scenes of the deployed board inside nine deck scenes, voiced by Amazon Polly (Matthew,
+   generative). `DEMO.md` → *As recorded* has the scene map and why it diverged from the
+   single-take run sheet.
+2. ~~**Upload to YouTube.**~~ ✅ **Done 2026-09-20.**
+   **<https://www.youtube.com/watch?v=VBSuDCQa4y4>** — 2:38 (`lengthSeconds: 158`), under the
+   3:00 limit. **The signed-out check is done and passed**, by fetching the watch page
+   unauthenticated: `playabilityStatus: OK`, `isPrivate: false`, `isUnlisted: false`. The link
+   is in `SUBMISSION.md`, `README.md`, `BUILD_PLAN.md` and `DEMO.md`.
+3. **Submit** before the 2026-09-20 deadline, with the public URL, the repo link and
+   `SUBMISSION.md`. **⬅ This is the only open item in the project.**
 
 Housekeeping, not blocking:
 
@@ -2037,7 +2049,8 @@ Housekeeping, not blocking:
    restriction (42 of 43 per-day token quotas at zero, `adjustable=False`, first-party Amazon
    Nova included). Nothing waits on it any more — inference runs on Groq and Phase 3 is closed.
 
-Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
+Items 4 and 5 do not block the submission. Items 1–3 **are** the submission, and 1 and 2 are
+closed.
 
 ---
 
@@ -2316,6 +2329,7 @@ Items 4 and 5 do not block the submission. Items 1–3 **are** the submission.
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
 | Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 32**, Phase 22 build |
 | Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Alien Colony** — read back from the live picker |
+| Demo video | ✅ **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, `playabilityStatus: OK` on an unauthenticated fetch |
 
 **The Amplify app is not managed by CloudFormation.** This is deliberate and matches
 `BUILD_PLAN.md` Phase 4 task 5 and `DEPLOYMENT.md`: manual-deploy mode needs no GitHub OAuth
@@ -2328,10 +2342,17 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**One thing is open, and it is the user's: record the demo.**
+**One thing is open, and it is the user's: submit.**
 
-**Phase 6 — record, upload, submit.** Tasks 6, 7 and 9 have been unblocked since Phase 4 — see
-*Manual actions pending*. Everything that can be done from a keyboard here is done.
+**Phase 6 task 9.** The video is recorded, uploaded and verified public
+(**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38). Tasks 1–8 are closed. Submit the
+public URL, the repo link and `SUBMISSION.md` before the deadline.
+
+> **The run sheet below is retained on purpose, not by neglect.** It is what the board segments
+> of the recorded take were shot against, and it is the only thing that makes a re-take possible
+> inside the remaining window. `DEMO.md` → *As recorded* explains how the finished cut differs
+> from it: a narrated 14-scene edit with an Amazon Polly voice track, rather than one continuous
+> three-window capture. Everything about framing, identities and beat order still applies.
 
 **The build is closed out for submission.** On 2026-09-20 the user asked for Phase 22 only and
 then for the project to be finalised for the recording. Phases **20, 21, 23–27 are deferred, not
@@ -2385,7 +2406,8 @@ as written — the figures in it are measured, not estimated.** What it now says
 > Must list is built, deployed and verified, and the product has been submittable since Phase
 > 4. The user chose to spend the window expanding rather than recording — first on 2026-09-19
 > (Phases 12–17, now finished) and again on 2026-09-20 (Phases 18–27, the worlds). Everything
-> from here is upside; the recording is the only thing that is not optional.
+> from here is upside; the recording is the only thing that is not optional. **It happened on
+> 2026-09-20 and is public. Submitting is now the only thing that is not optional.**
 >
 > **A world phase must never invalidate this run sheet.** Phase 17 did exactly that — it killed
 > the 640×950 framing overnight — which is why Paper Office stays the default and why no world
