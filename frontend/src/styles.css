@@ -4478,7 +4478,20 @@ a.btn {
   transition: border-color 140ms ease, background 140ms ease;
 }
 
-.worldcard:hover {
+/* `:not(.worldcard--on)` is load-bearing, and the reason is a defect Phase 19
+ * shipped and Phase 22 found.
+ *
+ * This rule is (0,2,0) and `.worldcard--on` below is (0,1,0), so hovering the
+ * *selected* card used to replace its amber fill with the page ground while
+ * leaving `--on-amber` — near-black — as the text colour. On cream that is
+ * near-black on near-white and reads at 17.25:1, which is why nobody saw it.
+ * In a dark world the page ground is also near-black: measured at **1.00:1 in
+ * Night Watch and 1.02:1 in Alien Colony**, i.e. the name of the world you are
+ * currently in becomes invisible the moment you point at it.
+ *
+ * You cannot hover a card without your cursor being on it, so this was the
+ * normal way to see the selected card, not an edge case. */
+.worldcard:not(.worldcard--on):hover {
   border-color: var(--rule-strong);
   background: var(--cream);
 }
@@ -4491,6 +4504,14 @@ a.btn {
   border-color: var(--amber-deep);
   background: var(--amber);
   color: var(--on-amber);
+}
+
+/* The selected card still has to answer the pointer, or it reads as disabled.
+ * It deepens instead of lifting — the fill stays amber, so the dark label it
+ * was designed for stays the right label, in every world. */
+.worldcard--on:hover {
+  border-color: var(--amber);
+  background: var(--amber-deep);
 }
 
 .worldcard__name {

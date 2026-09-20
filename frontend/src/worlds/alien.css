@@ -1,0 +1,1183 @@
+/* Alien Colony — the office as an off-world outpost.
+ *
+ * The same floor, the same rooms, the same scheduler. Purple-teal regolith
+ * under two moons and a ringed planet, command modules standing on landing
+ * pads, and nothing organic about the architecture.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one is re-tuned for purple and none of
+ *    them is reassigned. The words — `working`, `idle`, `queued #N`, `HALT`,
+ *    `WAITING AREA` — are untouched; this file contains no `content` that
+ *    carries a word.
+ *
+ * 2. The ambient light decorates and never reports; the cool light reports and
+ *    never decorates. This world's resting character is a magenta-violet
+ *    glow — the holo-panel, the fuel cell, the bulb flora, the ringed planet's
+ *    light on the regolith, the colonists' own visors. Not one of them means
+ *    anything. When a station goes BUSY a COOL teal light joins them: the
+ *    module's antenna array, its readout, the deck tint. That is the thing
+ *    that means something.
+ *
+ *    The shared brief writes this rule as "ambient *warmth* decorates", and
+ *    violet is not warm. The substance of the rule is that the decorative
+ *    light must not be confusable with a state hue, and warmth is only ever
+ *    named because `--honey` makes warmth the awkward case. Violet is the
+ *    safer answer, not a looser one: measured, the ambient sits 82-137 degrees
+ *    from every one of the four state hues, where a warm ambient would be 3
+ *    degrees off honey. A world that is not warm should not pretend to be.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="alien"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every
+ * surface in the product including the chrome and the landing page; and the
+ * scoped rules, which re-dress the objects on the floor.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,2,1) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy` and `.desk--busy .desk__monitor` below exist for
+ * exactly that reason as much as for the art.
+ */
+
+:root[data-world='alien'] {
+  /* A dark room, and it says so before a single pixel is painted. The
+   * pre-paint script in index.html stamps `data-world` and replays
+   * `hiveos.world.paint` from localStorage, so this lands with the stylesheet
+   * rather than after React mounts. Inherited from Phase 19 — this world adds
+   * nothing to index.html. */
+  color-scheme: dark;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Three purples, close together, separated by hairlines rather than by
+   * contrast — the paper office's construction, inverted. `--sand` is the
+   * *raised* surface, so on dark it is the lightest of the three. */
+  --cream: #120b1f;
+  --paper: #1a1130;
+  --sand: #251941;
+
+  /* `--ink` is "the mark on the page", not "a dark colour" — so it inverts
+   * with the page and becomes the palest thing in the system. That is what
+   * keeps `--text`, the solid `.btn--ink`, and every `--on` selection border
+   * correct for free. The three places where the base stylesheet uses
+   * `--ink-rgb` to mean *dark* rather than *maximum contrast* — the two scrims
+   * and the chair's under-edge — are re-pointed at `--cream-rgb` below. This
+   * is Phase 19's finding 2, and it cost that phase an hour; here it is three
+   * rules written up front. */
+  --ink: #ece6fa;
+  --rule: #382a5c;
+  --rule-soft: #2a2047;
+  --rule-strong: #503e73;
+
+  --dim: #c0b3d8;
+  --faint: #a496c2;
+
+  /* Brand, still fills only, and deepened well below #ffca54 for the two
+   * reasons Night Watch found: at full brightness an amber button on a
+   * near-black page is the loudest thing on the board, and the quota strip has
+   * to stay the loudest thing on the board; and it buys the value headroom
+   * `--honey` needs below. Its dark label clears at 8.51:1. */
+  --amber: #d9a63a;
+  --amber-deep: #c4922e;
+  --on-amber: #141105;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Lifted until each one carries a word on purple. Measured against all eight
+   * of this world's surfaces, worst case 5.37:1 — the table is in PROGRESS.md.
+   *
+   * Two separations were searched rather than guessed, and both are this
+   * world's own problem rather than a general one:
+   *
+   * HONEY vs AMBER. Phase 19's finding 4: on a dark ground "darker" is not
+   * available, so a text-weight warn hue has to come *up*, which is where the
+   * brand amber already sits. The separation moves to hue. Honey is an orange
+   * at 24.3deg, amber a yellow at 40.8deg — 16.5deg, where the paper office
+   * has 5.4deg. The guarantee underneath is the one that actually holds:
+   * amber is only ever a filled rectangle with dark text on it, honey is only
+   * ever a word.
+   *
+   * COOL vs SAFE. This world's own trap, and the inverse of the reef's. The
+   * busy hue is teal and the healthy-budget hue is jade, and on a purple
+   * ground both want to sit high and bright — near enough that a lit station
+   * and a healthy quota strip start to look like the same statement. So
+   * `--safe` is pushed to 141.4deg where the paper office has it at 154, and
+   * `--cool` holds at 187.8deg: 46.5deg apart against the office's 43deg.
+   * They are never the same mark either — `--cool` lights an object in the
+   * room, `--safe` fills a meter in the chrome — but the hues have to survive
+   * being seen one after the other. */
+  --cool: #4fd4e8;
+  --safe: #4ace79;
+  --honey: #ff9e5c;
+  --alarm: #f88a80;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 236, 230, 250;
+  --cream-rgb: 18, 11, 31;
+  --paper-rgb: 26, 17, 48;
+  --amber-rgb: 217, 166, 58;
+  --cool-rgb: 79, 212, 232;
+  --alarm-rgb: 248, 138, 128;
+
+  /* The quota strip's empty track. */
+  --tick: #2b2150;
+
+  /* --- The regolith ------------------------------------------------------ *
+   *
+   * The ground is a shade above the page it sits on, and the crater field is
+   * barely there — dust you notice when you look for it, because the horizon
+   * is what the eye is supposed to go to. */
+  --floor: #1c1430;
+  /* A crater pock, and therefore *darker* than the ground rather than lighter:
+   * the paper office's `--tile` is a laid surface catching light, and this is
+   * a hollow in dust. The pale rim in the recipe below is what gives it a
+   * lit edge and stops it reading as a stain. */
+  --tile: #17102a;
+  --room-floor: #241c42;
+  /* The wash of a lit readout across a module deck, and the only place a
+   * module takes a hue. */
+  --room-floor-busy: #1f3450;
+
+  /* Command stations. Fabricated alloy rather than laminate. */
+  --desk: #3e3566;
+  --desk-edge: #1d1734;
+  --desk-edge-rgb: 29, 23, 52;
+  --desk-top: #52487f;
+
+  /* The handoff is a transmission pulse in this world rather than an object,
+   * so `--envelope-edge` stops being a hairline around a piece of paper and
+   * becomes the ring the pulse throws. Same token, same two rules in the base
+   * stylesheet, different object — which is the whole reason these are named
+   * for the thing and not for the colour. */
+  --envelope-edge: #e6dcff;
+  --envelope-contact-rgb: 2, 0, 10;
+
+  /* A dead readout panel, and a live one. The live value keeps the extra
+   * brightness `--cool` gives up to stay legible as text — a light source is
+   * not a label, and the two have to read as the same hue at different
+   * weights. 1deg apart in hue, and it should stay that way. */
+  --screen-off: #221a3d;
+  --screen-on: #63e6f7;
+  --screen-on-rgb: 99, 230, 247;
+
+  /* The stalk of the bulb flora, where the foliage was. Deliberately not a
+   * green: this world has no plants, and a green stalk under a violet bulb
+   * would put the one hue the budget meter uses into the scenery. */
+  --foliage: #6f6396;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become a
+   * holo-panel and a water cooler become a fuel cell without the token names
+   * going wrong. */
+  --mug: #a58fd0; /* the station's status puck */
+  --board-face: #170f2e; /* the holo-panel's dark projection ground */
+  --board-frame: #5b4a86; /* its emitter frame */
+  --bottle: #e3a6ef; /* the fuel cell's charge — ambient, and meaningless */
+  --bottle-base: #b96fd0;
+  --cooler-body: #3a3060; /* the cell's housing */
+  --glass-sky: #2a1c48; /* the top of the viewport's sky */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The hull colour is per-character and arrives inline from `lookFor`; these
+   * are the four layers every colonist and every service robot shares. See
+   * COLONISTS and SERVICE_ROBOTS in worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the suit and the chassis, and it is the one value here
+   * that was measured rather than picked — Night Watch's lesson, that a
+   * mid-tone torso which reads beautifully on cream dissolves entirely on a
+   * dark floor. This clears 3.72:1 on the regolith and 3.36:1 on a module
+   * deck, while staying darker than all eight hulls so identity still reads
+   * from the top down.
+   *
+   * `--sp-accent` is the antenna tip and the visor band, and it is the world's
+   * ambient violet. It reports nothing.
+   *
+   * `--sp-skin` has no equivalent on a robot: none of the four robot designs
+   * emits an `F`, so the layer simply goes unused for them. */
+  --sp-skin: #d6c8e2;
+  --sp-shirt: #7a6aa6;
+  --sp-accent: #e39ce8;
+  --sp-detail: #0e0819;
+
+  /* Structure. The wall band is an alien horizon and the trim is the hull
+   * banding the modules and the viewport share. */
+  --wall: #150d28;
+  --wall-trim: #5b4a86;
+  --rug: #26203f; /* the landing strip */
+  --rug-edge-rgb: 168, 140, 208;
+  --chair: #453a68;
+  --glass: #170f30; /* the far end of the viewport's sky */
+
+  /* Shadows go black rather than brown, and harder: a 0.22 shadow that reads
+   * on cream is invisible on this ground. */
+  --shadow-rgb: 0, 0, 8;
+  --shadow: rgba(var(--shadow-rgb), 0.5);
+  --vignette-rgb: 4, 1, 14;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a pale button with dark text here, so its hover settles
+   * *down* rather than lifting. */
+  --ink-hover: #d4cbe8;
+  --engage-flash: #22405c;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because an alien sky, a
+   * ringed planet, pad markings and a transmission pulse are objects the paper
+   * office does not have, and inventing a shared token for them would put
+   * Paper Office's stylesheet in the business of describing a world it is not.
+   */
+  --sky-high: #0a0618;
+  --sky-low: #2e1c44;
+  /* The rim of atmosphere where the sky meets the ground. Dimmer than it
+   * wants to be: at the value this started on it was a bright violet bar
+   * running the full width of the floor, and the eye went to it before it went
+   * to a lit module. Nothing decorative may be the first thing seen. */
+  --horizon: #4b3573;
+  --moon-rgb: 226, 214, 248;
+  /* The ambient accent. Reports nothing, and is 82-137deg from every state
+   * hue, which is what makes it safe to put on the scenery. */
+  --violet-rgb: 192, 122, 232;
+  /* Pad and strip markings, and the light the ringed planet throws. */
+  --pad-rgb: 206, 190, 236;
+  /* The data slate on a console. `--paper` is the *panel* surface and has gone
+   * dark with the rest of the chrome, so anything that has to read as a pale
+   * sheet needs its own token — Phase 19's finding 3. */
+  --slate: #cfc2e4;
+  /* The transmission pulse's core. */
+  --pulse-rgb: 238, 228, 255;
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. The paper office's recipe is a wall band over two
+ * offset 45deg checkers; this is an alien horizon over pocked regolith.
+ *
+ * The checkers go entirely. A tiled surface is a floor somebody laid, and this
+ * is dust nobody laid — so the tile field becomes two offset radial fields of
+ * shallow crater pocks, each a soft dark disc with a lit upper rim, at half a
+ * tile's offset from the other so the pocking never resolves into a grid.
+ *
+ * The sky layers are opaque and first in the list, so the crater tiling
+ * underneath never shows above the horizon. Same trick the base file uses, and
+ * the reason neither needs a mask.
+ */
+:root[data-world='alien'] .floor {
+  background-image:
+    /* the horizon itself — a bright rim of atmosphere where the sky meets the
+       regolith, transparent above it so the sky below shows through */
+    linear-gradient(transparent 0 calc(100% - 1px), var(--horizon) calc(100% - 1px) 100%),
+    /* the sky */ linear-gradient(var(--sky-high) 30%, var(--sky-low)),
+    /* each pock's lit rim, painted over its own hollow */
+      radial-gradient(
+        circle at 50% 50%,
+        transparent 0 24%,
+        rgba(var(--pad-rgb), 0.05) 24% 27%,
+        transparent 28%
+      ),
+    /* the hollow */ radial-gradient(circle at 50% 50%, var(--tile) 0 25%, transparent 26%),
+    /* a second, smaller field whose tile shares no useful factor with the
+       first's, so the two never resolve into one grid — Phase 19's lesson
+       about lattices, which a pocked surface walks straight into */
+      radial-gradient(circle at 50% 50%, var(--tile) 0 17%, transparent 18%);
+  background-size:
+    100% var(--walk-top),
+    100% var(--walk-top),
+    calc(var(--tile-size) * 1.34) calc(var(--tile-size) * 1.34),
+    calc(var(--tile-size) * 1.34) calc(var(--tile-size) * 1.34),
+    calc(var(--tile-size) * 0.79) calc(var(--tile-size) * 0.79);
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    calc(var(--tile-size) * 0.37) calc(var(--tile-size) * 0.23);
+  background-repeat: no-repeat, no-repeat, repeat, repeat, repeat;
+  background-color: var(--floor);
+  /* Deeper and wider than the paper office's warm vignette. On this ground the
+   * edges of the colony should fall away into the dark rather than be dusted
+   * brown. */
+  box-shadow: inset 0 0 60px 14px rgba(var(--vignette-rgb), 0.55);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * Two moons and a ringed planet, confined to the back band: one
+ * `background-size` of `100% var(--walk-top)` applies to every layer in the
+ * list, so each `circle at X% Y%` places a body at an exact point inside the
+ * band and nothing tiles.
+ *
+ * Positions are chosen around the two fixtures that hang in this band — the
+ * holo-panel at x 44-56% and the viewport at x 10-22% — so the sky reads as
+ * sky rather than as discs disappearing behind furniture. The large moon sits
+ * at 31%, in the gap between them; the small one at 84%, over the right-hand
+ * module; the ringed planet low at 67%.
+ *
+ * The planet's ring is on `::before`, because a ring is an ellipse crossing a
+ * disc and a radial gradient cannot make one. It is built from a single
+ * horizontal band rather than from an angled one: this band is 606x35 at the
+ * demo framing and roughly 1000x126 in the wide layout, so anything defined by
+ * an angle would come unstuck from a body defined by percentages the moment
+ * the floor changed shape. Phase 19 learned this with its constellations.
+ */
+:root[data-world='alien'] .worldlayer--sky {
+  background-image:
+    /* the large moon — a lit crescent, so it reads as a body and not a dot */
+    radial-gradient(
+      circle at 29% 32%,
+      rgba(var(--moon-rgb), 0.82) 0 3.5px,
+      rgba(var(--moon-rgb), 0.34) 3.5px 6px,
+      transparent 6.5px
+    ),
+    /* the small moon */
+      radial-gradient(
+        circle at 84% 24%,
+        rgba(var(--moon-rgb), 0.6) 0 2.2px,
+        transparent 2.8px
+      ),
+    /* the ringed planet, low on the horizon */
+      radial-gradient(
+        circle at 67% 66%,
+        rgba(var(--violet-rgb), 0.62) 0 5px,
+        rgba(var(--violet-rgb), 0.24) 5px 6.5px,
+        transparent 7px
+      ),
+    /* distant stars, sparse — this is a dusty sky, not Night Watch's clear one */
+      radial-gradient(circle at 8% 52%, rgba(var(--pad-rgb), 0.3) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 17% 20%, rgba(var(--pad-rgb), 0.24) 0 0.6px, transparent 1.3px),
+    radial-gradient(circle at 40% 70%, rgba(var(--pad-rgb), 0.28) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 53% 18%, rgba(var(--pad-rgb), 0.22) 0 0.6px, transparent 1.3px),
+    radial-gradient(circle at 75% 42%, rgba(var(--pad-rgb), 0.3) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 92% 62%, rgba(var(--pad-rgb), 0.24) 0 0.6px, transparent 1.3px);
+  background-size: 100% var(--walk-top);
+  background-repeat: no-repeat;
+}
+
+/* The ringed planet's ring, and the haze along the horizon.
+ *
+ * `background-position: left X% top Y%` — the four-value form — rather than
+ * the two-value one, because `left 63%` means "the left edge at 63% of the
+ * box" while a bare `63%` means "align the image's own 63% point with the
+ * box's", and only the first of those puts a ring where the planet is. */
+:root[data-world='alien'] .worldlayer--sky::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: var(--walk-top);
+  background-image:
+    /* the ring */
+    linear-gradient(rgba(var(--pad-rgb), 0.42), rgba(var(--pad-rgb), 0.42)),
+    /* the atmospheric haze the horizon sits in */
+      linear-gradient(
+        to top,
+        rgba(var(--violet-rgb), 0.16),
+        rgba(var(--violet-rgb), 0) 100%
+      );
+  background-size:
+    16px 1px,
+    100% 34%;
+  background-position:
+    left 67% top 66%,
+    left 0 bottom 0;
+  background-repeat: no-repeat;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * Landing pads and crater shadow. Two pads, one under each command module, and
+ * the light the ringed planet throws across the regolith between them.
+ *
+ * The pads are placed against the constants in components.jsx — ROOMS sit at
+ * x 6-40 and x 60-94 — so a module stands *on* a marked circle rather than on
+ * open dust. This is the piece of world art with a job beyond atmosphere: it
+ * says the modules landed here, which is what makes the corridor between them
+ * read as ground the colonists cross rather than as a gap.
+ *
+ * It still reports nothing. The pads are identical whether a module is working
+ * or idle, and every state on this floor is carried by an object with a label
+ * attached to it, exactly as in Paper Office.
+ */
+:root[data-world='alien'] .worldlayer--ground {
+  background-image:
+    /* the left pad, two rings */
+    radial-gradient(
+      circle at 23% 44%,
+      transparent 0 16%,
+      rgba(var(--pad-rgb), 0.17) 16% 17.2%,
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 23% 44%,
+      transparent 0 21%,
+      rgba(var(--pad-rgb), 0.09) 21% 21.8%,
+      transparent 22.5%
+    ),
+    /* the right pad */
+      radial-gradient(
+        circle at 77% 44%,
+        transparent 0 16%,
+        rgba(var(--pad-rgb), 0.17) 16% 17.2%,
+        transparent 18%
+      ),
+    radial-gradient(
+      circle at 77% 44%,
+      transparent 0 21%,
+      rgba(var(--pad-rgb), 0.09) 21% 21.8%,
+      transparent 22.5%
+    ),
+    /* Crater shadow: three larger hollows, each a dark pool with a lit far
+       rim, placed on floor the modules and the strip do not cover — the
+       corridor at x 40-60 and the two margins. The small pocking in `.floor`
+       is the texture; these are craters you could walk into, and they are what
+       stop the ground reading as a flat sheet with dots on it. */
+      /* The corridor one is held at half the strength of the other two: it
+         sits on the route every dispatch walks and the route the transmission
+         pulse crosses, and a dark pool there was competing with both. */
+      radial-gradient(
+        circle at 50% 24%,
+        rgba(var(--vignette-rgb), 0.26) 0 3.4%,
+        rgba(var(--vignette-rgb), 0.12) 3.4% 5.2%,
+        rgba(var(--pad-rgb), 0.03) 5.2% 5.9%,
+        transparent 6.3%
+      ),
+    radial-gradient(
+      circle at 3% 52%,
+      rgba(var(--vignette-rgb), 0.45) 0 3%,
+      rgba(var(--vignette-rgb), 0.2) 3% 4.6%,
+      rgba(var(--pad-rgb), 0.04) 4.6% 5.2%,
+      transparent 5.6%
+    ),
+    radial-gradient(
+      circle at 97% 26%,
+      rgba(var(--vignette-rgb), 0.45) 0 3.4%,
+      rgba(var(--vignette-rgb), 0.2) 3.4% 5%,
+      rgba(var(--pad-rgb), 0.04) 5% 5.7%,
+      transparent 6.1%
+    );
+  background-repeat: no-repeat;
+}
+
+/* The light the ringed planet throws onto the regolith.
+ *
+ * An ellipse rather than a linear gradient, and that is a fix rather than a
+ * preference — Phase 19's: a linear gradient fades along one axis and stops
+ * dead on the other two edges, which at the 1440 width draws a visible cut
+ * where the light begins. An ellipse has no edges.
+ *
+ * Violet, and held far below the strength of a lit readout, so the one cool
+ * thing on this floor is never competing with an ambient one. */
+:root[data-world='alien'] .worldlayer--ground::before {
+  content: '';
+  position: absolute;
+  left: 38%;
+  top: 12%;
+  width: 24%;
+  height: 58%;
+  background: radial-gradient(
+    ellipse 58% 54% at 50% 40%,
+    rgba(var(--violet-rgb), 0.07),
+    rgba(var(--violet-rgb), 0) 74%
+  );
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Wind-blown dust, drifting across the colony. Faint by a wide margin: this
+ * layer sits above every pawn, and anything strong enough to notice would be
+ * strong enough to sit on somebody's name label.
+ *
+ * Two fields rather than two layers on one element, which is Phase 19's trick
+ * and the whole reason this does not read as a rendering artefact: a single
+ * tiled dot field is a lattice, and one lattice on flat ground looks like a
+ * bug. Two lattices whose tile sizes share no useful factor, drifting at
+ * different speeds, never resolve into one grid. Each seam-free loop needs its
+ * translate to be a whole tile, so they cannot share an element.
+ *
+ * Faster than Night Watch's motes and moving the other way — those were stars
+ * the room was turning under, these are dust a wind is pushing. */
+:root[data-world='alien'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='alien'] .worldlayer--air::before,
+:root[data-world='alien'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Wider than the floor on both sides so the drift never reaches an edge. */
+  inset: -12% -60%;
+}
+
+:root[data-world='alien'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--pad-rgb), 0.1) 0 0.7px,
+    transparent 1.5px
+  );
+  background-size: 109px 71px;
+}
+
+:root[data-world='alien'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--violet-rgb), 0.09) 0 0.8px,
+    transparent 1.6px
+  );
+  background-size: 61px 47px;
+  background-position: 23px 17px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='alien'] .worldlayer--air::before {
+    animation: alien-dust-far 150s linear infinite;
+  }
+
+  :root[data-world='alien'] .worldlayer--air::after {
+    animation: alien-dust-near 96s linear infinite;
+  }
+
+  @keyframes alien-dust-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-109px, 0, 0);
+    }
+  }
+
+  @keyframes alien-dust-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-61px, 0, 0);
+    }
+  }
+}
+
+/* --- Command modules -------------------------------------------------------
+ *
+ * The project rooms become prefabricated modules standing on the landing pads.
+ * Square-shouldered where the office rooms are softened — the corners lose
+ * their radius almost entirely, because nothing here was built to be pleasant
+ * — and the hull carries vertical panel seams and a lit upper edge, so a
+ * module reads as a manufactured object set down on the ground rather than as
+ * a room drawn on it.
+ */
+:root[data-world='alien'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* the lit top edge of the hull */
+    linear-gradient(rgba(var(--sheen-rgb), 0.07) 0 3px, transparent 3px),
+    /* panel seams.
+     *
+     * Sparse, and that was measured on screen rather than chosen: at a 17px
+     * pitch a 170px module carries ten seams and reads as a barcode, which is
+     * a texture the eye cannot stop resolving. At 42px it carries four, which
+     * is how many panels a prefabricated wall actually has. */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--cream-rgb), 0.45) 0 1px,
+        transparent 1px calc(42px * var(--furn))
+      );
+  border: 2px solid var(--wall-trim);
+  border-top: 0;
+  border-radius: 0 0 1px 1px;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--pad-rgb), 0.05),
+    inset 0 0 22px 6px rgba(var(--vignette-rgb), 0.35);
+}
+
+/* The airlock, where the doorway was. Geometry unchanged — same 34% width,
+ * same centring, same two jambs — but it steps out of the hull as a collar
+ * rather than being a gap punched in a wall, which is what an airlock is. */
+:root[data-world='alien'] .room__door {
+  height: 3px;
+  bottom: -3px;
+  border-radius: 0 0 2px 2px;
+  background: var(--desk-edge);
+  box-shadow:
+    inset 0 -1px 0 0 rgba(var(--pad-rgb), 0.16),
+    -3px 0 0 0 var(--wall-trim),
+    3px 0 0 0 var(--wall-trim);
+}
+
+/* The antenna array on the module's roof.
+ *
+ * A mast and two dishes, standing above the hull and into the sky band. Unlit
+ * while the module is idle — the array is hardware, and hardware is not a
+ * state. It is here, rather than only appearing when busy, so that what BUSY
+ * changes is an object *lighting up* and not an object *arriving*: a thing
+ * that appears from nowhere reads as a glitch, and a thing that comes on reads
+ * as a signal. Same reasoning as the monitor in Paper Office. */
+:root[data-world='alien'] .room::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(-9px * var(--furn));
+  width: calc(22px * var(--furn));
+  height: calc(9px * var(--furn));
+  transform: translateX(-50%);
+  background-image:
+    /* the mast */
+    linear-gradient(var(--wall-trim), var(--wall-trim)),
+    /* the crossbar the dishes hang off */ linear-gradient(var(--wall-trim), var(--wall-trim)),
+    /* the two dishes, different sizes so the array reads as equipment rather
+       than as a symmetrical ornament */
+      radial-gradient(circle, var(--wall-trim) 0 58%, transparent 60%),
+    radial-gradient(circle, var(--wall-trim) 0 58%, transparent 60%);
+  background-size:
+    2px 100%,
+    76% 2px,
+    calc(7px * var(--furn)) calc(7px * var(--furn)),
+    calc(5px * var(--furn)) calc(5px * var(--furn));
+  background-position:
+    center top,
+    center 62%,
+    left 4% top 6%,
+    right 4% top 26%;
+  background-repeat: no-repeat;
+  transition: filter 220ms ease;
+}
+
+/* BUSY, and this is the state expression whose *form* this world changes.
+ *
+ * Paper Office announces a working room by tinting its floor. A module
+ * announces it by lighting its antenna array — the dishes and the mast come up
+ * cool, and the deck below takes the wash. Same hue family, same `--cool`
+ * token, same label text; a different object doing the announcing, and one
+ * that is visible over the hull from anywhere on the floor.
+ *
+ * Restated at this specificity on purpose. The `.room` rule above is (0,2,1)
+ * and the base `.room--busy` is (0,2,0), so without this the module would keep
+ * its dark hull while BUSY and the whole beat would vanish. */
+:root[data-world='alien'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    /* the array's light falling back onto the deck */
+    radial-gradient(
+      ellipse 54% 40% at 50% 0%,
+      rgba(var(--cool-rgb), 0.3),
+      rgba(var(--cool-rgb), 0) 74%
+    ),
+    linear-gradient(rgba(var(--sheen-rgb), 0.09) 0 3px, transparent 3px),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--cream-rgb), 0.35) 0 1px,
+      transparent 1px calc(42px * var(--furn))
+    );
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--cool-rgb), 0.28),
+    inset 0 0 22px 6px rgba(var(--vignette-rgb), 0.2);
+}
+
+/* The array itself comes on. Recoloured wholesale rather than tinted, so the
+ * mast and both dishes read as powered rather than as lit from somewhere. */
+:root[data-world='alien'] .room--busy::before {
+  background-image:
+    linear-gradient(var(--cool), var(--cool)),
+    linear-gradient(var(--cool), var(--cool)),
+    radial-gradient(circle, var(--screen-on) 0 58%, transparent 60%),
+    radial-gradient(circle, var(--screen-on) 0 58%, transparent 60%);
+  filter: drop-shadow(0 0 4px rgba(var(--cool-rgb), 0.65));
+}
+
+/* --- Command stations ------------------------------------------------------
+ *
+ * The desk becomes a command station and the monitor becomes a tall readout
+ * panel standing on it: a narrow column of data lines rather than a wide
+ * screen, mounted on a short strut.
+ *
+ * Taller and narrower, but not by much — the footprint is 22x26 against the
+ * office's 30x20, which is 572 painted pixels against 600. That is a
+ * legibility decision over an art one. "This station is working" is the single
+ * most important thing this floor says, and it says it by this element
+ * lighting up at recording size; a genuinely slender column would have looked
+ * better standing still and worse on video. */
+:root[data-world='alien'] .desk__monitor {
+  position: relative;
+  width: calc(22px * var(--furn));
+  height: calc(26px * var(--furn));
+  border-radius: 2px 2px 0 0;
+}
+
+/* The readout lines. Dark while the panel is dead, so the panel has structure
+ * before it has light. */
+:root[data-world='alien'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  inset: calc(3px * var(--furn)) calc(3px * var(--furn));
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(var(--cream-rgb), 0.55) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+/* The strut it stands on. */
+:root[data-world='alien'] .desk__monitor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(-3px * var(--furn));
+  width: calc(10px * var(--furn));
+  height: calc(3px * var(--furn));
+  transform: translateX(-50%);
+  border-radius: 0 0 1px 1px;
+  background: var(--desk-edge);
+}
+
+/* The readout comes up. Restated here for the same specificity reason as
+ * `.room--busy`, and re-tuned besides: the base alphas are deliberately strong
+ * because a glow has to fight a cream floor. Against this ground a glow is
+ * additive and barely has to try, and at 0.72/0.34 the station went white. */
+:root[data-world='alien'] .desk--busy .desk__monitor {
+  background: var(--screen-on);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    0 0 12px 2px rgba(var(--screen-on-rgb), 0.45),
+    0 8px 26px 8px rgba(var(--screen-on-rgb), 0.22);
+}
+
+/* The data lines read as data rather than as scanlines once the panel is
+ * live — irregular rather than evenly ruled, which is the difference between
+ * a screen that is on and a screen that is showing something. */
+:root[data-world='alien'] .desk--busy .desk__monitor::before {
+  background-image:
+    linear-gradient(rgba(var(--cream-rgb), 0.6), rgba(var(--cream-rgb), 0.6)),
+    linear-gradient(rgba(var(--cream-rgb), 0.6), rgba(var(--cream-rgb), 0.6)),
+    linear-gradient(rgba(var(--cream-rgb), 0.6), rgba(var(--cream-rgb), 0.6)),
+    linear-gradient(rgba(var(--cream-rgb), 0.6), rgba(var(--cream-rgb), 0.6));
+  background-size:
+    100% 2px,
+    62% 2px,
+    84% 2px,
+    45% 2px;
+  background-position:
+    left top,
+    left 25%,
+    left 50%,
+    left 75%;
+  background-repeat: no-repeat;
+}
+
+/* The station's status puck, where the mug was. */
+:root[data-world='alien'] .desk__surface::before {
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    0 0 4px 0 rgba(var(--violet-rgb), 0.35);
+}
+
+/* A data slate, where the loose paper was. Its own pale token rather than
+ * `--paper`, which is the panel surface and has gone dark — Phase 19's
+ * finding 3, and the second of the two places it bites. */
+:root[data-world='alien'] .desk__surface::after {
+  background: var(--slate);
+  border-radius: 0;
+  /* Square to the desk. The office's paper is rotated 6 degrees because a
+   * sheet somebody put down is never straight; a slate docked in a command
+   * station is. */
+  transform: none;
+  box-shadow: 0 0 0 1px rgba(var(--cream-rgb), 0.5);
+}
+
+/* The operator's seat. The base rule shades the near edge with
+ * `rgba(--ink-rgb, 0.32)`, which means "a dark line" and would come out pale
+ * here — `--ink` is the palest thing in this world. Re-pointed at the page
+ * ground, which is what it actually wanted. Phase 19's finding 2, third of
+ * three. */
+:root[data-world='alien'] .desk__chair {
+  border-radius: 2px 2px 4px 4px;
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--cream-rgb), 0.6),
+    0 3px 6px var(--shadow);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> holo-panel. A dark projection ground in an emitter frame, with
+ * the two scribbles becoming rows of data glyphs.
+ *
+ * Violet rather than teal, and that is the ambient/state rule doing real work
+ * rather than being recited: a holo-panel glowing in the busy hue would be a
+ * second silent status light in a room whose entire argument is that there is
+ * exactly one. */
+:root[data-world='alien'] .fixture--board {
+  background-color: var(--board-face);
+  background-image: radial-gradient(
+    ellipse 70% 120% at 50% 100%,
+    rgba(var(--violet-rgb), 0.22),
+    rgba(var(--violet-rgb), 0) 72%
+  );
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 0 10px 1px rgba(var(--violet-rgb), 0.12),
+    0 3px 6px var(--shadow);
+}
+
+:root[data-world='alien'] .board__scribble {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--violet-rgb), 0.85) 0 3px,
+    transparent 3px 5px,
+    rgba(var(--violet-rgb), 0.5) 5px 6px,
+    transparent 6px 9px
+  );
+}
+
+/* Water cooler -> fuel cell: a glowing charge canister in a heavy housing.
+ * Ambient violet, meaningless, and the one thing in the corridor that is lit
+ * at all when nothing is working. */
+:root[data-world='alien'] .cooler__bottle {
+  width: calc(10px * var(--furn));
+  height: calc(13px * var(--furn));
+  border-radius: 5px 5px 1px 1px;
+  background: linear-gradient(var(--bottle), var(--bottle-base));
+  box-shadow:
+    inset 0 -2px 0 0 var(--bottle-base),
+    0 0 9px 1px rgba(var(--violet-rgb), 0.3);
+}
+
+:root[data-world='alien'] .cooler__body {
+  width: calc(17px * var(--furn));
+  height: calc(14px * var(--furn));
+  border-radius: 1px;
+  background: var(--cooler-body);
+  /* Vent fins across the housing. */
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(var(--cream-rgb), 0.55) 0 1px,
+    transparent 1px 4px
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--wall-trim),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> viewport. The glazing goes: a mullion and a transom are exactly
+ * what a pressure viewport does not have. What is left is an oval aperture
+ * onto the alien sky with a moon in it and a heavy hull rim around it — the
+ * same banding the modules carry, which is why it reads as the same colony.
+ *
+ * Round where every other opening on this floor is square, which is the one
+ * structural change that costs nothing and is visible from across the room. */
+:root[data-world='alien'] .fixture--window {
+  width: calc(58px * var(--furn));
+  height: calc(28px * var(--furn));
+  border-radius: 999px;
+  background-image:
+    radial-gradient(circle at 70% 36%, rgba(var(--moon-rgb), 0.7) 0 2.4px, transparent 3px),
+    radial-gradient(circle at 34% 62%, rgba(var(--pad-rgb), 0.3) 0 1px, transparent 1.6px),
+    linear-gradient(160deg, var(--glass-sky), var(--glass));
+  box-shadow:
+    inset 0 0 0 3px var(--cooler-body),
+    inset 0 0 0 4px var(--wall-trim),
+    0 0 8px 1px rgba(var(--violet-rgb), 0.08);
+}
+
+/* The mullion goes entirely; the transom becomes the horizon seen through the
+ * viewport, which is the detail that says this is a window onto the same place
+ * the back wall is showing. */
+:root[data-world='alien'] .fixture--window::before {
+  display: none;
+}
+
+:root[data-world='alien'] .fixture--window::after {
+  left: calc(8px * var(--furn));
+  right: calc(8px * var(--furn));
+  top: auto;
+  bottom: calc(9px * var(--furn));
+  height: 1px;
+  transform: none;
+  background: var(--horizon);
+  opacity: 0.55;
+}
+
+/* Daylight -> the light the ringed planet casts on the regolith.
+ *
+ * The brief asks for the ringed planet here. The planet itself is in the sky
+ * slot, where a planet belongs: this fixture sits at (17%, 46%) which is the
+ * middle of the floor, so a celestial body rendered at it would be a planet
+ * lying on the ground. What lands here instead is the *light* it throws, which
+ * keeps the fixture's actual role — a pool of illumination in a fixed place —
+ * and is the purest possible case of a colour that reports nothing.
+ *
+ * Violet rather than cool, and held far below the strength of a lit readout so
+ * the two can never be confused: 0.13 against the readout's 0.45, and a hue 90
+ * degrees away besides. */
+:root[data-world='alien'] .fixture--daylight {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--violet-rgb), 0.13),
+    rgba(var(--violet-rgb), 0) 70%
+  );
+}
+
+/* Plants -> bulb flora: a glowing bulb on a bare stalk, with two smaller buds
+ * beside it. The office's three offset lobes become three bulbs of different
+ * sizes, which is the same cheap trick doing a different job. */
+:root[data-world='alien'] .decor__leaves {
+  width: calc(8px * var(--furn));
+  height: calc(8px * var(--furn));
+  border-radius: 50% 50% 40% 40%;
+  background: var(--bottle);
+  box-shadow:
+    -6px 4px 0 -2px var(--bottle-base),
+    6px 3px 0 -1px var(--bottle),
+    0 0 8px 1px rgba(var(--violet-rgb), 0.28);
+}
+
+:root[data-world='alien'] .decor__pot {
+  width: calc(3px * var(--furn));
+  height: calc(13px * var(--furn));
+  margin-top: calc(3px * var(--furn));
+  border-radius: 0;
+  background: var(--foliage);
+  box-shadow:
+    inset -1px 0 0 0 var(--desk-edge),
+    0 3px 5px var(--shadow);
+}
+
+/* --- The landing strip -----------------------------------------------------
+ *
+ * The waiting area becomes a lit landing strip, and the queue stands at its
+ * markers. Still soft-edged and borderless for the reason the rug was — a
+ * bordered rectangle on the floor reads as another UI panel dropped onto the
+ * room — but the edge inverts: on cream it was a pale inset ring, here it is a
+ * pale rim with the dark closing in behind it.
+ *
+ * The markers are placed against the queue's own constants in components.jsx:
+ * WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the first row land at
+ * floor x 38, 47, 56, 65 and 74. The strip runs from 21% to 79%, so those are
+ * 29%, 45%, 60%, 76% and 91% of its width. A queued colonist stands *on* a
+ * marker rather than near one, which is the difference between a queue and a
+ * crowd — and the markers are there whether anyone is queued or not, so they
+ * report nothing. */
+:root[data-world='alien'] .waiting {
+  border-radius: 3px;
+  background-color: var(--rug);
+  background-image:
+    /* the five markers, as circles the eye can land a person inside */
+    radial-gradient(
+      circle at 29% 50%,
+      rgba(var(--pad-rgb), 0.13) 0 4.5%,
+      rgba(var(--pad-rgb), 0.07) 4.5% 6.5%,
+      transparent 7%
+    ),
+    radial-gradient(
+      circle at 45% 50%,
+      rgba(var(--pad-rgb), 0.13) 0 4.5%,
+      rgba(var(--pad-rgb), 0.07) 4.5% 6.5%,
+      transparent 7%
+    ),
+    radial-gradient(
+      circle at 60% 50%,
+      rgba(var(--pad-rgb), 0.13) 0 4.5%,
+      rgba(var(--pad-rgb), 0.07) 4.5% 6.5%,
+      transparent 7%
+    ),
+    radial-gradient(
+      circle at 76% 50%,
+      rgba(var(--pad-rgb), 0.13) 0 4.5%,
+      rgba(var(--pad-rgb), 0.07) 4.5% 6.5%,
+      transparent 7%
+    ),
+    radial-gradient(
+      circle at 91% 50%,
+      rgba(var(--pad-rgb), 0.13) 0 4.5%,
+      rgba(var(--pad-rgb), 0.07) 4.5% 6.5%,
+      transparent 7%
+    ),
+    /* the strip's dashed centre line, which is what makes the row of markers
+       read as one strip rather than five unrelated discs */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--pad-rgb), 0.11) 0 12px,
+        transparent 12px 22px
+      );
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    100% 2px;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 50%;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat-x;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--rug-edge-rgb), 0.28),
+    inset 0 0 26px 7px rgba(var(--vignette-rgb), 0.55);
+}
+
+/* --- People ----------------------------------------------------------------
+ *
+ * The one-pixel rim around every sprite comes from `--ink-rgb`, which this
+ * world has inverted to the palest thing in the system — so what was a hard
+ * dark outline on cream becomes a lit edge on purple, which is both the right
+ * read for the world and the right physics for a colony lit from above.
+ * Dropped to 0.3 because at the base 0.8 a pale rim is a halo. */
+:root[data-world='alien'] .sprite::before,
+:root[data-world='alien'] .agentface::before {
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.3));
+}
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * THIS IS THE PHASE THAT RESTYLES IT, and the contract around it is narrow:
+ * the path is untouched, the 1100 ms timing is untouched and still comes from
+ * the base `.envelope` transition in step with `ENVELOPE_MS` in
+ * components.jsx, and the `aria-live` label is untouched because it lives in
+ * the markup and this file has no reach into it. Only the thing travelling
+ * changes.
+ *
+ * A piece of paper crossing a colony makes no sense; a transmission does. So
+ * the envelope becomes a pulse: a bright core with an aura, trailing a streak,
+ * inside a ring that keeps expanding as it travels.
+ *
+ * THE RISK, NAMED IN THE BRIEF: a pulse that is easy to miss is worse than an
+ * envelope. So the pulse is *bigger* than the thing it replaces, not smaller —
+ * 18x18 of core against the envelope's 18x12, a 34px glow, a 34px streak and a
+ * ring that reaches past all of them. The paper envelope was legible because it
+ * was a hard-edged pale rectangle on a mid floor; this is legible because it is
+ * the brightest object on a dark one. Watched end to end at both demo framings
+ * on the deployed board before the phase was called done.
+ *
+ * Pale rather than teal. A teal pulse would be the busy hue detaching from a
+ * desk and flying across the room, which is a state hue doing something no
+ * state hue is allowed to do. The core is near-white with the world's violet
+ * around it, so it is unmistakably the brightest thing on the floor and just
+ * as unmistakably not a status light.
+ */
+:root[data-world='alien'] .envelope {
+  width: calc(18px * var(--furn));
+  height: calc(18px * var(--furn));
+  border: 0;
+  border-radius: 50%;
+  /* The solid core runs to 30% of the box rather than 22%, and that is the
+   * whole difference between "there is a light over there" and "something is
+   * crossing the floor". At 22% the core was a 5px dot wearing a large soft
+   * halo, and a halo is exactly the kind of mark a compressed 540px recording
+   * throws away first. The envelope it replaces was legible because it was a
+   * hard-edged pale shape; so is this. */
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(var(--pulse-rgb), 1) 0 30%,
+    rgba(var(--violet-rgb), 0.92) 46%,
+    rgba(var(--violet-rgb), 0.28) 68%,
+    rgba(var(--violet-rgb), 0) 82%
+  );
+  box-shadow:
+    0 0 10px 2px rgba(var(--pulse-rgb), 0.45),
+    0 0 20px 6px rgba(var(--violet-rgb), 0.55),
+    0 0 34px 14px rgba(var(--violet-rgb), 0.22);
+}
+
+/* The trailing streak, on the pulse's own `::after` — which is free, because
+ * `.envelope` has no pseudo-elements in the base stylesheet.
+ *
+ * It lives here rather than on the flap so it does not inherit the flap's
+ * scale animation: a streak that grew with the ring would read as an
+ * explosion rather than as motion. Behind the pulse and to the left, because
+ * every handoff on this floor crosses the corridor between the two modules and
+ * the streak only has to say "this came from somewhere", not point at where. */
+:root[data-world='alien'] .envelope::after {
+  content: '';
+  position: absolute;
+  right: 50%;
+  top: 50%;
+  width: calc(34px * var(--furn));
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: linear-gradient(
+    to left,
+    rgba(var(--pulse-rgb), 0.55),
+    rgba(var(--violet-rgb), 0.4) 30%,
+    rgba(var(--violet-rgb), 0) 88%
+  );
+}
+
+/* The flap becomes the ring — the leading edge of the transmission.
+ *
+ * The base rule clips it to the envelope's own box with `overflow: hidden`,
+ * which is right for a paper flap and wrong for a ring that has to reach past
+ * the core. Both are released here. */
+:root[data-world='alien'] .envelope__flap {
+  inset: -50%;
+  overflow: visible;
+  border: 1px solid var(--envelope-edge);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+/* The flap's own `::before` is the rotated square that drew the paper flap's
+ * two creases. There is no crease on a transmission. */
+:root[data-world='alien'] .envelope__flap::before {
+  display: none;
+}
+
+/* The ring expands and fades, which is what makes a pulse a pulse rather than
+ * a dot with a circle round it.
+ *
+ * Declared only inside `prefers-reduced-motion: no-preference`, which is where
+ * the base stylesheet keeps all of its motion — so a reader who asked for less
+ * motion gets a static ring and nothing here has to remember to turn it off.
+ * Deliberately on `.envelope__flap` rather than on `.envelope`: the base file
+ * puts `animation: envelope-in` on `.envelope` itself, and an animation
+ * declared here would replace it and lose the fade-in the crossing starts
+ * with. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='alien'] .envelope__flap {
+    animation: alien-pulse 1100ms ease-out infinite;
+  }
+
+  @keyframes alien-pulse {
+    0% {
+      transform: scale(0.45);
+      opacity: 0.85;
+    }
+    70% {
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1.25);
+      opacity: 0;
+    }
+  }
+}
+
+/* --- Chrome ----------------------------------------------------------------
+ *
+ * The two scrims are the other place the base stylesheet uses `--ink-rgb` to
+ * mean "dark" rather than "maximum contrast against the page". Re-pointed at
+ * the page ground, so a dialog still darkens the board behind it instead of
+ * washing it out. Phase 19's finding 2, first and second of three. */
+:root[data-world='alien'] .modal {
+  background: rgba(var(--cream-rgb), 0.74);
+}
+
+:root[data-world='alien'] .drawer {
+  background: rgba(var(--cream-rgb), 0.6);
+}

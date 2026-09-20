@@ -900,6 +900,45 @@ envelope: check it at 540 px before calling it done.
 **Gate.** A handoff is at least as easy to follow as the paper envelope, and its timing contract
 is intact.
 
+**Shipped 2026-09-20. Four things the plan got wrong, corrected in flight — and the first three
+are findings for worlds 23–26 rather than details of this one:**
+
+1. **The hover state of the selected world card is illegible in every dark world.** Not this
+   world's bug — `.worldcard:hover` in `styles.css` is (0,2,0) and `.worldcard--on` is (0,1,0),
+   so pointing at the card for the world you are *currently in* replaced its amber fill with the
+   page ground while leaving `--on-amber` — near-black — as the text. On cream that is 17.25:1
+   and invisible as a defect; measured on dark it is **1.00:1 in Night Watch and 1.02:1 in Alien
+   Colony**. Phase 19 shipped it. Fixed here in the base stylesheet, because a second dark world
+   shipping the same unreadable control is worse than a world phase touching a third file:
+   `.worldcard:not(.worldcard--on):hover` for the unselected case, and a `--amber-deep` hover for
+   the selected one. **This is the one change in this phase that is not scoped to the world**,
+   and it changes Paper Office's chrome — the selected card now deepens on hover instead of going
+   cream. Not on the floor, not in any recorded frame.
+2. **A world may not put a celestial object on `.fixture--daylight`.** The brief asks for the
+   ringed planet here, but that fixture sits at (17%, 46%) — the middle of the floor — so a
+   planet rendered at it is a planet lying on the ground. The planet goes in the **sky slot**,
+   where the brief's own decoration-slot line also puts it, and the fixture carries the *light*
+   it throws. That keeps the fixture's actual role, which is a pool of illumination in a fixed
+   place. **Every remaining world whose brief names a sky object for `daylight` has the same
+   problem** — 23's sun over the cloud line and 25's low desert sun both do.
+3. **"Ambient warmth decorates" is a rule about confusability, not about temperature.** The
+   shared resolution names warmth because `--honey` makes warmth the awkward case. This world's
+   ambient is a magenta-violet, which is measured at **82–137° from all four state hues** where a
+   warm ambient sits 3° off honey. A world should pick the ambient its own setting wants and
+   measure the separation, rather than forcing warmth in to satisfy the letter of the rule.
+4. **The `--tile` token means "the other ground colour", not "lighter than the floor".** Paper
+   Office's tile is a laid surface catching light, so it is lighter than `--floor`. A crater is a
+   hollow, so here it is *darker* — and the recipe has to supply a lit rim, or the pocks read as
+   stains rather than as depressions. Worth knowing before 24's snow and 26's flagstones.
+
+**Two notes that are not corrections.** The `agentDesigns` field Phase 18 built is used for the
+first time here — colonists for the people, service robots for the agents — and it earns its
+keep: an agent at a desk is visibly not one of the people watching it. Night Watch's decision to
+give both casts the same art was right for a deck the crew works together, and would have been
+wrong here. And the pock field needed Phase 19's two-lattice trick as much as the drifting motes
+did: a single tiled dot field at exactly `--tile-size` reads as a rendering artefact, and the fix
+is two fields whose tile sizes share no useful factor (1.34× and 0.79× of the tile).
+
 ---
 
 ### Phase 23 — Cloud City

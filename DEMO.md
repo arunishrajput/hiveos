@@ -332,6 +332,37 @@ third is still refused.
 
 ---
 
+## Optional: the world beat
+
+Worth 8–10 seconds, and it is the cheapest beat in the whole run sheet — it costs **zero tokens**
+and cannot fail, because it is a CSS swap in one browser. Use it only if the edit has room after
+everything above; **it is not part of the rehearsed 15/15 sequence and must not be inserted into
+it**, because the main take's timings were measured without it.
+
+Where it fits, if it fits: at the very end, over the closing line, on the **office window only**.
+Leave the witness window in Paper Office — the contrast between the two is the point.
+
+1. Click **◑** in the title bar (it is beside the gear, and unlike the gear everyone sees it).
+2. Pick **Night Watch**, then **Alien Colony**, a beat apart. No reload, no reconnect, no
+   flicker — the same board, still live, still connected.
+3. Say one line over it and stop.
+
+> The board doesn't care what it looks like. Same sockets, same scheduler, same rows in DynamoDB —
+> the office is just the costume. What never moves is what the colours *mean*: busy is still busy,
+> queued is still queued, over-budget is still red, in every one of them.
+
+**What this buys and what it costs.** It buys "this is a real product with a real design system"
+in under ten seconds. It costs the risk of looking like a toy if it runs long — so two clicks,
+one line, out. **If the take is already at 3:00, cut this, not the queue beat and not the
+ceiling.**
+
+**Do not switch the witness window.** The claim of the whole demo is that every screen shows the
+same state; two differently dressed screens showing the same state proves it harder, and two
+identically dressed screens showing it prove it fine. Switching both proves nothing and loses the
+comparison.
+
+---
+
 ## If something breaks mid-take
 
 From `BUILD_PLAN.md`'s fallback ladder. **Fix only what is broken — never add a feature to

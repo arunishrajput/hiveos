@@ -168,6 +168,183 @@ const NIGHT_HOODS = [
   '#83a398', // sage
 ]
 
+/* --- The Alien Colony's cast ------------------------------------------------
+ *
+ * The first world to use `agentDesigns`, and the first where the two casts are
+ * different species: the people are colonists, the agents are the service
+ * robots working the stations. That is a claim the office could not make and
+ * this world can — an agent at a desk is *visibly* not one of the people
+ * watching it, which is the whole shape of the product in one silhouette.
+ *
+ * It is also the only place in the ten worlds where the distinction is honest.
+ * Night Watch deliberately gave agents the same cast, because the claim there
+ * is that the crew works the deck together. A colony has machines in it.
+ *
+ *   H  the cranium     --sp-hair    per-colonist, from the palette below
+ *   F  the face        --sp-skin
+ *   S  the suit        --sp-shirt
+ *   A  antenna/visor   --sp-accent  the world's ambient violet
+ *   D  the eyes        --sp-detail
+ *
+ * The silhouette is the point, not the palette: a wide domed cranium over a
+ * narrow torso is the opposite proportion to an office worker, whose shoulders
+ * are the widest thing about them. Recolouring would not have got there.
+ */
+const COLONISTS = [
+  // 0 — domed cranium, twin antennae
+  [
+    '..A...A..',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HDFFFFFDH',
+    '.HFFFFFH.',
+    '..SSSSS..',
+    '.SSSSSSS.',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — elongated crown, one tall antenna
+  [
+    '....A....',
+    '....A....',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HDFFFFFDH',
+    '..SSSSS..',
+    '.SSSSSSS.',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — broad flat head, side sensors
+  [
+    '...HHH...',
+    '.HHHHHHH.',
+    'AHHHHHHHA',
+    'HHHHHHHHH',
+    'HDFFFFFDH',
+    '.HFFFFFH.',
+    '..SSSSS..',
+    '.SSSSSSS.',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — a visor band where the eyes would be
+  [
+    '....A....',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HAAAAAAAH',
+    '.HFFFFFH.',
+    '..SSSSS..',
+    '.SSSSSSS.',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — eyes on stalks
+  [
+    '..D...D..',
+    '..A...A..',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    '.HFFFFFH.',
+    '..SSSSS..',
+    '.SSSSSSS.',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+]
+
+/* The agents. Small service robots: a hull, a sensor band instead of a face,
+ * and manipulator arms on the row where a colonist has hands.
+ *
+ * No `F` layer anywhere in the four designs, which is the tell — a robot has
+ * no skin, so the layer simply goes unused and `shadowFor` emits nothing for
+ * it. The dark optic on `D` is what gives a faceless box a front.
+ */
+const SERVICE_ROBOTS = [
+  // 0 — drum chassis, optic band, mast antenna
+  [
+    '....A....',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    '.HDDDDDH.',
+    '.HHHHHHH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 1 — flat-top chassis, twin optics, stub antennae
+  [
+    '.A.....A.',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HDHHHHHDH',
+    'HHHHHHHHH',
+    '.HHHHHHH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 2 — dish head on a neck
+  [
+    '..AAAAA..',
+    '...A.A...',
+    '..HHHHH..',
+    '.HDDDDDH.',
+    '..HHHHH..',
+    '...SSS...',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 3 — low hauler, one recessed optic
+  [
+    '...HHH...',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHH.D.HHH',
+    'HHHHHHHHH',
+    '.HHHHHHH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+]
+
+/* One hull colour per marker, shared by the colonists and their robots.
+ *
+ * Shared on purpose: the palette is *identity*, and the person who picked the
+ * fox is the fox whichever body the world gives them. What separates a person
+ * from an agent here is the silhouette, which is a stronger signal than hue
+ * and survives a compressed recording.
+ *
+ * Pitched to read against purple regolith — all eight clear 5:1 on the module
+ * deck — and deliberately spread across the hue circle rather than kept inside
+ * the world's violet family, because eight violets are one violet at sprite
+ * size. Every one is desaturated to 0.16-0.34 where the four state hues run
+ * 0.57-1.00: identity may carry hue, but a dusty clay hull can never be
+ * mistaken for the honey of a queue label.
+ */
+const COLONY_HULLS = [
+  '#a88fc8', // amethyst
+  '#8f9ec6', // periwinkle
+  '#c294b0', // orchid
+  '#96b3a8', // verdigris
+  '#8b8fb8', // iris
+  '#bfa08f', // clay
+  '#c08fa0', // rose
+  '#9db08f', // lichen
+]
+
 /* One entry per world.
  *
  * | field         | what it is                                              |
@@ -222,6 +399,26 @@ const REGISTRY = [
     agentDesigns: null,
     layers: DEFAULT_LAYERS,
     palette: NIGHT_HOODS,
+  },
+  {
+    id: 'alien',
+    label: 'Alien Colony',
+    blurb: 'Command modules on landing pads, under two moons and a ringed planet.',
+    colorScheme: 'dark',
+    // `--cream` in worlds/alien.css. Literal for the same reason the other
+    // two are: the browser needs it before a stylesheet exists.
+    themeColor: '#120b1f',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the modules
+    // at y=14, so a world that raised its band would run the horizon behind
+    // them.
+    walkTop: 14,
+    designs: COLONISTS,
+    // The one world so far where the agents are a different species. See
+    // SERVICE_ROBOTS above for why this is honest here and was not on the
+    // night deck.
+    agentDesigns: SERVICE_ROBOTS,
+    layers: DEFAULT_LAYERS,
+    palette: COLONY_HULLS,
   },
 ]
 

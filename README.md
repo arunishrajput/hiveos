@@ -60,6 +60,21 @@ id. Bounded to one hop, so a chain cannot ping-pong through the budget.
 created on first join with no provisioning step, and optionally **passphrase-protected** with
 an owner who can set the budget or delete it.
 
+**Worlds.** The same board can wear a different place. A picker in the title bar swaps the whole
+workspace between **Paper Office** (warm daylight and cream tiles), **Night Watch** (a deck under
+a star field, lit by its instruments) and **Alien Colony** (command modules on landing pads under
+two moons) — same sockets, same scheduler, same rows in DynamoDB, re-dressed. It is a personal
+setting, stored in your own browser, and it changes nothing anyone else sees.
+
+A world is not a colour scheme and it is never allowed to change what anything *means*. The busy
+blue, the queued ochre, the budget jade and the over-budget red carry the whole governance story,
+so each is re-tuned for its world's surfaces and **measured** — every state hue clears 4.5:1
+against all eight of that world's surfaces — and none is ever reassigned. What does change is the
+form: a working desk is a lit monitor in the office, a lit observation dome on the night deck, and
+a lit antenna array on a command module. Even the handoff re-dresses — the paper envelope becomes
+a transmission pulse on the colony, on the same path, at the same 1100 ms, with the same
+screen-reader announcement.
+
 ### Status
 
 Everything above is live, deployed and verified against real AWS. Last recorded full runs:
