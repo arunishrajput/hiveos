@@ -1,6 +1,8 @@
 # BUILD_PLAN.md — Phased roadmap
 
-Seven phases, each sized for one Claude Code session. Strictly sequential except Phase 5, which is cuttable.
+Each phase is sized for one Claude Code session. Phases 0–6 were the original plan and are
+strictly sequential; everything from 7 on was added later by user decision, and each of those
+carries the date it was added in its heading.
 
 Every phase ends with: verify → update `PROGRESS.md` → update docs → inspect diff → commit → push → stop.
 
@@ -11,8 +13,16 @@ Every phase ends with: verify → update `PROGRESS.md` → update docs → inspe
 | 2 | Scheduler + queue (no LLM) | No |
 | 3 | Bedrock + agent + memory | No |
 | 4 | Frontend HUD + public URL | No |
-| 5 | Agent chat + 2D canvas | **Yes — cut first** |
+| 5 | Agent chat + 2D canvas | **Yes — cut first** — *built anyway, 2026-09-18* |
 | 6 | Demo readiness | No |
+| 7 | Canvas-first workspace | Yes |
+| 8 | Depth pass | Yes |
+| 9–11 | Isolation, passphrases, administration | Yes — recorded in `PROGRESS.md`, not here |
+| 12–16 | The expansion — paper theme, landing page, named agents, rooms, handoff | Yes |
+| 17 | The office — shell, and a floor you staff | Yes |
+| 18 | World system foundation | Yes |
+| 19–26 | The worlds — one environment per phase | Yes — cut from 26 backwards |
+| 27 | World polish and Random World | Yes — cut first of the worlds |
 
 ---
 
@@ -487,15 +497,540 @@ there was a submittable deliverable at every point.
 
 ---
 
+## Phases 18–27 — the worlds *(added 2026-09-20, user decision)*
+
+**One board, many worlds.** HiveOS renders exactly one look — the paper office Phase 12 painted
+and Phase 17 put a shell around. These phases make the look pluggable: a picker in the title bar
+swaps the whole workspace into a different environment, and the same live board — the same
+sockets, the same scheduler, the same rows in DynamoDB — renders itself as a night observation
+deck, a forest clearing, a reef station, an alien colony.
+
+**A world is not a colour scheme, and a session that treats it as one has failed the phase.**
+The floor already has rooms, desks, a waiting area, pixel characters, a handoff animation, plants
+and state-driven monitor lighting. A world transforms *those objects*. If the only thing that
+changed is the value of `--floor`, nothing has been built.
+
+**And a world may never change what anything means.** The busy blue, the queued ochre, the budget
+jade and the over-budget red carry the entire governance story, which is the product. They are
+re-tuned for each world's surface and they are never reassigned. A judge who has watched the
+paper office must be able to read the reef station on first sight.
+
+**Scope, fixed for all ten phases.** Frontend only. No backend, no WebSocket protocol, no
+DynamoDB schema, no scheduler, no queue, no agent execution, no task or agent prompts, no
+`CONTRACT.md` edit, no new dependency, and no game engine — the DOM-and-CSS floor built over
+Phases 7, 15 and 17 is the canvas. Paper Office remains the default and must stay untouched, so
+the recorded demo is never at risk from a world that is still being built.
+
+| # | Phase | Touches | Depends on |
+|---|---|---|---|
+| 18 | World system foundation | `styles.css`, `sprites.js`, `components.jsx`, `App.jsx`, `index.html`, new `worlds.js` | 17 |
+| 19 | Night Watch | `worlds/nightsky.css` + `worlds.js` | 18 |
+| 20 | Enchanted Forest | `worlds/forest.css` + `worlds.js` | 18 |
+| 21 | Reef Station | `worlds/underwater.css` + `worlds.js` | 18 |
+| 22 | Alien Colony | `worlds/alien.css` + `worlds.js` | 18 |
+| 23 | Cloud City | `worlds/cloud.css` + `worlds.js` | 18 |
+| 24 | Arctic Base | `worlds/arctic.css` + `worlds.js` | 18 |
+| 25 | Desert Outpost | `worlds/desert.css` + `worlds.js` | 18 |
+| 26 | Ancient Ruins | `worlds/ruins.css` + `worlds.js` | 18 |
+| 27 | World polish and Random World | `worlds.js`, `App.jsx`, every world file | 19–26 |
+
+**Ordering rationale.** 18 is the only phase that touches shared code, and everything after it is
+additive — which is what makes each world independently shippable and individually deletable. The
+worlds run in order of how much each one asks of the contracts: Night Watch is the first dark
+world and proves the cold-load switch; Enchanted Forest is the first non-human cast; Reef Station
+is the hardest contrast case in the set, a blue world that has to keep a blue busy state legible;
+Cloud City is the inverse, the only world brighter than the paper office; Alien Colony is the
+first to restyle the handoff; Arctic Base is where the warm/cool split is stress-tested; Desert
+Outpost is where the ochre is; Ancient Ruins changes the most objects and is last. **Nothing after
+18 depends on anything before it**, so the run order can be reshuffled freely if one world matters
+more for the video.
+
+### The recolour test
+
+Applied at every world phase's gate. **If a world's entire diff is values inside its token block,
+the phase is not done.** A world must also change:
+
+- **the ground plane's structure** — the `background-image` recipe in `.floor`, not only the
+  colours fed into it;
+- **at least two of the three decoration slots**, carrying art that does not exist in Paper Office;
+- **the sprite design table** — the characters are a different species or silhouette, not
+  recoloured office workers;
+- **at least three of the five fixtures**, re-dressed into objects that belong in this world;
+- **the form of at least one state expression** — how a busy desk announces itself, how the queue
+  reads as a line — while keeping its hue family and its label text exactly as they are.
+
+### The state-legibility contract
+
+Also applied at every gate, and it outranks any art decision:
+
+- **busy / consuming budget** is the `--cool` / `--screen-on` family. **Queued and warn** is
+  `--honey`. **Over budget** is `--alarm`. **Healthy** is `--safe`.
+- The words never change: `working`, `idle`, `queued #N`, `for alice`, `HALT`, `DISMISS`,
+  `WAITING AREA`, `TEAM QUOTA`.
+- Each of the four hues is re-tuned for that world's own surfaces and **measured, not eyeballed**:
+  ≥4.5:1 for anything carrying a word, ≥3:1 for a non-text indicator.
+- Phase 12's rule survives translation into every world: **the brand fill never carries a word,
+  and nothing that means something is ever the brand fill.**
+
+**The one place the world briefs have to bend, and it bends once for all of them.** Several worlds
+want a busy desk to be a *warm pool of light* — a campfire in the clearing, a lit cabin against
+the snow, a lantern in the ruins. Warm is `--honey`, and `--honey` already means *queued, and
+50–80% of the budget spent*. A warm glow meaning "busy" would make the warn hue mean two different
+things on the same screen, which is the one thing this colour system has never done. The
+resolution keeps both halves:
+
+> **Ambient warmth is the world's resting character; the cool instrument glow is the state.** An
+> idle desk may sit in lamplight, firelight or a warm window — that is the world being warm, and
+> it means nothing. When the agent goes BUSY a cool light *joins* it, and that is the thing that
+> means something. Warmth decorates and never reports; cool reports and never decorates.
+
+### Validation — the same block in every world phase
+
+- `npm run build` clean, then `./scripts/deploy-frontend.sh` → job `SUCCEED`, verified on the
+  deployed URL and not on a local preview
+- **The whole flow, walked in this world on the deployed board**: hire an agent, run a task, fill
+  every desk, form a queue, watch a handoff cross. Every beat still reads without explanation.
+- Switch to Paper Office and back with no reload — Paper Office is unchanged
+- **Contrast measured** — `--cool`, `--safe`, `--honey`, `--alarm` against this world's own
+  surfaces: ≥4.5:1 text, ≥3:1 indicator. Record the four numbers in the phase note.
+- **Screenshots at the `DEMO.md` framing** — the 960×870 and 540×870 viewports (windows 960×957
+  and 540×957). No horizontal overflow, no page scroll, zero console errors, zero warnings.
+- Responsive sweep at **1440 / 1100 / 900 / 540 / 390** — 900 is a cliff, not a slope
+- `prefers-reduced-motion: reduce` still kills every animation this world added
+- `python scripts/ws_smoke.py` unchanged from its last recorded score. A CSS file cannot regress
+  the protocol, but the Phase 7 precedent is that "frontend only" is a claim to be checked.
+
+`rehearse.py` only needs re-running if a world changes the demo framing — and none of them may.
+
+---
+
+### Phase 18 — World system foundation
+
+**Objective.** Install the world mechanism and change nothing anyone can see. Paper Office stays
+the default and stays pixel-identical; what lands is the seam every later phase plugs into.
+
+**The mechanism.** `data-world="<id>"` on `document.documentElement`. Bare `:root` keeps Paper
+Office; a world adds `:root[data-world="<id>"] { … }`, which outranks it on specificity, so load
+order never matters and nothing needs `!important`. Each world is its own file —
+`frontend/src/worlds/<id>.css`, imported from `main.jsx` — so a world phase is an isolated diff
+and a world that looks wrong on camera is a two-line revert.
+
+**What the registry holds.** `frontend/src/worlds.js`, one entry per world: `id`, `label`, a
+one-line blurb for the picker, `colorScheme`, `themeColor`, the sprite design table, its layer
+map, and an eight-entry identity palette. A world may also supply a second design table for
+agents, when its agents should be a different species from its people; absent that, both draw
+from the one table.
+
+**Sprites generalise; the generator does not change.** `shadowFor`, `stepFrame`, `seatedFrame`,
+`SCALE = 4` and the 9×10 odd-width grid all stay exactly as they are, so the walk cycle, the
+seated frame and `translate(-50%, -50%)` centring keep working for free. Only two things widen:
+the layer alphabet goes from three letters to five, and it becomes per-world —
+
+```
+H  primary  --sp-hair    hair / shell / carapace / hull
+F  face     --sp-skin    skin / scales / fur / plating
+S  torso    --sp-shirt   shirt / body / fuselage
+A  accent   --sp-accent  beak, fin, antenna, visor      (new)
+D  detail   --sp-detail  eye, outline, dark marking     (new)
+```
+
+— and `lookFor(avatar, userId)` takes the world as a third argument. Three silhouettes is the
+floor, matching today; a world may offer up to eight, one per marker, since `lookFor` mods by the
+table length.
+
+**Three shared decoration slots**, rendered by `CanvasPanel` inside `.floor`, each `inset: 0`,
+`pointer-events: none`, `aria-hidden`, and **empty in Paper Office** so it stays untouched:
+`.worldlayer--sky` behind everything, `.worldlayer--ground` above the floor and below the rooms,
+`.worldlayer--air` above the pawns. Sky carries backdrops, ground carries paths and light on the
+floor, air carries drifting particles.
+
+**The five fixtures are re-dressed, never removed.** `.fixture--board`, `.fixture--cooler`,
+`.fixture--window`, `.fixture--daylight` and `.decor--plant` keep their percentage positions in
+every world and only change costume. That is what keeps the floor's composition — and therefore
+its responsive behaviour, earned over three phases — constant across nine worlds.
+
+### Slices — in this order, each leaving a working app
+
+1. **Tokenise what Phase 12 left behind.** ~41 colour literals still sit outside the token
+   system, ~21 of them in world art: the desk mug `#f4f0e6`, the whiteboard `#ffffff` and its
+   `#b09a70` frame, the cooler's three blues and creams, the window glass `#eaf6fb`, the daylight
+   cone re-expressing brand amber as raw rgb, the rug's whole three-layer inset edge, the monitor
+   glow duplicating `--screen-on` in rgb *twice*, the sprite outline, and the floor and room
+   vignettes. Add channel tokens (`--ink-rgb`, `--cool-rgb`, `--alarm-rgb`, `--amber-rgb`,
+   `--shadow-rgb`) for the alpha variants that could not be expressed as tokens before. Add
+   `--sp-accent` and `--sp-detail`. Convert `.fixture--daylight` — the **only px-sized element on
+   the floor**, at 190×150 — to percentages. Promote `WALK_TOP` to a token, because it is
+   currently `14` in `components.jsx` and `100% 14%` in `styles.css` and a world that moves the
+   wall band would have to find both. Delete the dead `.hotdesk` rules, replaced by `OPEN_DESKS`
+   in Phase 17 and never removed. *Pure refactor — nothing may look different.*
+2. **The registry and the plumbing.** `worlds.js`, a `WorldContext` and `useWorld` hook, the
+   widened sprite layers, `lookFor` threaded to all six call sites, `data-world` on the document
+   element, `color-scheme` and `theme-color` driven from the registry instead of hard-coded light
+   in `index.html`, and the selection persisted to `localStorage['hiveos.world']` using the
+   identity pattern already in `App.jsx` — lazy initialiser, try/catch on both sides, unknown id
+   falls back to Paper Office. Paper Office is registered as the only entry, holding exactly
+   today's values.
+3. **The picker and the slots.** A second title-bar button beside the settings gear — rendered
+   for everyone, unlike the gear, which is admin-gated — opening a modal with a radiogroup of
+   world cards, cloning `AgentPicker`'s shape and `AddAgentModal`'s click-away. Then the three
+   `.worldlayer` slots, rendered and empty.
+
+**Files.** `frontend/src/worlds.js` (new), `frontend/src/styles.css`, `frontend/src/sprites.js`,
+`frontend/src/components.jsx`, `frontend/src/App.jsx`, `frontend/src/addagent.jsx`,
+`frontend/src/main.jsx`, `frontend/index.html`. **This is the only phase of the ten that touches
+shared code** — everything from 19 on is two files.
+
+**Non-negotiables.**
+
+- **Paper Office is pixel-identical when this phase ends.** Screenshot before and after, at both
+  demo viewports, and compare. This is the gate for slice 1 and again for the phase.
+- **React's own context, not a state library.** The no-Tailwind, no-router rule was about
+  dependencies; threading a prop through three levels into five components is the worse answer.
+- No backend, no protocol, no schema, no `CONTRACT.md`, no new dependency.
+- Coordinates stay percentages (0–100). `CONTRACT.md` line 168.
+
+**Validation.** The shared block above, plus: the picker persists across a reload; an unknown
+`hiveos.world` value falls back to Paper Office rather than rendering an unstyled board; and with
+a scratch `:root[data-world="test"]` block pasted into devtools, **every** world surface *and*
+every chrome surface repaints, with no state label changing meaning. Delete the scratch block.
+
+**Gate.** Paper Office is unchanged, the mechanism is proven by the scratch block, and a world
+phase from here on can touch two files and nothing else.
+
+> **This phase ships one world, and that is correct for exactly one phase.** A picker with a
+> single entry is not a control yet — Phase 19 is what makes it one.
+
+---
+
+### Phase 19 — Night Watch
+
+**Objective.** The office becomes a night observation deck: the floor under a star field, quiet,
+lit by instruments rather than by daylight.
+
+**The world.** Deep navy, very few light sources, and the feeling that the room is small and the
+sky is large. The warmth the paper office had is gone from the surfaces and survives only in the
+lamps.
+
+- **Ground plane** — the wall band becomes open night sky with a star field and two faint
+  constellations; the checker tiles become a dim deck grid, barely there.
+- **Rooms** — glass-roofed observation bays; the walls drop to low railings so the sky reads over
+  them, and `.room__door` becomes a gap in the railing.
+- **Desks** — instrument consoles with a telescope column where the monitor was.
+- **Busy** — the bay's dome lights cool-white and the console's screen comes up; the room's
+  reflected tint stays in the `--cool` family exactly as it is today.
+- **Waiting area and queue** — a moonlit platform, reached along a lit path; queued members stand
+  on the path in queue order, unchanged mechanically.
+- **Characters** — hooded night-watch explorers with headlamps; the headlamp is the `A` accent
+  layer and is the one warm thing on a character.
+- **Fixtures** — whiteboard → star chart; cooler → signal beacon; window → open sky; daylight →
+  a moon-pool of light on the deck; plants → antenna masts.
+- **Decoration slots** — sky: the star field and constellations; air: very slow drifting stars.
+- **Handoff** — unchanged; a pale envelope already reads well on navy.
+
+**Files.** `frontend/src/worlds/nightsky.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: this is the first dark world, so it is the one
+that proves `color-scheme` and `theme-color` actually switch — check a **cold load** in a fresh
+incognito window for a cream flash before React mounts.
+
+**Validation.** The shared block above, plus the cold-load check.
+
+**Gate.** The recolour test passes, the state-legibility contract is measured, and a cold load
+never flashes cream.
+
+---
+
+### Phase 20 — Enchanted Forest
+
+**Objective.** The floor becomes a forest clearing where the agents are woodland animals working
+at carved benches.
+
+**The world.** Dappled, green, close. Where Night Watch is a big sky over a small room, this is
+a small clearing inside a large forest — the edges of the floor should feel enclosed.
+
+- **Ground plane** — moss and packed earth; the tile field becomes a worn dirt path crossing the
+  clearing; the wall band becomes a treeline.
+- **Rooms** — hollow stumps and low treehouse platforms, with vine-draped doorways.
+- **Desks** — carved workbenches; the monitor is a scrying slab set into the wood.
+- **Busy** — the slab lights will-o'-wisp cyan and the hollow glows from inside. This is the first
+  world to use the ambient-warm/cool-state split: a resting bench may have a warm lantern, and
+  the cyan is what says *spending*.
+- **Waiting area and queue** — toadstools along the path; a queued member stands on one.
+- **Characters** — woodland animals: fox, owl and badger silhouettes at minimum. Ears and beak
+  are the `A` layer; eyes are `D`.
+- **Fixtures** — whiteboard → bark notice board; cooler → a stone well; window → a gap in the
+  canopy; daylight → a shaft of sun through it; plants → ferns and mushroom clusters.
+- **Decoration slots** — ground: dappled canopy light; air: drifting spores.
+- **Handoff** — unchanged, restyled as a folded leaf.
+
+**Files.** `frontend/src/worlds/forest.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: **foliage green is not `--safe` green.** The
+paper office already keeps `--foliage` muted away from the budget jade for exactly this reason,
+and a whole forest makes the collision far easier to cause. Check a healthy quota strip against
+the clearing before calling the phase done.
+
+**Validation.** The shared block above, plus a side-by-side of `--safe` and the world's greens.
+
+**Gate.** The recolour test passes, and a healthy budget cannot be mistaken for scenery.
+
+---
+
+### Phase 21 — Reef Station
+
+**Objective.** The office is submerged: a research station on the seabed, lit from a surface far
+above.
+
+**The world.** Blue on blue, with depth carried by layered light rather than by contrast. The
+first world with continuous motion in it.
+
+- **Ground plane** — seabed sand with ripple marks; the wall band becomes the water column rising
+  out of frame; the tile grid becomes settled deck plating.
+- **Rooms** — pressurised research domes, rounded rather than square at the corners.
+- **Desks** — console pods; the monitor becomes a sonar screen.
+- **Busy** — the dome's porthole and the sonar screen light cyan, which is the one world where
+  the state hue is also the ambient hue — so the busy indicator must earn its separation by
+  **brightness and by the flicker**, not by hue. Measure it.
+- **Waiting area and queue** — a kelp-marked current channel; queued members drift in line along
+  it.
+- **Characters** — fish, a turtle and a ray. Fins and tail are the `A` layer.
+- **Fixtures** — whiteboard → a chart riveted to hull plate; cooler → an air tank; window → a
+  porthole; daylight → a surface light shaft; plants → kelp and coral.
+- **Decoration slots** — ground: slow-moving caustics; air: rising bubbles.
+- **Handoff** — the envelope becomes a sealed capsule.
+
+**Files.** `frontend/src/worlds/underwater.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: **the busy state must survive a blue world.**
+If a busy dome cannot be told from an idle one at 540 px on a compressed recording, the phase is
+not done regardless of how good the reef looks. And both moving layers must go fully still under
+`prefers-reduced-motion: reduce`.
+
+**Validation.** The shared block above, plus a busy-versus-idle screenshot pair at 540 px.
+
+**Gate.** Busy reads instantly in a world made of the busy colour, and motion respects the
+reduced-motion preference.
+
+---
+
+### Phase 22 — Alien Colony
+
+**Objective.** The floor becomes an off-world colony — landing pads, command modules and strange
+flora under two moons.
+
+**The world.** Purple and teal, artificial light, nothing organic about the architecture. The
+first world where a message crossing the floor is a transmission rather than an object.
+
+- **Ground plane** — purple-teal regolith; the tile field becomes shallow crater pocks and pad
+  markings; the wall band becomes an alien horizon with two moons.
+- **Rooms** — command modules on landing pads, with an airlock where the door was.
+- **Desks** — command stations; the monitor is a tall readout panel.
+- **Busy** — the module's antenna array lights and its readout comes up cool-teal.
+- **Waiting area and queue** — a lit landing strip; queued members stand at its markers.
+- **Characters** — aliens and small service robots. Antennae and visors are the `A` layer.
+- **Fixtures** — whiteboard → holo-panel; cooler → fuel cell; window → viewport; daylight → a
+  ringed planet low on the horizon; plants → bulb flora.
+- **Decoration slots** — sky: the two moons and the ringed planet; ground: pad markings and
+  crater shadow.
+- **Handoff** — **this is the phase that restyles it**: the envelope becomes a transmission pulse
+  travelling the same path, with the same 1100 ms timing and the same accessible label.
+
+**Files.** `frontend/src/worlds/alien.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: the handoff's **path, duration and
+`aria-live` label are untouched** — `ENVELOPE_MS` stays 1100 and stays in sync with the CSS
+transition. Only the thing travelling changes. And a pulse that is easy to miss is worse than an
+envelope: check it at 540 px before calling it done.
+
+**Validation.** The shared block above, plus a handoff watched end-to-end at both viewports.
+
+**Gate.** A handoff is at least as easy to follow as the paper envelope, and its timing contract
+is intact.
+
+---
+
+### Phase 23 — Cloud City
+
+**Objective.** The workspace floats: a sky harbour of platforms and towers above the cloud line.
+
+**The world.** Bright, high-key, airy — the one world lighter than the paper office. Its risk is
+the opposite of every other world's: not enough contrast rather than too little colour.
+
+- **Ground plane** — floating tile platforms with gaps of open sky between them; the wall band
+  becomes the cloud line and sky above it.
+- **Rooms** — pavilions and control towers, with an open arch for the door.
+- **Desks** — harbour control desks; the monitor becomes a signal lamp housing.
+- **Busy** — the tower lights its beacon and the lamp comes up.
+- **Waiting area and queue** — a boarding platform; queued members wait at its edge.
+- **Characters** — birds, pilots and small sky-drones. Wings and goggles are the `A` layer.
+- **Fixtures** — whiteboard → a departures board; cooler → a windsock; window → open air;
+  daylight → high sun; plants → topiary in sky-planters.
+- **Decoration slots** — sky: layered clouds and a drifting airship; air: occasional wisps.
+- **Handoff** — the envelope becomes a small courier bird or drone on the same path.
+
+**Files.** `frontend/src/worlds/cloud.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: **a bright world is where text goes to die.**
+Every one of the four state hues needs re-darkening against near-white surfaces, and the pawn
+name labels — which already lost a dark halo once, in Phase 15 — need checking against the
+brightest platform.
+
+**Validation.** The shared block above, plus every small mono label read at 540 px.
+
+**Gate.** Nothing on a white platform is hard to read, and the four state hues all pass.
+
+---
+
+### Phase 24 — Arctic Base
+
+**Objective.** A polar research station: cabins and antennae on snow, under an aurora.
+
+**The world.** Cold, low-saturation, with the warmth strictly indoors. This is the world the
+ambient-warm/cool-state split was written for.
+
+- **Ground plane** — packed snow with ice-crack tiles and boot-tracked paths; the wall band
+  becomes a ridge under aurora.
+- **Rooms** — insulated cabins with heavy doors.
+- **Desks** — survey stations; the monitor is an instrument window.
+- **Busy** — a cabin at rest glows **warm** from its living window and that means nothing; when
+  its agent goes BUSY the instrument window comes up **cool** beside it, and that is the state.
+  Both are visible at once, which is the point and the test.
+- **Waiting area and queue** — a flag-marked ice path; queued members wait between flags.
+- **Characters** — penguins and parka'd explorers. Hoods and beaks are the `A` layer.
+- **Fixtures** — whiteboard → a weather board; cooler → an ice-core rack; window → a frosted
+  pane; daylight → a low winter sun; plants → antenna masts.
+- **Decoration slots** — sky: the aurora; air: falling snow.
+- **Handoff** — unchanged, restyled as a sealed dispatch tube.
+
+**Files.** `frontend/src/worlds/arctic.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: **the two lights must be unmistakable side by
+side.** Screenshot one idle cabin and one busy cabin in the same frame; if a viewer has to think
+about which is which, the warm light is too strong or the cool one too weak.
+
+**Validation.** The shared block above, plus the idle-and-busy-in-one-frame screenshot.
+
+**Gate.** Warmth reads as atmosphere and cool reads as state, with no ambiguity in a single frame.
+
+---
+
+### Phase 25 — Desert Outpost
+
+**Objective.** A research outpost in the dunes at low sun — canopies, solar arrays, long shadows.
+
+**The world.** Warm sand and long raking light. Its hazard is that the whole world is the colour
+of the warn state, so `--honey` has to be re-pitched hard.
+
+- **Ground plane** — dune sand with wind ripples; the tile field becomes sun-baked hardpan; the
+  wall band becomes a ridge against a low sun.
+- **Rooms** — adobe outposts under shade canopies.
+- **Desks** — field stations with a solar array behind them; the monitor is a shaded readout.
+- **Busy** — the array's inverter and the readout light cool against all that sand, which makes
+  this the easiest busy state to see in the set.
+- **Waiting area and queue** — a caravan line: queued members stand in a visible file along a
+  marked track, which is the clearest literal reading of the fair queue in any world.
+- **Characters** — a fennec, a lizard and a hooded traveller. Ears, tail and hood are `A`.
+- **Fixtures** — whiteboard → a route map; cooler → a water barrel; window → a shuttered opening;
+  daylight → the setting sun; plants → cacti and scrub.
+- **Decoration slots** — ground: wind-scoured ripples and long shadows; air: drifting dust.
+- **Handoff** — unchanged, restyled as a courier satchel.
+
+**Files.** `frontend/src/worlds/desert.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: **`--honey` cannot be sand.** In a world made
+of warm ochre, the queued state and the 50–80% budget tone must still announce themselves. Push
+them darker and more saturated until they do, and measure.
+
+**Validation.** The shared block above, plus a queue of three read against the dunes at 540 px.
+
+**Gate.** A queued member and a half-spent budget are both obvious in a world the colour of both.
+
+---
+
+### Phase 26 — Ancient Ruins
+
+**Objective.** A temple complex: stone chambers, glyph walls and torchlight, worked by
+archaeologists.
+
+**The world.** Heavy, dark stone with two light sources — torch amber that decorates, and glyph
+cyan that reports. The last world, and the one that restyles the most objects.
+
+- **Ground plane** — stone flags and cracked mosaic; the wall band becomes a carved wall with a
+  glyph frieze.
+- **Rooms** — pillared chambers; the door becomes a stone lintel, and the room's silhouette
+  changes rather than just its fill.
+- **Desks** — stone worktables strewn with finds; the monitor becomes a glyph tablet.
+- **Busy** — the chamber's glyph wall and the tablet light arcane cyan, while the torches stay
+  warm and mean nothing.
+- **Waiting area and queue** — a colonnade; queued members wait between the columns.
+- **Characters** — adventurers and archaeologists; hats, packs and lamps are the `A` layer.
+- **Fixtures** — whiteboard → a carved stele; cooler → an urn; window → a broken roof; daylight →
+  a shaft of light through it; plants → overgrown vines.
+- **Decoration slots** — ground: torch-flicker shadow across the flags; sky: the frieze.
+- **Handoff** — the envelope becomes a scroll.
+
+**Files.** `frontend/src/worlds/ruins.css` (new), `frontend/src/worlds.js`.
+
+**Non-negotiables.** The shared scope above, plus: **torch flicker is decoration and must not
+read as an alert.** Keep it slow and low-amplitude, keep it out of the `--honey` and `--alarm`
+hues, and make sure it stops dead under `prefers-reduced-motion: reduce`.
+
+**Validation.** The shared block above, plus a full minute watched with an idle floor — nothing
+in the ambience should ever look like something happening.
+
+**Gate.** The recolour test passes, and a quiet floor looks quiet.
+
+---
+
+### Phase 27 — World polish and Random World
+
+**Objective.** Make the set feel like one system rather than eight separate builds, and add the
+one piece of new UI the roadmap allows.
+
+**No new product behaviour.** Nothing here touches what HiveOS does — only how it looks doing it.
+
+**What lands.**
+
+1. **The transition.** A cross-fade between worlds. **The one real hazard is the sprite**: a pawn
+   mid-walk is animating between `--art` and `--art-step`, and a world change swaps both under
+   it. Either freeze the gait for the duration of the fade or swap at a frame boundary; a
+   half-swapped character is the failure to watch for.
+2. **Micro-animations**, world by world, all gated behind `prefers-reduced-motion` and all
+   audio-free.
+3. **The contrast matrix** — four state hues × nine worlds, all 36 measured and recorded in the
+   phase note. **Any world that fails is fixed here or removed from the registry**; a world that
+   cannot carry the state colours is not shippable, however good it looks.
+4. **A responsive sweep of every world** at 1440 / 1100 / 900 / 540 / 390, and a keyboard pass on
+   the picker.
+5. **Random World** — a "surprise me" entry that picks a world other than the current one. It
+   persists the world it landed on, not the fact that it was random, so a reload is stable.
+
+**Files.** `frontend/src/worlds.js`, `frontend/src/App.jsx`, every world CSS file.
+
+**Non-negotiables.** The shared scope above, plus: no new dependency for the transition — a CSS
+cross-fade, not an animation library. And Random World never picks the world already showing.
+
+**Validation.** The shared block above, run against **every** world, plus: switch worlds while a
+pawn is walking and while a handoff is crossing, and confirm neither breaks.
+
+**Gate.** All nine worlds pass the contrast matrix, switching is smooth from any world to any
+other at any moment, and Paper Office is still the default.
+
+---
+
 ## If you are behind schedule
 
 Cut in this order:
-1. Phase 16, then 15, then 14 — the expansion is enhancement, and cutting from the back always
+1. Phase 27, then the worlds from 26 backwards. Each world is a self-contained file plus a
+   registry entry, so cutting one leaves every other world intact and Paper Office untouched.
+   **Phase 18 is the only one of the ten with anything behind it** — cut it and the whole set
+   goes, so if it has landed, ship it and cut worlds instead.
+2. Phase 16, then 15, then 14 — the expansion is enhancement, and cutting from the back always
    leaves a coherent product. Phases 12 and 13 are what a judge sees in the first five seconds;
    cut those last.
-2. Phase 5 entirely
-3. Per-task cost breakdown, task history, announcements
-4. The second agent slot — one slot still demonstrates queueing
-5. Shared memory — the queue plus token meter alone still tells the story
+3. Phase 5 entirely
+4. Per-task cost breakdown, task history, announcements
+5. The second agent slot — one slot still demonstrates queueing
+6. Shared memory — the queue plus token meter alone still tells the story
 
 **Never cut:** the deployed public URL, the token meter, or the demo video. Those three are the submission.
