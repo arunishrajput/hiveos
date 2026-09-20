@@ -52,7 +52,9 @@ TASK = {
 # falsy, and a bare MagicMock returns a truthy one forever.
 ROSTER = [{"slot_id": SLOT, "name": "Ada", "role": "Engineer"}]
 
-MARKER_SK = f"IDEMPOTENCY#{TASK_ID}"
+# Keyed on the *leg*, not the chain. Both legs of a handoff carry one
+# `task_id` by design, so `hops` is what separates them — see `TestHandoff`.
+MARKER_SK = f"IDEMPOTENCY#{TASK_ID}#0"
 
 
 def _client_error(code):
@@ -67,20 +69,48 @@ def _result():
     return result
 
 
+def _conditional_table():
+    """A table stand-in that actually enforces `attribute_not_exists(SK)`.
+
+    A bare `MagicMock` accepts every put, so two deliveries driven through one
+    test both "succeed" and a collision between their keys is invisible. That
+    is precisely where the handoff bug hid: asserting on a single leg in
+    isolation can never catch two legs claiming the same marker. Tests that
+    care about the interaction between deliveries share one of these.
+    """
+    table = MagicMock()
+    written = set()
+
+    def put_item(**kwargs):
+        sk = kwargs["Item"]["SK"]
+        conditional = kwargs.get("ConditionExpression") == "attribute_not_exists(SK)"
+        if conditional and sk in written:
+            raise _client_error("ConditionalCheckFailedException")
+        written.add(sk)
+        return {}
+
+    table.put_item.side_effect = put_item
+    return table
+
+
 class _Harness:
     """Everything `_handle` reaches past the gate, stubbed at the boundary.
 
     `marker_raises` fails only the `IDEMPOTENCY#` put, not every write — a
     throttled marker must not also break the ledger row written on the way out.
+    `table` injects a shared stand-in so several deliveries can be driven
+    against one piece of state.
     """
 
-    def __init__(self, marker_raises=None):
+    def __init__(self, marker_raises=None, table=None):
         self.marker_raises = marker_raises
-        self.table = MagicMock()
-        self.table.put_item.side_effect = self._put_item
+        self.table = table if table is not None else MagicMock()
+        if table is None:
+            self.table.put_item.side_effect = self._put_item
 
     def _put_item(self, **kwargs):
-        if self.marker_raises and kwargs.get("Item", {}).get("SK") == MARKER_SK:
+        sk = kwargs.get("Item", {}).get("SK", "")
+        if self.marker_raises and sk.startswith("IDEMPOTENCY#"):
             raise self.marker_raises
         return {}
 
@@ -209,6 +239,83 @@ class TestRealErrors:
         assert harness.record.call_args.kwargs["status"] == history.FAILED
         harness.reply_error.assert_called_once()
         harness.release.assert_called_once_with(TEAM, SLOT, expected_holder=USER)
+
+
+# --- A handoff's second leg ------------------------------------------------
+
+
+class TestHandoff:
+    """The receiving leg of a handoff is not a duplicate of the handing leg.
+
+    Both legs carry the same `task_id` deliberately — that is what ties them
+    together in the ledger and on the wire. Keying the marker on `task_id`
+    alone therefore made Iris's leg collide with Ada's: the desk claimed the
+    work, skipped the model call, and went IDLE again without answering. No
+    unit test caught it; `ws_smoke.py` scenario 24 did, against deployed AWS.
+
+    `scheduler.dispatch` states the rule these tests encode — "`task_id`
+    identifies the piece of work rather than this leg of it, `hops` counts how
+    many times it has been handed on".
+    """
+
+    SECOND_LEG = {
+        **TASK,
+        "slot_id": "researcher",
+        "hops": 1,
+        "handoff_from": SLOT,
+    }
+
+    def test_both_legs_run_against_one_table(self):
+        """The regression, driven the way the bug actually happened.
+
+        Ada's leg first, then Iris's, against a single table that enforces the
+        condition. Asserting on the second leg alone would pass either way —
+        a fresh mock has no marker for it to collide with.
+
+        Fails if the marker is keyed on `task_id` alone.
+        """
+        from agent_runner import app
+
+        table = _conditional_table()
+        with _Harness(table=table) as first:
+            app._handle(TASK)
+        first.run_agent.assert_called_once()
+
+        with _Harness(table=table) as second:
+            app._handle(self.SECOND_LEG)
+        second.run_agent.assert_called_once()
+        second.add_tokens.assert_called_once()
+
+    def test_a_real_redelivery_is_still_caught_on_the_same_table(self):
+        """The other half: keying per leg must not stop dedup working."""
+        from agent_runner import app
+
+        table = _conditional_table()
+        with _Harness(table=table):
+            app._handle(TASK)
+        with _Harness(table=table) as again:
+            app._handle(TASK)
+        again.run_agent.assert_not_called()
+        again.release.assert_called_once_with(TEAM, SLOT, expected_holder=USER)
+
+    def test_the_two_legs_take_different_markers(self):
+        assert _run().markers()[0]["Item"]["SK"] == f"IDEMPOTENCY#{TASK_ID}#0"
+        assert (
+            _run(self.SECOND_LEG).markers()[0]["Item"]["SK"]
+            == f"IDEMPOTENCY#{TASK_ID}#1"
+        )
+
+    def test_the_second_leg_is_still_guarded(self):
+        """Keying per leg must not mean the later legs stop being deduped."""
+        from agent_runner import app
+
+        with _Harness() as harness:
+            harness.marker_raises = _client_error("ConditionalCheckFailedException")
+            app._handle(self.SECOND_LEG)
+        harness.run_agent.assert_not_called()
+        harness.release.assert_called_once_with(
+            TEAM, "researcher", expected_holder=USER
+        )
 
 
 # --- Tasks with nothing to key on ------------------------------------------

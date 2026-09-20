@@ -15,9 +15,9 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
 | **Current phase** | **Phase 6 — demo readiness.** The video is **recorded, uploaded and verified public**. **One task is left in the entire project: submit.** The remaining world phases (20, 21, 23–27) are **deferred past submission by user decision on 2026-09-20 — not cut** |
-| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is `BLOCKED — WAITING FOR MANUAL ACTION` on task 9 alone** — tasks 6 and 7 (record, upload) were completed by the user on 2026-09-20; task 9 (submit) is the only thing outstanding. Gates after Phase 22: `pytest` **38/38** (was 27/27; +11 from PR #4, merged 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
+| **Phase status** | Phase 22 `COMPLETE` — deployed and verified 2026-09-20. **Three worlds in the picker** and the board wears any of them. **Phase 6 is `BLOCKED — WAITING FOR MANUAL ACTION` on task 9 alone** — tasks 6 and 7 (record, upload) were completed by the user on 2026-09-20; task 9 (submit) is the only thing outstanding. Gates after Phase 22: `pytest` **42/42** (was 27/27; +15 from PR #4, merged and deployed 2026-09-20), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and this time *proved* false by scanning DynamoDB and finding the only live connections belonged to two strangers on the public URL — a real task in Alien Colony on the deployed board spending **648 tokens**, a **real agent-to-agent handoff at both demo framings** (1,202 tokens, accessible label and 1100 ms timing intact), and Paper Office proven unchanged by a **73/73 token, 211/211 element** computed-style diff against a HEAD build. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. **`main` is one `sam deploy` ahead of the stack** — PR #4 (runner idempotency + table TTL) is merged but **not deployed**, held deliberately: the recorded video and the verified public URL both run the current stack, and submission is the only task left. Deploy after submitting, or before it only if there is time to re-run `ws_smoke.py`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. **`main` and the stack are in step** — PR #4 (runner idempotency + table TTL) deployed 2026-09-20 **after submission**, re-verified at `ws_smoke.py` **109/113**. DynamoDB TTL is now `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -842,13 +842,43 @@ loop — CI would hang, not fail. Also: `_reply` was stubbed, which made
 "a duplicate does not charge the team" vacuously true, since
 `add_tokens` is only reachable through it.
 
-**Tests.** `tests/test_runner_idempotency.py`, 11 tests, rewritten.
+**The bug the deploy gate caught — and the unit tests did not.**
+Keying the marker on `task_id` was wrong, and it was wrong in the PR
+as submitted, not in the review. `task_id` identifies the *chain*, not
+the delivery — `scheduler.dispatch` says so in its own docstring — and
+both legs of a handoff carry one `task_id` deliberately, because that
+is what ties them together in the ledger and on `agent_response`. So
+the receiving leg collided with the handing leg's marker: Iris claimed
+the desk, skipped her model call, and went IDLE again without ever
+answering. On the board that is a desk flickering BUSY and going quiet.
+
+`ws_smoke.py` scenario 24 caught it on the first deploy — **83/88,
+`alice: timed out waiting for 'agent_response'`** — which is exactly
+why `CLAUDE.md` says a zero exit code is not proof. Every unit test
+passed, the PR's five and my eleven alike, because none of them ran two
+legs of one chain against one table.
+
+Fixed by keying on the leg: `IDEMPOTENCY#<taskId>#<hops>`. A redelivery
+repeats `hops`; a handoff increments it. Redeployed, and `ws_smoke.py`
+is back to **109/113** with only the four known CONN# false positives.
+Verified in the table itself — a handoff chain now holds `…#0` at
+`coder` and `…#1` at `researcher`. Four un-suffixed rows from the first
+deploy remain; they carry `expires_at`, cannot collide with the new
+key, and TTL will sweep them.
+
+**Tests.** `tests/test_runner_idempotency.py`, 14 tests, rewritten.
 `_reply` runs for real against stubbed dependencies, and there is a
 positive control asserting a *first* delivery does charge — without it
-the duplicate assertions prove nothing. Verified by mutation: hoisting
-the gate back out of the try fails 2, dropping the
+the duplicate assertions prove nothing. The handoff tests drive two
+deliveries through **one table stand-in that actually enforces
+`attribute_not_exists(SK)`**; a bare `MagicMock` accepts every put, so
+asserting on a single leg in isolation can never see two legs claiming
+one marker. That was the hole the deployed bug walked through.
+
+Verified by mutation: hoisting the gate back out of the try fails 2,
+re-keying on `task_id` alone fails 3, dropping the
 `ConditionExpression` fails 1, dropping `expires_at` fails 1. Suite is
-**38**, and runs in 0.09s.
+**42**, and runs in 0.11s.
 
 ---
 

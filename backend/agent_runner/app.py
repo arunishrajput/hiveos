@@ -182,6 +182,14 @@ def _already_delivered(team, task):
     `task_id` has nothing to key on and is let through — the alternative is
     dropping real work to guard against a duplicate that cannot be detected.
 
+    **Keyed on the leg, not the chain.** `task_id` identifies the piece of
+    work; `hops` identifies which delivery of it this is (`scheduler.dispatch`
+    says so in as many words). Both legs of a handoff deliberately carry the
+    same `task_id`, so keying on that alone made Iris's leg collide with Ada's
+    marker: the receiving desk went BUSY, skipped its model call, and went
+    IDLE again without ever answering. A redelivery repeats `hops`; a handoff
+    increments it. That is exactly the distinction this gate needs.
+
     **Called from inside the try, so a duplicate still reaches the `finally`
     and still releases the desk.** That placement is the whole point. The
     previous run may have died *holding* its slot, and this redelivery is the
@@ -193,11 +201,12 @@ def _already_delivered(team, task):
     if not task_id:
         return False
 
+    hops = int(task.get("hops", 0) or 0)
     try:
         state.table().put_item(
             Item={
                 "PK": state.team_pk(team),
-                "SK": f"IDEMPOTENCY#{task_id}",
+                "SK": f"IDEMPOTENCY#{task_id}#{hops}",
                 "slot_id": task.get("slot_id"),
                 "user_id": task.get("user_id"),
                 "claimed_at": state.now_iso(),
@@ -213,7 +222,10 @@ def _already_delivered(team, task):
         # laundered into a silent skip — that would drop the task outright.
         if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
             raise
-        print(f"[runner] duplicate delivery of task {task_id!r} — not running it again")
+        print(
+            f"[runner] duplicate delivery of task {task_id!r} hop {hops} "
+            "— not running it again"
+        )
         return True
 
     return False

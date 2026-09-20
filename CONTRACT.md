@@ -188,7 +188,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 | `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`, **plus its identity**: `name`, `role`, `tagline`, `persona`, `character`, `project`, `created_at`. A row written before the roster became data has the runtime fields only and is filled in from `STARTING_ROSTER` by `agents.from_row` |
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
-| `TEAM#<team>` | `IDEMPOTENCY#<taskId>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). **The only row in the schema that expires.** Written conditionally by the runner; its existence *is* the value and nothing ever reads it back |
+| `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). **The only row in the schema that expires.** Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. **Keyed on the leg, not the chain** — see below |
 
 ### Teams
 
@@ -361,12 +361,20 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   `created_at` is the **write** time, so an upsert refreshes it and `facts()`
   orders by most-recently-set.
 
-- **IDEMPOTENCY#** — one per task that reached the runner, keyed on `task_id`.
-  SQS is at-least-once, so the same task can arrive twice; without this the
-  second arrival called the model again and charged the team for one piece of
-  work twice. The row is written with `attribute_not_exists(SK)` and never
-  read back — winning the put *is* the answer, exactly like the `QUEUE#`
-  delete being the dispatch gate.
+- **IDEMPOTENCY#** — one per *delivery* that reached the runner. SQS is
+  at-least-once, so the same task can arrive twice; without this the second
+  arrival called the model again and charged the team for one piece of work
+  twice. The row is written with `attribute_not_exists(SK)` and never read
+  back — winning the put *is* the answer, exactly like the `QUEUE#` delete
+  being the dispatch gate.
+
+  **The key is `<taskId>#<hops>`, not `<taskId>`.** `task_id` identifies the
+  piece of work; `hops` identifies which leg of it this is. Both legs of a
+  handoff carry one `task_id` on purpose — it is what ties them together in
+  the ledger and on `agent_response` — so keying on it alone made the
+  receiving leg collide with the handing leg's marker: Iris claimed the desk,
+  skipped her model call, and went IDLE again without ever answering. A
+  redelivery repeats `hops`; a handoff increments it.
 
   **The gate runs inside the runner's `try`, not before it.** A redelivery is
   also the only thing that can free a desk whose previous run died holding it,
