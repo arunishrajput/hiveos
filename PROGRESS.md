@@ -2172,10 +2172,16 @@ Housekeeping, not blocking:
 3b. **Decide the default token budget for self-created workspaces.** `DEFAULT_TEAM_BUDGET`
    is 1,000,000, which makes the headline mechanic invisible to a judge who types their own
    workspace name: a real 666-token task moves the meter 0.1% and paints no bar. **The
-   recording is not affected** — `reset-demo.sh` seeds `alpha` at 5,000 and `DEMO.md` records
+   recording is not affected** — a take seeds `alpha` at 5,000 explicitly and `DEMO.md` records
    there — so this only touches the judge who explores after watching. Measured on the
    deployed build 2026-09-20: the same board at a 8,000 ceiling reads 81.2% in vivid red.
    Not changed unilaterally because it is a spend-policy call. If you want it:
+
+   > **Half of this is done as of PR #6 (2026-09-21).** The *seeded* boards now default to
+   > 100,000 — one ~800-token task at 0.8%, ~125 tasks of headroom. This item is now only
+   > about `DEFAULT_TEAM_BUDGET`, the workspace a judge creates by typing a new name, which
+   > is a stack parameter and needs a redeploy rather than a reseed. 25,000 below is still
+   > the suggestion; it is the same reasoning applied to a board nobody reseeds.
 
    ```bash
    # samconfig.toml → parameter_overrides, NOT template.yaml's Default:
