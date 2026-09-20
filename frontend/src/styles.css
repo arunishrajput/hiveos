@@ -60,6 +60,26 @@
   --honey: #c07a10;
   --alarm: #c4372b;
 
+  /* Channel tokens.
+   *
+   * A colour used only at full strength can be one token; a colour that also
+   * appears at three or four alphas cannot, because `rgba()` needs the
+   * channels rather than the hex. Each of these carries exactly the colour of
+   * the token it is named after and exists so the alpha variants stop being
+   * hand-copied literals. Keep every pair in step — `--cool-rgb` IS `--cool`.
+   *
+   * This is not tidiness. A world retunes `--cool` for its own surfaces, and
+   * every glow and tinted border made from it has to move at the same time.
+   * That is only possible if they are derived rather than typed out, which is
+   * why Phase 18 does this before any world exists.
+   */
+  --ink-rgb: 26, 19, 32;
+  --cream-rgb: 255, 248, 231;
+  --paper-rgb: 255, 253, 247;
+  --amber-rgb: 255, 202, 84;
+  --cool-rgb: 44, 127, 161;
+  --alarm-rgb: 196, 55, 43;
+
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -94,6 +114,7 @@
   --room-floor-busy: #e4eff4;
   --desk: #c08c4e;
   --desk-edge: #8e6335;
+  --desk-edge-rgb: 142, 99, 53;
   --desk-top: #d6a467;
   /* The handoff envelope's edge. One step darker than `--rule-strong`, and a
    * separate token because it is solving a different problem: a hairline
@@ -103,15 +124,41 @@
    * than picked — at `--rule-strong` the envelope disappears inside a room and
    * only reappears in the corridor, which is half its journey. */
   --envelope-edge: #b39a68;
+  /* The tight contact line under the travelling envelope. Darker and browner
+   * than `--shadow`, and a channel token because it is only ever used at one
+   * low alpha. */
+  --envelope-contact-rgb: 60, 45, 20;
   --screen-off: #3a3630;
   /* A lit monitor is a light source, not a label, so it keeps the bright blue
    * that `--cool` had to give up to stay legible as text on paper. The two
    * mean the same thing — "this slot is consuming the budget" — and have to be
    * recognisably the same hue while differing in weight. */
   --screen-on: #4fa8c7;
+  /* The spill the lit monitor throws, at two radii. Same colour as
+   * `--screen-on` above — it was written out twice in raw rgb, which meant a
+   * world retuning the lit screen would light the desk in the old hue. */
+  --screen-on-rgb: 79, 168, 199;
   /* A plant is not state, but a grey plant reads as a rendering bug. Muted
    * hard enough that it cannot be mistaken for the jade of a healthy budget. */
   --foliage: #5e8c63;
+
+  /* Objects on the floor. Each of these was a literal until Phase 18; they are
+   * tokens now because re-dressing the five fixtures is what a world does, and
+   * a world cannot reach a hex typed inside a rule.
+   *
+   * Named for what the object IS, not for its colour — a world's whiteboard
+   * may be a stone tablet and its cooler a water tank, and the token still
+   * names the right thing. */
+  --mug: #f4f0e6;
+  --board-face: #ffffff;
+  /* Darker than the wall it hangs on, not than the board it surrounds. */
+  --board-frame: #b09a70;
+  --bottle: #cfe7f1;
+  --bottle-base: #a9d2e2;
+  --cooler-body: #e7ddcb;
+  /* The lit top corner of the window glass; `--glass` is the far end of the
+   * same gradient. */
+  --glass-sky: #eaf6fb;
 
   /* Room scale. Everything in the floor is sized off these two, so the wide
    * layout only has to change the numbers rather than restate the furniture.
@@ -120,6 +167,17 @@
   --px-n: 4;
   --tile-size: 44px;
   --furn: 1;
+
+  /* The back-wall band, as a share of the floor's height. Not walkable.
+   *
+   * `WALK_TOP` in components.jsx is the same number and the two have to agree
+   * exactly: the wall is painted from this and the walkable area is computed
+   * from that, so a disagreement puts people through the wall or leaves a gap
+   * under it. It was `14` in one file and `100% 14%` in the other until Phase
+   * 18; from here the world registry owns the number and sets this property,
+   * so a world that raises its wall band changes one value and both follow.
+   * A world stylesheet must never set `--walk-top` — the JS would not see it. */
+  --walk-top: 14%;
 
   /* Sprite palette. Lives here rather than on `.sprite` because the member bar
    * draws the same art from a different class — scoping these to `.sprite`
@@ -131,6 +189,16 @@
    * this floor that moves, and on cream tiles a mid-slate torso lost its
    * silhouette the moment it crossed a desk. */
   --sp-shirt: #39424e;
+  /* Two more layers, for worlds whose cast is not a room of office workers: a
+   * beak, a fin, an antenna or a visor on `--sp-accent`, and the eye or dark
+   * marking that gives a non-human silhouette a face on `--sp-detail`.
+   *
+   * Paper Office's three designs emit neither, so both are inert here — and
+   * defined anyway, because an undefined layer colour paints nothing at all
+   * rather than failing loudly, which is how a world would quietly lose half
+   * its character to a typo. */
+  --sp-accent: #c9843f;
+  --sp-detail: #241c2b;
 
   /* Room structure. The wall is the lightest surface in the room and the floor
    * is a shade under it, which is the opposite of the graphite version and the
@@ -143,11 +211,30 @@
    * UI panel dropped on the room. The rug is defined by its rounded silhouette
    * and its inset edge, not by its colour. */
   --rug: #e8dfcd;
+  /* The rug's outer inset edge. Only ever used at one alpha, hence channels. */
+  --rug-edge-rgb: 190, 168, 126;
   --chair: #5f6b7a;
   --glass: #bfe0ee;
   /* Warm and soft. A neutral black shadow on cream turns grey and makes the
    * whole room look dusty; this is brown, and short. */
-  --shadow: rgba(122, 94, 48, 0.22);
+  --shadow-rgb: 122, 94, 48;
+  --shadow: rgba(var(--shadow-rgb), 0.22);
+  /* The vignette in the floor and inside each room. A *different* brown from
+   * `--shadow` on purpose — a drop shadow under an object and the darkening at
+   * the edge of a lit room are not the same light, and matching them flattened
+   * the room when it was tried. */
+  --vignette-rgb: 150, 118, 62;
+  /* Specular highlight: the lit top edge of a desk, a keyboard, a chair back.
+   * White at a low alpha rather than a mixed colour, so it lifts whatever it
+   * sits on instead of tinting it — which is what lets one token serve a warm
+   * laminate desk and a cool grey chair. */
+  --sheen-rgb: 255, 255, 255;
+
+  /* Chrome that had not been tokenised. `--ink-hover` is the one step above
+   * `--ink` that the solid dark button lifts to; `--engage-flash` is the blue
+   * a slot settles out of when it engages. */
+  --ink-hover: #2b2233;
+  --engage-flash: #d5e9f2;
 }
 
 * {
@@ -951,7 +1038,7 @@ body {
   border: 1px solid var(--rule);
   border-radius: var(--r-lg);
   background: var(--panel);
-  box-shadow: 0 10px 30px rgba(122, 94, 48, 0.1);
+  box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.1);
   overflow: hidden;
 }
 
@@ -1104,13 +1191,13 @@ body {
     linear-gradient(45deg, var(--tile) 25%, transparent 25%, transparent 75%, var(--tile) 75%);
   /* The wall is a *percentage* of the floor, not a fixed 52px, so it stays a
    * wall when the room grows on a wide screen instead of thinning into a
-   * stripe. 14% matches WALK_TOP (14) in components.jsx exactly — the project
+   * stripe. `--walk-top` is the same number the walk math uses — the project
    * rooms now stand against this band, so a wall that overshot it would run
    * behind their back wall and read as a double line. Wall and baseboard are
    * one layer: a separately positioned 3px line cannot track a
    * percentage-sized band. */
   background-size:
-    100% 14%,
+    100% var(--walk-top),
     var(--tile-size) var(--tile-size),
     var(--tile-size) var(--tile-size);
   background-position:
@@ -1125,7 +1212,7 @@ body {
    * Warm brown rather than black, and half the strength it was on graphite. A
    * neutral dark vignette on cream tiles turns the corners of the room grey
    * and the whole floor reads as dirty rather than as lit. */
-  box-shadow: inset 0 0 40px 8px rgba(150, 118, 62, 0.16);
+  box-shadow: inset 0 0 40px 8px rgba(var(--vignette-rgb), 0.16);
   cursor: crosshair;
   overflow: hidden;
 }
@@ -1158,7 +1245,7 @@ body {
   /* The back wall is shared with the room band behind it, so it carries no
    * rounding; the corridor corners do. */
   border-radius: 0 0 var(--r-sm) var(--r-sm);
-  box-shadow: inset 0 0 18px 4px rgba(150, 118, 62, 0.07);
+  box-shadow: inset 0 0 18px 4px rgba(var(--vignette-rgb), 0.07);
   pointer-events: none;
 }
 
@@ -1219,7 +1306,7 @@ body {
    * and a dark front edge or it is just a rectangle. */
   background: linear-gradient(var(--desk-top), var(--desk));
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.09),
     inset 0 -4px 0 0 var(--desk-edge),
     0 4px 7px var(--shadow);
 }
@@ -1238,7 +1325,7 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #f4f0e6;
+  background: var(--mug);
   box-shadow: 0 0 0 1px var(--desk-edge);
 }
 
@@ -1251,7 +1338,7 @@ body {
   height: 8px;
   border-radius: 1px;
   background: var(--paper);
-  box-shadow: 0 0 0 1px rgba(142, 99, 53, 0.35);
+  box-shadow: 0 0 0 1px rgba(var(--desk-edge-rgb), 0.35);
   transform: rotate(-6deg);
 }
 
@@ -1265,7 +1352,7 @@ body {
   height: calc(6px * var(--furn));
   border-radius: 1px;
   background: var(--desk-edge);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.06);
 }
 
 .desk__monitor {
@@ -1292,8 +1379,8 @@ body {
    * alphas the screen lit up without anything around it changing. */
   box-shadow:
     inset 0 0 0 2px var(--desk-edge),
-    0 0 14px 3px rgba(79, 168, 199, 0.72),
-    0 10px 28px 10px rgba(79, 168, 199, 0.34);
+    0 0 14px 3px rgba(var(--screen-on-rgb), 0.72),
+    0 10px 28px 10px rgba(var(--screen-on-rgb), 0.34);
 }
 
 @keyframes screen-flicker {
@@ -1313,7 +1400,7 @@ body {
   border-radius: 4px 4px 7px 7px;
   background: var(--chair);
   box-shadow:
-    inset 0 -2px 0 0 rgba(26, 19, 32, 0.32),
+    inset 0 -2px 0 0 rgba(var(--ink-rgb), 0.32),
     0 3px 6px var(--shadow);
 }
 
@@ -1326,7 +1413,7 @@ body {
   width: 15px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--sheen-rgb), 0.1);
 }
 
 /* The nameplate. Two lines: who sits here, and what they do.
@@ -1398,12 +1485,12 @@ body {
   /* An actual whiteboard now. On graphite it was a dark slate with pale marks;
    * inverting the room inverts the board, and a dark rectangle hung on a white
    * wall reads as a hole in it. */
-  background: #ffffff;
+  background: var(--board-face);
   /* The frame has to be darker than the wall it hangs on, not than the board
    * it surrounds — a white board framed in `--rule-strong` on a near-white
    * wall read as an outlined card floating in space. */
   box-shadow:
-    inset 0 0 0 2px #b09a70,
+    inset 0 0 0 2px var(--board-frame),
     0 3px 5px var(--shadow);
 }
 
@@ -1411,7 +1498,7 @@ body {
   height: 2px;
   width: 100%;
   border-radius: 1px;
-  background: rgba(26, 19, 32, 0.26);
+  background: rgba(var(--ink-rgb), 0.26);
 }
 
 .board__scribble--short {
@@ -1447,15 +1534,15 @@ body {
   width: calc(14px * var(--furn));
   height: calc(14px * var(--furn));
   border-radius: 3px 3px 1px 1px;
-  background: #cfe7f1;
-  box-shadow: inset 0 -3px 0 0 #a9d2e2;
+  background: var(--bottle);
+  box-shadow: inset 0 -3px 0 0 var(--bottle-base);
 }
 
 .cooler__body {
   width: calc(16px * var(--furn));
   height: calc(16px * var(--furn));
   border-radius: 1px 1px 2px 2px;
-  background: #e7ddcb;
+  background: var(--cooler-body);
   box-shadow:
     inset 0 0 0 1px var(--rule-strong),
     0 3px 5px var(--shadow);
@@ -1486,9 +1573,9 @@ body {
   border-radius: 8px;
   background: var(--rug);
   box-shadow:
-    inset 0 0 0 3px rgba(255, 253, 247, 0.85),
-    inset 0 0 0 4px rgba(190, 168, 126, 0.5),
-    inset 0 0 20px 5px rgba(122, 94, 48, 0.07);
+    inset 0 0 0 3px rgba(var(--paper-rgb), 0.85),
+    inset 0 0 0 4px rgba(var(--rug-edge-rgb), 0.5),
+    inset 0 0 20px 5px rgba(var(--shadow-rgb), 0.07);
   pointer-events: none;
 }
 
@@ -1516,45 +1603,13 @@ body {
   white-space: nowrap;
 }
 
-/* --- Hot desks ------------------------------------------------------------ */
-
-/* The team's own desks, along the left of the corridor. Furniture: nothing is
- * bound to them and nothing lights up. They exist so the open floor reads as
- * the rest of an office rather than as empty ground, and so a person standing
- * on the left is standing *somewhere*.
- *
- * Deliberately smaller and flatter than an agent desk. If these competed for
- * attention with the two desks that report scheduler state, they would be
- * costing the room the thing it is for. */
-.hotdesk {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0.85;
-}
-
-.hotdesk__surface {
-  width: calc(42px * var(--furn));
-  height: calc(17px * var(--furn));
-  border-radius: 2px;
-  background: linear-gradient(var(--desk-top), var(--desk));
-  box-shadow:
-    inset 0 -3px 0 0 var(--desk-edge),
-    0 3px 5px var(--shadow);
-}
-
-.hotdesk__chair {
-  width: calc(14px * var(--furn));
-  height: calc(11px * var(--furn));
-  margin-top: calc(3px * var(--furn));
-  border-radius: 3px 3px 5px 5px;
-  background: var(--chair);
-  box-shadow: 0 2px 4px var(--shadow);
-}
-
+/* `.hotdesk`, `.hotdesk__surface` and `.hotdesk__chair` were here and are
+ * gone. They styled the unbound furniture along the corridor, which Phase 17
+ * replaced with `OPEN_DESKS` — real desks bound to real hires, using `.desk`
+ * and `.opendesk`. The markup stopped being rendered then; these rules were
+ * left behind and matched nothing for three phases. Removed in Phase 18
+ * because a world author reading this file for the objects they have to
+ * re-dress must not find furniture that no longer exists. */
 
 /* Window, on the back wall. The one warm thing in the room: a top-down office
  * lit only from overhead is uniformly flat, and a single directional source
@@ -1565,7 +1620,7 @@ body {
   width: calc(70px * var(--furn));
   height: calc(28px * var(--furn));
   border-radius: 2px;
-  background: linear-gradient(160deg, #eaf6fb, var(--glass));
+  background: linear-gradient(160deg, var(--glass-sky), var(--glass));
   box-shadow:
     inset 0 0 0 3px var(--paper),
     0 0 0 1px var(--rule-strong),
@@ -1607,13 +1662,34 @@ body {
 .fixture--daylight {
   left: 17%;
   top: 46%;
-  width: 190px;
-  height: 150px;
+  /* Sized off the room's own scale knob rather than in fixed px.
+   *
+   * This was 190x150px and was the only element on this floor that did not
+   * grow with the room — at >=1100px the wide layout makes the floor fill its
+   * column and every other fixture scales, leaving the pool of light as a
+   * fixed puddle in a room twice its old size.
+   *
+   * Scaled off `--tile-size` rather than expressed as a percentage of the
+   * floor, and that is a deliberate departure from the phase brief. A
+   * percentage basis cannot work here: the floor is 250px tall at the 960
+   * demo framing and 260px at the 540 one, so no single percentage reproduces
+   * 190x150 at both, and Paper Office has to stay pixel-identical at both.
+   * `--tile-size` is 44px at each of them and 60px in the wide layout, so this
+   * is unchanged where it is measured and grows with the room where it was
+   * broken. It is also the right basis on its own terms — the tile grid is
+   * what "how big is this room" means on this floor.
+   *
+   * Written as `tile * n / 44` rather than as a ratio token: CSS `calc()` will
+   * divide a length by a number but not by another length, so the intuitive
+   * `calc(var(--tile-size) / 44)` yields 1*px* and `190px * 1px` is invalid —
+   * the cone silently computes to 0x0 and the room loses its light. */
+  width: calc(var(--tile-size) * 190 / 44);
+  height: calc(var(--tile-size) * 150 / 44);
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    rgba(255, 202, 84, 0.34),
-    rgba(255, 202, 84, 0) 70%
+    rgba(var(--amber-rgb), 0.34),
+    rgba(var(--amber-rgb), 0) 70%
   );
 }
 
@@ -1735,7 +1811,7 @@ body {
    * it stays because a hard outline is what makes pixel art read as pixel art
    * rather than as a blurry stamp. Applied here rather than on `.sprite` so it
    * does not also outline the contact shadow. */
-  filter: drop-shadow(0 0 1px rgba(26, 19, 32, 0.8));
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.8));
 }
 
 /* Hair colour arrives inline from `lookFor`, keyed on the marker the person
@@ -1873,7 +1949,7 @@ body {
    * state, which it is not. */
   box-shadow:
     0 3px 6px var(--shadow),
-    0 1px 2px rgba(60, 45, 20, 0.25);
+    0 1px 2px rgba(var(--envelope-contact-rgb), 0.25);
   pointer-events: none;
   /* Travel lives in the prefers-reduced-motion: no-preference block with the
    * rest of the motion, like `.pawn`. */
@@ -2031,7 +2107,7 @@ body {
 }
 
 .member--busy {
-  border-color: rgba(44, 127, 161, 0.5);
+  border-color: rgba(var(--cool-rgb), 0.5);
 }
 
 .member--busy .member__state {
@@ -2063,13 +2139,13 @@ body {
 
 /* Destructive, and it looks it. The only irreversible action in the product. */
 .btn--danger {
-  border-color: rgba(196, 55, 43, 0.45);
+  border-color: rgba(var(--alarm-rgb), 0.45);
   color: var(--alarm);
 }
 
 .btn--danger:hover {
-  background: rgba(196, 55, 43, 0.09);
-  border-color: rgba(196, 55, 43, 0.7);
+  background: rgba(var(--alarm-rgb), 0.09);
+  border-color: rgba(var(--alarm-rgb), 0.7);
   color: var(--alarm);
 }
 
@@ -2112,7 +2188,7 @@ body {
   border-left: 3px solid var(--cool);
   border-radius: var(--r);
   background: var(--paper);
-  box-shadow: 0 8px 24px rgba(122, 94, 48, 0.2);
+  box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.2);
 }
 
 .toast--alarm {
@@ -2249,7 +2325,7 @@ body {
    * raised panel, to a blue tint settling back down into sand. */
   @keyframes engage {
     from {
-      background: #d5e9f2;
+      background: var(--engage-flash);
     }
     to {
       background: var(--panel-raised);
@@ -2682,7 +2758,7 @@ a.btn {
   border: 1px solid var(--rule);
   border-radius: var(--r-lg);
   background: var(--panel);
-  box-shadow: 0 18px 44px rgba(122, 94, 48, 0.14);
+  box-shadow: 0 18px 44px rgba(var(--shadow-rgb), 0.14);
   overflow: hidden;
 }
 
@@ -2897,14 +2973,14 @@ a.btn {
   align-items: center;
   gap: 7px;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 248, 231, 0.12);
+  border-bottom: 1px solid rgba(var(--cream-rgb), 0.12);
 }
 
 .lp-terminal__dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: rgba(255, 248, 231, 0.2);
+  background: rgba(var(--cream-rgb), 0.2);
 }
 
 .lp-terminal__path {
@@ -2912,7 +2988,7 @@ a.btn {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 248, 231, 0.45);
+  color: rgba(var(--cream-rgb), 0.45);
   margin-left: 6px;
 }
 
@@ -2922,7 +2998,7 @@ a.btn {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.65;
-  color: #fff8e7;
+  color: var(--cream);
   margin: 0;
   padding: 20px 16px;
   overflow-x: auto;
@@ -3420,7 +3496,7 @@ a.btn {
    * silently was: the character picker set 6 and kept rendering at 4. */
   transform: scale(calc(var(--px-n) / 4));
   transform-origin: 0 0;
-  filter: drop-shadow(0 0 1px rgba(26, 19, 32, 0.8));
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.8));
 }
 
 .inspect__face {
@@ -3902,7 +3978,7 @@ a.btn {
 .drawer {
   position: fixed;
   inset: 0;
-  background: rgba(26, 19, 32, 0.32);
+  background: rgba(var(--ink-rgb), 0.32);
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -4027,7 +4103,7 @@ a.btn {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(26, 19, 32, 0.42);
+  background: rgba(var(--ink-rgb), 0.42);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4255,8 +4331,8 @@ a.btn {
 }
 
 .btn--ink:hover:not(:disabled) {
-  background: #2b2233;
-  border-color: #2b2233;
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
 }
 
 /* --- Hire events in a stream ---------------------------------------------- */
