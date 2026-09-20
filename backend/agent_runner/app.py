@@ -28,6 +28,7 @@ Three invariants live here:
 import json
 import time
 import traceback
+from botocore.exceptions import ClientError
 from collections import namedtuple
 
 from shared import agents, broadcast, history, llm, memory, scheduler, state
@@ -70,6 +71,27 @@ def _handle(task):
         f"task={task.get('task_id')} hops={task.get('hops', 0)} "
         f"conn={task.get('connection_id')}"
     )
+    task_id = task.get("task_id")
+    if task_id:
+        try:
+            state.table().put_item(
+                Item={
+                    "PK": state.team_pk(team),
+                    "SK": f"IDEMPOTENCY#{task_id}",
+                    "slot_id": slot_id,
+                    "user_id": user_id,
+                    "claimed_at": state.now_iso(),
+                },
+                ConditionExpression="attribute_not_exists(SK)",
+            )
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                print(
+                    f"[runner] duplicate SQS delivery for task {task_id!r} — skipping"
+                )
+                return
+            raise
+    # The roster, read once for the whole task.
 
     handoff = None
     try:
