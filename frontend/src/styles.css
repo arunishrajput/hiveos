@@ -3349,6 +3349,29 @@ a.btn {
   outline-offset: 2px;
 }
 
+/* The title bar is a fixed-size flex row, so it has a hard floor on width
+ * rather than a graceful one — and Phase 18 spent what was left of it. The
+ * world button beside the gear put an administrator's row 32px past a 390px
+ * phone, which is a horizontal scrollbar across the whole page. The 899px
+ * block below already drops the version string and "auto mode on"; this is
+ * what is left to give.
+ *
+ * The wordmark goes, because it is the one thing in the row that is genuinely
+ * redundant — the mark sits immediately to its left and says the same thing.
+ * Everything kept either reports live state (the working count, the people
+ * count, the connection lamp) or is a control.
+ *
+ * 520px, not 560: the demo records at 540 and this must not reach it. The
+ * whole phase turns on Paper Office rendering identically at 960 and 540, and
+ * a breakpoint on the wrong side of a framing would have quietly rewritten
+ * one of them.
+ */
+@media (max-width: 520px) {
+  .appbar__name {
+    display: none;
+  }
+}
+
 /* --- The floor region ----------------------------------------------------- */
 
 .app__floor {

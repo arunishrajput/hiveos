@@ -14,8 +14,8 @@
 | **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 18 — world system foundation**, the next phase to *build*. **Phase 6 — demo readiness** stays open beside it and is blocked on the user, not on code |
-| **Phase status** | Phase 18 `NOT STARTED`. Phases 18–27 were planned on 2026-09-20 by user decision and are specified in `BUILD_PLAN.md`: a pluggable world system, then eight environments one per phase, frontend only, with Paper Office kept as the untouched default. **Phase 6 is still `BLOCKED — WAITING FOR MANUAL ACTION`** — a full-system QA pass ran against the deployed URL on 2026-09-20 and found four defects, all fixed, deployed and re-verified live (see *Completed*). Gates after the fixes: `pytest` **27/27**, `ws_smoke.py` **109/113** (four known stranger-connection false positives), `rehearse.py` **15/15 across two takes**. Tasks 6, 7 and 9 (record, upload, submit) are the user's. |
+| **Current phase** | **Phase 19 — Night Watch**, the next phase to *build*. **Phase 6 — demo readiness** stays open beside it and is blocked on the user, not on code |
+| **Phase status** | Phase 18 `COMPLETE` — deployed and verified 2026-09-20. The world mechanism is in and ships one world, which is correct for exactly one phase: the picker becomes a control at Phase 19. **Phase 6 is still `BLOCKED — WAITING FOR MANUAL ACTION`** — a full-system QA pass ran against the deployed URL on 2026-09-20 and found four defects, all fixed, deployed and re-verified live (see *Completed*). Gates after Phase 18: `pytest` **27/27**, `ws_smoke.py` **109/113** (four known stranger-connection false positives, unchanged), a real task on the deployed board spending **494 tokens**. Tasks 6, 7 and 9 (record, upload, submit) are the user's. |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -50,8 +50,8 @@
 | 15 | Multi-room floor rebuild | `COMPLETE` — deployed and verified 2026-09-19 |
 | 16 | Agent-to-agent handoff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
-| 18 | World system foundation | `NOT STARTED` ← **here** — the only one of the ten that touches shared code; ships no new world |
-| 19 | Night Watch | `NOT STARTED` |
+| 18 | World system foundation | `COMPLETE` — deployed and verified 2026-09-20. The only one of the ten that touches shared code; ships no new world, by design |
+| 19 | Night Watch | `NOT STARTED` ← **here** — the first world, and what turns a one-entry picker into a control |
 | 20 | Enchanted Forest | `NOT STARTED` |
 | 21 | Reef Station | `NOT STARTED` |
 | 22 | Alien Colony | `NOT STARTED` |
@@ -92,6 +92,70 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 18 — world system foundation — 2026-09-20 — deployed and verified**
+
+The seam every world phase from 19 on plugs into. Frontend only; no backend, protocol, schema or
+`CONTRACT.md` change, and no new dependency. Three commits: `0b6aaee` (slice 1), `3501633`
+(slices 2–3), and the app-bar fix below.
+
+**The mechanism.** `data-world` on `document.documentElement`. Bare `:root` is Paper Office; a
+world adds `:root[data-world="<id>"]` in its own file under `frontend/src/worlds/`, imported from
+`main.jsx`. It outranks the default on *specificity* rather than load order, so nothing needs
+`!important` and no import has to be ordered. An id matching no file renders as Paper Office —
+which is why an unknown stored value is harmless rather than a blank board.
+
+**What landed:** `worlds.js` (registry + `WorldProvider` + `useWorld`, one entry); the sprite
+layer alphabet widened 3→5 and made per-world, with the generator, `SCALE` and the 9×10 grid
+untouched; `lookFor` taking the world as a third argument at all six call sites and a fourth for
+worlds whose agents are a different species; `walkTop` moved into the registry, which stamps
+`--walk-top` for CSS and hands the same number to the walk math; a pre-paint script in
+`index.html`; three empty `.worldlayer` slots in the floor; and a title-bar picker everyone gets.
+38 colour literals became tokens — **zero remain outside `:root`** — including eleven channel
+tokens for the alphas a hex cannot express. The dead `.hotdesk` rules, orphaned since Phase 17,
+are gone.
+
+**Verified, not assumed:**
+
+| Check | Result |
+|---|---|
+| Paper Office unchanged, 540 and 960 | **byte-identical** full-page screenshots vs the pre-phase build |
+| Computed style of every element (slice 1) | **0 of 226 differ** |
+| Scratch world repaints everything | every world *and* chrome surface moved; state words unchanged |
+| `--walk-top` drives both halves | registry 22 → CSS `100% 22%` **and** the walk math together |
+| Picker persists across a reload | yes, with no pre-paint flash |
+| Unknown `hiveos.world` value | falls back to Paper Office, board fully rendered |
+| `pytest` / `ws_smoke.py` | 27/27 · 109/113 — **unchanged**, same four known false positives |
+| Deployed task on the real board | Ada replied, **494 tokens**, meter and ledger updated |
+| Responsive 1440/1100/960/900/540/390 | no horizontal overflow, zero console errors |
+
+**Two things did not go to plan, and both are recorded rather than smoothed over.**
+
+**1. The daylight cone is scaled off `--tile-size`, not converted to percentages.** The brief
+asked for percentages. That is arithmetically impossible while keeping Paper Office
+pixel-identical: the workspace floor runs at `--tile-size: 44px` at the 540 framing and **52px**
+at 960, so any floor-relative percentage differs at one of them. `--tile-size` is the floor's own
+scale knob, is 44 at *both* narrow framings and 60 in the wide layout, so the cone is exact where
+it is measured and finally grows with the room where it was frozen. Written as
+`calc(var(--tile-size) * 190 / 44)`: CSS divides a length by a number but **not by another
+length**, so the intuitive ratio token yields `1px`, `190px * 1px` is invalid, and the cone
+computes to 0×0 — caught by the computed-style diff, which is the only reason it was not shipped.
+
+> **The one place Paper Office is not byte-identical.** At the **960** framing the cone is now
+> 224×177 rather than a frozen 190×150. Measured: **1.46% of the floor's pixels differ, worst
+> channel delta 7/255** on a 0.34-alpha decorative gradient that reports nothing. At 540 it is
+> unchanged. This is a deliberate call — the fix is what the phase asked for and the element is
+> explicitly decoration — but it *is* a deviation from the pixel-identical non-negotiable, and it
+> is one line to revert in `styles.css` if the recording should be bit-for-bit with Phase 17.
+
+**2. The world button caused a real regression at 390px, found and fixed.** The title bar is a
+fixed-size flex row with no graceful floor; a second button put an administrator's row 32px past
+a 390px phone — a horizontal scrollbar on the whole page. Fixed by hiding `.appbar__name` below
+**520px** — the wordmark is the one genuinely redundant item, sitting beside the mark that says
+the same thing. **520, not 560: the demo records at 540 and the breakpoint must not reach it.**
+A first attempt used 560 and would have quietly rewritten a demo framing.
+
+---
 
 **Full-system QA pass — 2026-09-20 — everything exercised against the deployed URL**
 
@@ -2075,22 +2139,34 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 **Two things are open, and they do not block each other.**
 
-**1. Phase 18 — world system foundation.** This is the next phase to *build*, and the one a
-fresh session should start. Phases 18–27 were added on 2026-09-20 by user decision: a pluggable
-world system, then eight environments one phase at a time. **Read the `## Phases 18–27` section
-of `BUILD_PLAN.md` first** — it carries two contracts (the recolour test and the state-legibility
-contract) that a session will otherwise not infer, and Phase 18 opens with a pure refactor whose
-gate is that Paper Office is pixel-identical afterwards.
+**1. Phase 19 — Night Watch.** This is the next phase to *build*, and the one a fresh session
+should start. **Read the `## Phases 18–27` section of `BUILD_PLAN.md` first** — it carries two
+contracts (the recolour test and the state-legibility contract) that a session will otherwise not
+infer, and both are applied at every world gate.
+
+Phase 18 has already installed everything 19 needs, so Night Watch is genuinely two files:
+`frontend/src/worlds/nightsky.css` and one entry in `frontend/src/worlds.js`.
+
+- Copy the shape of the `paper` entry in `worlds.js`. A dark world sets `colorScheme: 'dark'`
+  and a `themeColor` matching its own page ground.
+- The floor's objects are all tokens now — `--mug`, `--board-face`, `--bottle`, `--cooler-body`,
+  `--glass-sky`, the five fixtures, the three `.worldlayer` slots. **The recolour test is real:
+  if the whole diff is values inside the token block, the phase is not done.**
+- `--sp-accent` and `--sp-detail` exist and are inert in Paper Office. They are what makes a
+  non-human cast possible; a world that ignores them is recolouring office workers.
+- **A world stylesheet must never set `--walk-top`** — the registry owns it, because the walk
+  math in `components.jsx` reads the same number and CSS cannot tell it anything.
+- Pick a breakpoint carefully if you touch one: **the demo records at 960 and 540.**
 
 **2. Phase 6 — record the demo.** The recording, the upload and the submission are the user's and
 have been unblocked since Phase 4 — see *Manual actions pending*. **Nothing in 18–27 blocks it**,
 because Paper Office stays the default and `main` stays recordable after every world phase.
 
-> **The deadline is today (2026-09-20), and Phase 18 ships nothing a judge can see.** It installs
-> the seam and deliberately changes no pixel; the first phase that puts a new world on camera is
-> 19. The user chose worlds before recording with that understood. If the clock gets tight, the
-> cut order in `BUILD_PLAN.md` applies — 27 first, then the worlds from 26 backwards — and the
-> recording is the thing that is never cut.
+> **The deadline is today (2026-09-20).** Phase 18 shipped nothing a judge can see, by design —
+> it installed the seam and changed no pixel a viewer would notice. **Phase 19 is the first phase
+> that puts a new world on camera.** If the clock gets tight, the cut order in `BUILD_PLAN.md`
+> applies — 27 first, then the worlds from 26 backwards — and the recording is never cut.
+> Paper Office is still the default, so `main` is recordable right now.
 
 **`DEMO.md` has been re-measured and re-rehearsed against the office (2026-09-19). Follow it
 as written — the figures in it are measured, not estimated.** What it now says, in brief:

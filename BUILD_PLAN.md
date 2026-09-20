@@ -700,6 +700,21 @@ phase from here on can touch two files and nothing else.
 > **This phase ships one world, and that is correct for exactly one phase.** A picker with a
 > single entry is not a control yet — Phase 19 is what makes it one.
 
+**Shipped 2026-09-20. Three things the plan got wrong, corrected in flight:**
+
+1. **The daylight cone could not go to percentages.** The workspace floor runs at
+   `--tile-size: 44px` at the 540 framing and **52px** at 960, so no floor-relative percentage
+   gives 190×150 at both — and pixel-identity at both was the non-negotiable. It is scaled off
+   `--tile-size` instead, which is exact at both narrow framings and grows in the wide layout.
+   At 960 the cone is now 224×177 rather than frozen at 190×150: **1.46% of floor pixels, worst
+   delta 7/255**, on a decorative gradient. The one accepted deviation from pixel-identity.
+2. **`calc()` will not divide a length by a length.** `calc(var(--tile-size) / 44)` yields
+   `1px`, and `190px * 1px` is invalid, so the element computes to 0×0 *silently*. Write
+   `calc(var(--tile-size) * 190 / 44)`. Any world doing arithmetic on a scale token hits this.
+3. **The title bar had no width left.** A second button overflowed a 390px phone. Fixed by
+   hiding `.appbar__name` below **520px** — deliberately below the 540 demo framing. **Any new
+   breakpoint must clear 960 and 540**, or it rewrites a recording framing by accident.
+
 ---
 
 ### Phase 19 — Night Watch
