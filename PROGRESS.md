@@ -14,8 +14,8 @@
 | **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 6 — demo readiness** (Phase 17 landed on top of it) |
-| **Phase status** | `BLOCKED — WAITING FOR MANUAL ACTION`. **A full-system QA pass ran against the deployed URL on 2026-09-20** and found four defects, all fixed, deployed and re-verified live — see *Completed*. Gates after the fixes: `pytest` **27/27**, `ws_smoke.py` **109/113** (four known stranger-connection false positives), `rehearse.py` **15/15 across two takes**. Tasks 6, 7 and 9 (record, upload, submit) are the user's and are all that is left. |
+| **Current phase** | **Phase 18 — world system foundation**, the next phase to *build*. **Phase 6 — demo readiness** stays open beside it and is blocked on the user, not on code |
+| **Phase status** | Phase 18 `NOT STARTED`. Phases 18–27 were planned on 2026-09-20 by user decision and are specified in `BUILD_PLAN.md`: a pluggable world system, then eight environments one per phase, frontend only, with Paper Office kept as the untouched default. **Phase 6 is still `BLOCKED — WAITING FOR MANUAL ACTION`** — a full-system QA pass ran against the deployed URL on 2026-09-20 and found four defects, all fixed, deployed and re-verified live (see *Completed*). Gates after the fixes: `pytest` **27/27**, `ws_smoke.py` **109/113** (four known stranger-connection false positives), `rehearse.py` **15/15 across two takes**. Tasks 6, 7 and 9 (record, upload, submit) are the user's. |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -50,7 +50,22 @@
 | 15 | Multi-room floor rebuild | `COMPLETE` — deployed and verified 2026-09-19 |
 | 16 | Agent-to-agent handoff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
-| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` ← **here** — tasks 1–5 and 8 done, with **4 and 5 re-done on 2026-09-19** against the Phase 17 office: `rehearse.py` now covers hiring and passes **15/15** twice, and `DEMO.md`'s framing, narration and beat timings were corrected against measurement. Tasks 6, 7 and 9 are the user's |
+| 18 | World system foundation | `NOT STARTED` ← **here** — the only one of the ten that touches shared code; ships no new world |
+| 19 | Night Watch | `NOT STARTED` |
+| 20 | Enchanted Forest | `NOT STARTED` |
+| 21 | Reef Station | `NOT STARTED` |
+| 22 | Alien Colony | `NOT STARTED` |
+| 23 | Cloud City | `NOT STARTED` |
+| 24 | Arctic Base | `NOT STARTED` |
+| 25 | Desert Outpost | `NOT STARTED` |
+| 26 | Ancient Ruins | `NOT STARTED` |
+| 27 | World polish and Random World | `NOT STARTED` |
+| 6 | Demo readiness | `BLOCKED — WAITING FOR MANUAL ACTION` — tasks 1–5 and 8 done, with **4 and 5 re-done on 2026-09-19** against the Phase 17 office: `rehearse.py` now covers hiring and passes **15/15** twice, and `DEMO.md`'s framing, narration and beat timings were corrected against measurement. Tasks 6, 7 and 9 are the user's. **Not blocked by 18–27** — the recording can happen at any time |
+
+**Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
+Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
+**19–26 depend on 18 and on nothing else**, so their order can be reshuffled — or any of them
+dropped — without touching the rest. 27 depends on whichever worlds actually shipped.
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -2058,9 +2073,24 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-**Phase 6 — record the demo. There is no build phase left.** Phases 12–16 are all complete,
-deployed and verified, and no further phase is planned. What remains is the recording, the
-upload and the submission, all of which are the user's — see *Manual actions pending*.
+**Two things are open, and they do not block each other.**
+
+**1. Phase 18 — world system foundation.** This is the next phase to *build*, and the one a
+fresh session should start. Phases 18–27 were added on 2026-09-20 by user decision: a pluggable
+world system, then eight environments one phase at a time. **Read the `## Phases 18–27` section
+of `BUILD_PLAN.md` first** — it carries two contracts (the recolour test and the state-legibility
+contract) that a session will otherwise not infer, and Phase 18 opens with a pure refactor whose
+gate is that Paper Office is pixel-identical afterwards.
+
+**2. Phase 6 — record the demo.** The recording, the upload and the submission are the user's and
+have been unblocked since Phase 4 — see *Manual actions pending*. **Nothing in 18–27 blocks it**,
+because Paper Office stays the default and `main` stays recordable after every world phase.
+
+> **The deadline is today (2026-09-20), and Phase 18 ships nothing a judge can see.** It installs
+> the seam and deliberately changes no pixel; the first phase that puts a new world on camera is
+> 19. The user chose worlds before recording with that understood. If the clock gets tight, the
+> cut order in `BUILD_PLAN.md` applies — 27 first, then the worlds from 26 backwards — and the
+> recording is the thing that is never cut.
 
 **`DEMO.md` has been re-measured and re-rehearsed against the office (2026-09-19). Follow it
 as written — the figures in it are measured, not estimated.** What it now says, in brief:
@@ -2082,9 +2112,14 @@ as written — the figures in it are measured, not estimated.** What it now says
 
 > **Standing note, recorded once so it stops being re-raised.** Every feature in `PRD.md`'s
 > Must list is built, deployed and verified, and the product has been submittable since Phase
-> 4. The user chose to spend the window expanding rather than recording (2026-09-19); that
-> expansion is now finished, so the recording is the remaining work and `DEMO.md` needs
-> re-rehearsing because the reskin changed what is on screen.
+> 4. The user chose to spend the window expanding rather than recording — first on 2026-09-19
+> (Phases 12–17, now finished) and again on 2026-09-20 (Phases 18–27, the worlds). Everything
+> from here is upside; the recording is the only thing that is not optional.
+>
+> **A world phase must never invalidate this run sheet.** Phase 17 did exactly that — it killed
+> the 640×950 framing overnight — which is why Paper Office stays the default and why no world
+> may change the floor's percentage coordinates or its composition. If one ever does, `DEMO.md`
+> is re-measured and `rehearse.py` re-run **in the same phase**, not afterwards.
 
 ```bash
 # python3, not python — this machine has no `python` on PATH
