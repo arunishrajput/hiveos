@@ -14,6 +14,7 @@
 import { useState } from 'react'
 
 import { AVATARS, lookFor } from './sprites'
+import { useWorld } from './worlds'
 
 /* Mirrors the server-side truncation in `backend/shared/agents.py`. Matching
  * the limits here keeps what you typed and what arrives the same thing — the
@@ -66,6 +67,10 @@ const PRESETS = [
 ]
 
 export default function AddAgentModal({ onSpawn, onClose, full }) {
+  // Hiring picks an agent's character, so the picker draws this world's agent
+  // cast — in a world where agents are a different species from the people,
+  // these are the faces you are actually choosing between.
+  const { world } = useWorld()
   const [step, setStep] = useState(1)
   const [name, setName] = useState('')
   const [role, setRole] = useState('')
@@ -165,7 +170,7 @@ export default function AddAgentModal({ onSpawn, onClose, full }) {
                 <span className="hire__legend">Character</span>
                 <div className="faces" role="radiogroup" aria-label="Character">
                   {AVATARS.map((option) => {
-                    const look = lookFor(option, option)
+                    const look = lookFor(option, option, world, true)
                     return (
                       <button
                         type="button"

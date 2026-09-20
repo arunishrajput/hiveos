@@ -11,9 +11,31 @@
     />
     <!-- Declared so the browser paints the canvas cream before React mounts.
          Without it a cold load flashes the UA's default white — or, on a
-         device set to dark, near-black — behind a page that is neither. -->
+         device set to dark, near-black — behind a page that is neither.
+
+         These are Paper Office's values, and they stay literal: the browser
+         needs them before a stylesheet is parsed or a module is fetched. A
+         world that is not Paper Office overrides `color-scheme` from its own
+         `:root[data-world=…]` block, and the provider updates `theme-color`
+         from the registry once React is up. -->
     <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#fff8e7" />
+
+    <!-- Stamp the stored world before first paint.
+         Without this a returning visitor who chose a dark world gets a flash
+         of the cream office before React mounts and corrects it — the worst
+         frame of the whole load, and the one a recording would catch.
+         Deliberately does no validation: an unrecognised id matches no
+         `:root[data-world=…]` block, so the board simply renders as Paper
+         Office, and the provider rewrites the attribute on mount. -->
+    <script>
+      try {
+        var w = localStorage.getItem('hiveos.world')
+        if (w) document.documentElement.dataset.world = w
+      } catch (e) {
+        /* Blocked storage is not a reason to fail a page load. */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { lookFor } from './sprites'
+import { useWorld } from './worlds'
 
 const NUM = new Intl.NumberFormat('en-US')
 
@@ -102,7 +103,7 @@ export function StatusRail({ team, members, connection }) {
  * `StatusRail` is what this replaces and is still exported: the landing page's
  * canned preview uses it, and it is the right shape for a panel stack.
  */
-export function AppBar({ team, connection, members, agents, version, onSettings }) {
+export function AppBar({ team, connection, members, agents, version, onSettings, onWorlds }) {
   const working = agents.filter((a) => a.status === 'BUSY').length
 
   return (
@@ -122,6 +123,22 @@ export function AppBar({ team, connection, members, agents, version, onSettings 
         {members.length} {members.length === 1 ? 'person' : 'people'}
       </span>
       <Lamp connection={connection} />
+
+      {/* Everyone gets this one, unlike the gear beside it. Choosing a world
+          is a preference about your own screen — it is stored in your browser,
+          changes no board state and is broadcast to nobody, so there is
+          nothing here for the server to refuse and no reason to gate it on
+          being an administrator. */}
+      {onWorlds && (
+        <button
+          type="button"
+          className="appbar__gear"
+          onClick={onWorlds}
+          aria-label="Change world"
+        >
+          <span aria-hidden="true">◑</span>
+        </button>
+      )}
 
       {/* Only an administrator gets the gear, because it opens the only panel
           whose actions the server would accept from them. Hiding it from
@@ -148,7 +165,8 @@ export function AppBar({ team, connection, members, agents, version, onSettings 
  * moment the backend carries it.
  */
 export function AgentFace({ agent, className = '' }) {
-  const look = lookFor(agent.character, agent.slot_id)
+  const { world } = useWorld()
+  const look = lookFor(agent.character, agent.slot_id, world, true)
   return (
     <span
       className={`agentface ${className}`}
@@ -472,6 +490,7 @@ export function QuotaBar({ tokensUsed, tokenBudget, pctUsed, exhausted, estimate
  * read, this is the reliable one.
  */
 export function MemberBar({ members, me, busyUsers, queue }) {
+  const { world } = useWorld()
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
 
   return (
@@ -480,7 +499,7 @@ export function MemberBar({ members, me, busyUsers, queue }) {
         const busy = busyUsers.has(member.user_id)
         const position = queuedBy.get(member.user_id)
         const state = busy ? 'busy' : position ? 'queued' : 'idle'
-        const look = lookFor(member.avatar, member.user_id)
+        const look = lookFor(member.avatar, member.user_id, world)
         return (
           <div key={member.user_id} className={`member member--${state}`}>
             <span
@@ -533,7 +552,7 @@ export function SpendPanel({ spend, members, tokenBudget }) {
 
       <div className="spend">
         {spend.map((row) => {
-          const look = lookFor(avatarOf.get(row.user_id), row.user_id)
+          const look = lookFor(avatarOf.get(row.user_id), row.user_id, world)
           const share = budget ? Math.min(100, (row.tokens / budget) * 100) : 0
           return (
             <div className="spend__row" key={row.user_id}>
@@ -697,14 +716,19 @@ const STEP = 4
  * somebody inside the wall.
  *
  * The click handler applies the inverse, so clicking a spot still puts you on
- * that spot. Both directions use this one constant; they cannot drift apart.
+ * that spot. Both directions take the same `walkTop`; they cannot drift apart.
  *
  * Lowered from 22 to 14 with the room plan: the wall band got thinner because
  * the project rooms now stand against it and were eating the band's height
- * twice. Safe to change precisely because both directions read this constant —
+ * twice. Safe to change precisely because both directions read one number —
  * the only visible effect is that a stored coordinate renders slightly higher.
+ *
+ * That number was the module constant `WALK_TOP = 14` until Phase 18, and the
+ * stylesheet had its own copy as `100% 14%`. It now comes from the world
+ * registry, which stamps `--walk-top` for the stylesheet and hands the same
+ * value to the walk math — one source, two consumers, because a world that
+ * raises its wall band has to move the paint and the walkable area together.
  */
-const WALK_TOP = 14
 
 /* How long a walk takes, whatever the distance. Must match the `left`/`top`
  * transition in styles.css: the class drives the leg animation and the
@@ -774,8 +798,8 @@ function useWalking(placed) {
   return walking
 }
 
-const toFloor = (y) => WALK_TOP + (y * (100 - WALK_TOP)) / 100
-const fromFloor = (v) => ((v - WALK_TOP) * 100) / (100 - WALK_TOP)
+const toFloor = (y, walkTop) => walkTop + (y * (100 - walkTop)) / 100
+const fromFloor = (v, walkTop) => ((v - walkTop) * 100) / (100 - walkTop)
 
 const ARROWS = {
   ArrowUp: [0, -STEP],
@@ -795,7 +819,7 @@ const ARROWS = {
  *
  * The office reads in three bands, top to bottom:
  *
- *   0-14    back wall — window, whiteboard. Not walkable (WALK_TOP).
+ *   0-14    back wall — window, whiteboard. Not walkable (`walkTop`).
  *   14-62   two project rooms, standing against that wall, one per agent slot,
  *           with a corridor between them.
  *   62-100  the open floor — waiting area in the middle, hot desks on the
@@ -1061,6 +1085,14 @@ export function CanvasPanel({
   handoff = null,
   noteFor,
 }) {
+  /* The world supplies the cast and the height of the back wall. Everything
+   * else about this floor — the room plan, the desks, the waiting spots — is
+   * percentages and is the same in every world by design: keeping the
+   * composition fixed is what lets nine worlds inherit the responsive
+   * behaviour this floor earned over Phases 7, 15 and 17. */
+  const { world } = useWorld()
+  const walkTop = world.walkTop
+
   const rooms = roomsFrom(agents)
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
 
@@ -1119,7 +1151,7 @@ export function CanvasPanel({
         ? desk.deskY + desk.seatDrop
         : waiting
           ? waiting.y
-          : toFloor(Math.max(0, Math.min(100, Number(member.y) || 0))),
+          : toFloor(Math.max(0, Math.min(100, Number(member.y) || 0)), walkTop),
     }
   })
 
@@ -1137,7 +1169,7 @@ export function CanvasPanel({
     if (!box.width || !box.height) return
     onMove(
       ((event.clientX - box.left) / box.width) * 100,
-      fromFloor(((event.clientY - box.top) / box.height) * 100),
+      fromFloor(((event.clientY - box.top) / box.height) * 100, walkTop),
     )
   }
 
@@ -1174,6 +1206,18 @@ export function CanvasPanel({
             : `, ${busyUsers.size} at an agent desk.`)
         }
       >
+        {/* The two lower decoration slots. Empty in Paper Office — the office
+            is the floor's own background and needs no backdrop — and filled by
+            each world with art that does not exist here.
+
+            Stacking is DOM order, not z-index: sky is the backdrop behind
+            every object (a star field, a forest canopy, a water column) and
+            ground is the plane marked on top of it (a path, caustics, a pool
+            of light), both beneath the furniture and the rooms so a world can
+            paint the ground without painting over the desks. */}
+        <div className="worldlayer worldlayer--sky" aria-hidden="true" />
+        <div className="worldlayer worldlayer--ground" aria-hidden="true" />
+
         {/* Wall fixtures sit in the back band of the room, above everything
             else, so the floor has an "up" and reads as enclosed rather than as
             a field seen from above. */}
@@ -1282,7 +1326,7 @@ export function CanvasPanel({
             to a desk passes in front of its occupant. */}
         {rooms.map((room) => {
           if (!room.agent) return null
-          const look = lookFor(room.agent.character, room.slot_id)
+          const look = lookFor(room.agent.character, room.slot_id, world, true)
           return (
             <div
               key={`agent-${room.slot_id}`}
@@ -1310,7 +1354,7 @@ export function CanvasPanel({
           const busy = busyUsers.has(id)
           const position = queuedBy.get(id)
           const isWalking = walking.has(id)
-          const look = lookFor(member.avatar, id)
+          const look = lookFor(member.avatar, id, world)
           // Standing, not seated — the chair belongs to the agent. A visitor
           // keeps their legs, which is also what distinguishes them from the
           // seated character at the same desk.
@@ -1347,6 +1391,12 @@ export function CanvasPanel({
           )
         })}
 
+        {/* The third slot: whatever drifts over the top of the room — snow,
+            embers, plankton, dust in the light. Above the pawns, so it passes
+            in front of people rather than behind them, and `pointer-events:
+            none` so it never eats a click meant for the floor. */}
+        <div className="worldlayer worldlayer--air" aria-hidden="true" />
+
         {/* Last, so the envelope passes in front of the rooms and whoever is
             standing in the corridor rather than sliding behind a wall. */}
         {crossing && (
@@ -1359,6 +1409,69 @@ export function CanvasPanel({
         )}
       </div>
     </section>
+  )
+}
+
+/* Which world the board wears.
+ *
+ * A radiogroup rather than a list of buttons, and the same `.modal` backdrop
+ * and click-away as hiring — a world is one choice out of a set, which is
+ * exactly what a radiogroup is, and reusing the dialog means keyboard and
+ * screen-reader behaviour that is already right.
+ *
+ * Applying immediately, with no confirm step, is the whole interaction: the
+ * board is right there behind the dialog, and seeing it change is how you
+ * decide. A picker that needed an OK would hide the only information you are
+ * choosing on.
+ */
+export function WorldModal({ onClose }) {
+  const { world, worlds, setWorld } = useWorld()
+
+  return (
+    <div
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="worlds-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div className="worlds">
+        <header className="worlds__head">
+          <h2 className="worlds__title" id="worlds-title">
+            World
+          </h2>
+          <p className="worlds__blurb">
+            The same floor, the same agents, the same budget — somewhere else.
+            Yours only: this is stored in your browser and changes nothing
+            anyone else sees.
+          </p>
+        </header>
+
+        <div className="worldgrid" role="radiogroup" aria-label="World">
+          {worlds.map((entry) => (
+            <button
+              type="button"
+              key={entry.id}
+              role="radio"
+              aria-checked={entry.id === world.id}
+              onClick={() => setWorld(entry.id)}
+              className={`worldcard ${entry.id === world.id ? 'worldcard--on' : ''}`}
+            >
+              <span className="worldcard__name">{entry.label}</span>
+              <span className="worldcard__blurb">{entry.blurb}</span>
+            </button>
+          ))}
+        </div>
+
+        <footer className="worlds__foot">
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            done
+          </button>
+        </footer>
+      </div>
+    </div>
   )
 }
 

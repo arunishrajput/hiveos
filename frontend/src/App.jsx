@@ -4,6 +4,7 @@ import { useHive } from './useHive'
 import Landing from './landing'
 import AddAgentModal from './addagent'
 import { AVATARS } from './sprites'
+import { WorldProvider } from './worlds'
 import {
   AgentFace,
   AppBar,
@@ -16,6 +17,7 @@ import {
   SpendPanel,
   StreamPane,
   ToastStack,
+  WorldModal,
   agentStatus,
   formatEta,
 } from './components'
@@ -658,6 +660,7 @@ function Workspace({ identity }) {
    * leave the panel pointing at a stale copy. */
   const [selected, setSelected] = useState(null)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showWorlds, setShowWorlds] = useState(false)
   const [hiring, setHiring] = useState(false)
 
   useNoteExpiry(hive.activity)
@@ -730,6 +733,7 @@ function Workspace({ identity }) {
         connection={hive.connection}
         version={VERSION}
         onSettings={board.is_admin ? () => setShowAdmin((open) => !open) : null}
+        onWorlds={() => setShowWorlds((open) => !open)}
       />
 
       {/* The floor, and the two readouts that belong to the room rather than
@@ -794,6 +798,8 @@ function Workspace({ identity }) {
         />
       )}
 
+      {showWorlds && <WorldModal onClose={() => setShowWorlds(false)} />}
+
       {showAdmin && (
         <div className="drawer" role="dialog" aria-label="Workspace settings">
           <div className="drawer__panel">
@@ -852,7 +858,7 @@ function useIsWorkspace() {
   return isWorkspace
 }
 
-export default function App() {
+function Routes() {
   const [identity, setIdentity] = useState(loadIdentity)
   const isWorkspace = useIsWorkspace()
 
@@ -867,4 +873,20 @@ export default function App() {
   if (!isWorkspace) return <Landing />
   if (!identity) return <Gate onEnter={enter} />
   return <Workspace identity={identity} />
+}
+
+/* The world wraps every route, the entry gate and the landing page included.
+ *
+ * Both of those draw the sprite system — the gate picks your marker and the
+ * landing page renders a canned floor — so a provider that only covered the
+ * workspace would show you a paper-office character at the door and then a
+ * different one at your desk. The board a visitor sees first has to be the
+ * board they walk into.
+ */
+export default function App() {
+  return (
+    <WorldProvider>
+      <Routes />
+    </WorldProvider>
+  )
 }

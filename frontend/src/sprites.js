@@ -12,16 +12,27 @@
  * per-character custom properties, so recolouring a character never touches
  * this file.
  *
- *   H  hair        var(--sp-hair)
- *   F  face        var(--sp-skin)
- *   S  shirt       var(--sp-shirt)
+ * The alphabet is five letters, and what each one *means* is the world's
+ * business rather than this file's — the slot is "primary", and whether that
+ * primary is hair, a shell, a carapace or a hull is decided by the design
+ * table that uses it. Phase 18 widened it from three; `A` and `D` are what
+ * make a non-human character possible, because a beak and an eye are exactly
+ * the two things a recoloured office worker cannot have.
+ *
+ *   H  primary   var(--sp-hair)     hair / shell / carapace / hull
+ *   F  face      var(--sp-skin)     skin / scales / fur / plating
+ *   S  torso     var(--sp-shirt)    shirt / body / fuselage
+ *   A  accent    var(--sp-accent)   beak, fin, antenna, visor
+ *   D  detail    var(--sp-detail)   eye, outline, dark marking
  *   .  transparent
  */
 
-const LAYERS = {
+export const DEFAULT_LAYERS = {
   H: 'var(--sp-hair)',
   F: 'var(--sp-skin)',
   S: 'var(--sp-shirt)',
+  A: 'var(--sp-accent)',
+  D: 'var(--sp-detail)',
 }
 
 /* 9 wide x 10 tall. Odd width so the sprite has a true centre column, which is
@@ -109,23 +120,36 @@ function seatedFrame(design) {
 }
 
 /** Build the `box-shadow` value for one design. */
-export function shadowFor(design) {
+export function shadowFor(design, layers = DEFAULT_LAYERS) {
   const cells = []
   design.forEach((row, y) => {
     ;[...row].forEach((cell, x) => {
-      const colour = LAYERS[cell]
+      const colour = layers[cell]
       if (colour) cells.push(`${x * SCALE}px ${y * SCALE}px 0 0 ${colour}`)
     })
   })
   return cells.join(', ')
 }
 
-/* Precomputed once at module load — these never change at runtime, and
- * rebuilding ~60 shadow entries on every render of every pawn would be work
- * done for nothing. */
-export const SHADOWS = DESIGNS.map(shadowFor)
-export const STEP_SHADOWS = DESIGNS.map((design) => shadowFor(stepFrame(design)))
-export const SEAT_SHADOWS = DESIGNS.map((design) => shadowFor(seatedFrame(design)))
+/* Compile one world's design table into the three frames every pawn needs.
+ *
+ * Done once per world at module load rather than per render: these never
+ * change at runtime, and rebuilding ~60 shadow entries for every pawn on every
+ * frame would be work done for nothing. Nine worlds of three frames is still
+ * nothing — the cost is paid once, at import.
+ */
+export function compileSheets(designs, layers = DEFAULT_LAYERS) {
+  return {
+    art: designs.map((design) => shadowFor(design, layers)),
+    step: designs.map((design) => shadowFor(stepFrame(design), layers)),
+    seat: designs.map((design) => shadowFor(seatedFrame(design), layers)),
+  }
+}
+
+/* Paper Office's own sheets, and the fallback for any caller that has no world
+ * in hand. Defined here rather than imported from `worlds.js` on purpose: that
+ * import would be a cycle, since the registry is what imports *this* file. */
+export const DEFAULT_SHEETS = compileSheets(DESIGNS)
 
 export const SPRITE_WIDTH = DESIGNS[0][0].length * SCALE
 export const SPRITE_HEIGHT = DESIGNS[0].length * SCALE
@@ -176,14 +200,27 @@ function hashOf(text) {
  * re-synced, an index could shift under someone and change their character
  * while they were standing still. A board whose whole claim is that everyone
  * sees the same thing cannot have people swapping faces.
+ *
+ * The world is the third argument rather than a module-level lookup so this
+ * stays a pure function of its inputs — the character picker draws every
+ * option at once and the floor draws a mix of people and agents, and both have
+ * to be able to say *which* world's cast they mean. A world that ships its own
+ * agent table gets it here too, via `agents`.
+ *
+ * Three silhouettes is the floor and eight is the ceiling: the key is a marker
+ * index, and the mod means a world offering five designs simply repeats after
+ * five rather than rendering nothing for markers 5-7.
  */
-export function lookFor(avatar, userId) {
+export function lookFor(avatar, userId, world, agents = false) {
   const picked = AVATARS.indexOf(avatar)
   const key = picked >= 0 ? picked : hashOf(userId) % AVATARS.length
+  const sheets =
+    (agents ? world?.agentSprites : null) ?? world?.sprites ?? DEFAULT_SHEETS
+  const palette = world?.palette ?? HAIR
   return {
-    art: SHADOWS[key % DESIGNS.length],
-    step: STEP_SHADOWS[key % DESIGNS.length],
-    seat: SEAT_SHADOWS[key % DESIGNS.length],
-    hair: HAIR[key % HAIR.length],
+    art: sheets.art[key % sheets.art.length],
+    step: sheets.step[key % sheets.step.length],
+    seat: sheets.seat[key % sheets.seat.length],
+    hair: palette[key % palette.length],
   }
 }

@@ -16,6 +16,16 @@ import '@fontsource/jetbrains-mono/latin-500.css'
 import '@fontsource/jetbrains-mono/latin-600.css'
 
 import './styles.css'
+
+// One import per world, each a self-contained `:root[data-world="<id>"]`
+// block. Order does not matter — a world outranks bare `:root` on specificity
+// rather than on cascade position, which is exactly why a world can be added
+// or reverted by touching two files and nothing else.
+//
+// Paper Office has no file here on purpose: it *is* bare `:root` in
+// styles.css, which is what keeps the recorded demo safe from a world that is
+// still being built.
+
 import App from './App'
 
 // No StrictMode: its dev-only double render would open two WebSockets and
