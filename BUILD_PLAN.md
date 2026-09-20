@@ -753,6 +753,44 @@ incognito window for a cream flash before React mounts.
 **Gate.** The recolour test passes, the state-legibility contract is measured, and a cold load
 never flashes cream.
 
+**Shipped 2026-09-20. Four things the plan got wrong, corrected in flight — and every one of
+them is a finding for worlds 20-26 rather than a detail of this one:**
+
+1. **A dark world is three files, not two.** `data-world` is stamped before first paint, but the
+   attribute means nothing until the stylesheet that reads it arrives — and until then the canvas
+   is painted from `index.html`'s literal `<meta name="color-scheme" content="light">`. So the
+   cold-load flash the pre-paint script was written to kill simply moved. The fix is
+   `hiveos.world.paint` in `localStorage`, written by the provider and replayed by the inline
+   script: **stored rather than derived**, because the script is pre-module and cannot import the
+   registry, and a hard-coded list of dark worlds in the HTML would be the same fact in two
+   places. Done once, in `index.html`; **worlds 20-26 inherit it and stay two files.**
+2. **`--ink` inverts; three of its uses do not.** `--ink` is "the mark on the page", so a dark
+   world makes it the *palest* colour — which is right for `--text`, for `.btn--ink` and for every
+   `--on` selection border, and wrong for the three places the base stylesheet uses `--ink-rgb` to
+   mean *dark*: the `.modal` scrim, the `.drawer` scrim and `.desk__chair`'s under-edge. Each is
+   re-pointed at `--cream-rgb` in the world file. **Every dark world will need those same three
+   overrides**; if a third one repeats them, Phase 27 should hoist a `--scrim-rgb` token.
+3. **`--paper` is a panel surface *and* a sheet of paper, and a dark world splits them.** The
+   handoff envelope and the loose paper on a desk both take `--paper`, which goes dark with the
+   rest of the chrome — leaving a dark envelope crossing a dark floor. The brief's "handoff:
+   unchanged" therefore requires an *active* override, not leaving it alone. Night Watch adds a
+   world-local `--sheet`. **Every dark world has to re-pale the envelope.**
+4. **On a dark ground, `--honey` cannot separate from the brand amber by value.** On cream the two
+   are the same yellow 5.4° apart and separate by a 2.29:1 luminance gap. On navy a text-weight
+   hue has to come *up*, which is where amber already is — searched, and no pair of a legible
+   honey and a credible brand amber gets past a 1.54 gap. So the separation moves to hue: honey
+   becomes an orange at 25°, amber deepens to 41°, giving 15.4°. The guarantee underneath is the
+   one that actually holds and is already written down — **amber is only ever a fill, honey is
+   only ever a word.**
+
+**Two notes that are not corrections.** The contrast bar in the shared block — ≥4.5:1 for anything
+carrying a word — is **not met by Paper Office**, whose state hues run 2.63:1 to 5.26:1 against
+their own surfaces. Night Watch clears it on all eight of its surfaces, worst case 4.56:1. The bar
+stands as written; Paper Office is pixel-frozen for the recording and is not being retuned. And
+`ws_smoke.py` scored **113/113**, not the 109 on record: the four "known stranger-connection false
+positives" were the developer's own browser tabs holding `CONN#` rows. Close the browser and they
+pass.
+
 ---
 
 ### Phase 20 — Enchanted Forest

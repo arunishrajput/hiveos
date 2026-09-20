@@ -27,13 +27,36 @@
          frame of the whole load, and the one a recording would catch.
          Deliberately does no validation: an unrecognised id matches no
          `:root[data-world=…]` block, so the board simply renders as Paper
-         Office, and the provider rewrites the attribute on mount. -->
+         Office, and the provider rewrites the attribute on mount.
+
+         `data-world` alone does not finish the job, which Phase 19 found when
+         the first dark world landed. The attribute means nothing until the
+         stylesheet that reads it arrives, and until then the canvas is painted
+         from the two literals above — so the flash moved rather than went
+         away. `hiveos.world.paint` carries the `color-scheme` and
+         `theme-color` of whatever world was last chosen, written by the
+         provider in worlds.js, and replaying it here paints the right ground
+         on the very first frame with no CSS and no modules loaded.
+
+         Stored rather than derived because this script is inline and runs
+         before any module: it cannot import the registry, and a hard-coded
+         list of dark worlds here would be the same fact in two places. -->
     <script>
       try {
         var w = localStorage.getItem('hiveos.world')
         if (w) document.documentElement.dataset.world = w
+
+        var paint = JSON.parse(localStorage.getItem('hiveos.world.paint') || 'null')
+        if (paint && paint.scheme) {
+          document.documentElement.style.colorScheme = paint.scheme
+          var ms = document.querySelector('meta[name="color-scheme"]')
+          if (ms) ms.setAttribute('content', paint.scheme)
+          var mt = document.querySelector('meta[name="theme-color"]')
+          if (mt && paint.themeColor) mt.setAttribute('content', paint.themeColor)
+        }
       } catch (e) {
-        /* Blocked storage is not a reason to fail a page load. */
+        /* Blocked or corrupt storage is not a reason to fail a page load —
+           it costs one repaint once the stylesheet lands. */
       }
     </script>
   </head>

@@ -1,0 +1,793 @@
+/* Night Watch — the office as a night observation deck.
+ *
+ * The same floor, the same rooms, the same scheduler. Deep navy, very few
+ * light sources, and the feeling that the room is small and the sky is large.
+ * The warmth the paper office had is gone from the surfaces and survives only
+ * in the lamps.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one of them is re-tuned for navy and
+ *    none of them is reassigned. The words — `working`, `idle`, `queued #N`,
+ *    `HALT`, `WAITING AREA` — are untouched; this file contains no `content`
+ *    that carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *    The beacon, the headlamps and the console dial are warm because this is a
+ *    world lit by lamps, and they mean nothing at all. When a bay goes BUSY a
+ *    COOL light joins them — the dome, the console barrel, the reflected tint.
+ *    That is the thing that means something.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="nightsky"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every
+ * surface in the product including the chrome and the landing page; and the
+ * scoped rules, which re-dress the objects on the floor. A world that stopped
+ * at the first half would be a colour scheme, which is the one thing a world
+ * is not allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,2,1) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy` and `.desk--busy .desk__monitor` below exist for
+ * exactly that reason as much as for the art.
+ */
+
+:root[data-world='nightsky'] {
+  /* A dark room, and it says so before a single pixel is painted. The
+   * pre-paint script in index.html stamps `data-world` from localStorage, so
+   * this lands with the stylesheet rather than after React mounts. */
+  color-scheme: dark;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Three navies, close together, separated by hairlines rather than by
+   * contrast — the same construction the paper office uses, inverted. `--sand`
+   * is the *raised* surface, so on dark it is the lightest of the three and
+   * not the darkest. */
+  --cream: #0b1020;
+  --paper: #111a2c;
+  --sand: #1a2540;
+
+  /* `--ink` is "the mark on the page", not "a dark colour" — so it inverts
+   * with the page and becomes the palest thing in the system. That is what
+   * keeps `--text`, the solid `.btn--ink`, and every `--on` selection border
+   * correct for free. The three places where the base stylesheet uses
+   * `--ink-rgb` to mean *dark* rather than *maximum contrast* — the two scrims
+   * and the chair's under-edge — are re-pointed at `--cream-rgb` below. */
+  --ink: #e6edf7;
+  --rule: #2a3653;
+  --rule-soft: #1f2a42;
+  --rule-strong: #3d4d70;
+
+  --dim: #b3c2d8;
+  --faint: #99aac4;
+
+  /* Brand, still fills only, and deepened well below #ffca54. Two reasons:
+   * at full brightness an amber button on near-black is the loudest thing on
+   * the board, and the quota strip has to stay the loudest thing on the board;
+   * and it buys the value headroom `--honey` needs below. Its label still
+   * clears at 8.30:1. */
+  --amber: #d9a332;
+  --amber-deep: #c8922b;
+  --on-amber: #141105;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Lifted until each one carries a word on navy. Measured against every
+   * surface in this file, worst case 4.56:1 — see PROGRESS.md for the table.
+   *
+   * `--honey` is the one hue that had to move sideways, and the reason is
+   * worth keeping because every later dark world hits it.
+   *
+   * On cream, honey separates from the brand amber almost entirely by value:
+   * the two are the same yellow 5° apart, and a deep ochre word next to a
+   * bright amber button is unmistakable at a 2.29:1 luminance gap. On navy
+   * "darker" is no longer available — a text-weight hue has to come *up* to
+   * stay legible, which is the same direction amber already sits in. Searched
+   * rather than guessed: no pair of a legible honey and a credible brand amber
+   * gets a value gap past 1.54 on this ground.
+   *
+   * So the separation moves to hue. Honey becomes an orange at 25°, sitting
+   * between the brand's yellow at 41° and the alarm's red at 6° — 15.4° from
+   * amber where the paper office has 5.4°, and 19.5° from alarm. The guarantee
+   * underneath is unchanged and is the one that actually holds: amber is only
+   * ever a filled rectangle with dark text on it, honey is only ever a word.
+   * They are never the same kind of mark on the same screen. */
+  --cool: #6ec4e8;
+  --safe: #4fca8f;
+  --honey: #ffa869;
+  --alarm: #f4776a;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 230, 237, 247;
+  --cream-rgb: 11, 16, 32;
+  --paper-rgb: 17, 26, 44;
+  --amber-rgb: 217, 163, 50;
+  --cool-rgb: 110, 196, 232;
+  --alarm-rgb: 244, 119, 106;
+
+  /* The quota strip's empty track. */
+  --tick: #233050;
+
+  /* --- The deck ---------------------------------------------------------- *
+   *
+   * The floor is a shade above the page it sits on, and the tile grid is
+   * barely there — a deck grid you notice when you look for it, because the
+   * sky is what the eye is supposed to go to. */
+  --floor: #111c31;
+  --tile: #17243d;
+  --room-floor: #182644;
+  /* The reflection of a lit console, and the only place a bay takes a hue. */
+  --room-floor-busy: #1c3554;
+
+  /* Instrument consoles. Steel rather than laminate. */
+  --desk: #2b3a56;
+  --desk-edge: #16203a;
+  --desk-edge-rgb: 22, 32, 58;
+  --desk-top: #3b4c6c;
+
+  /* The handoff stays paper, because the handoff is the one event on this
+   * floor with no object of its own to light up and a coloured envelope would
+   * be claiming to be a state. `--paper` is the *panel* surface and has gone
+   * dark with everything else, so the sheet is its own token now — see
+   * `--sheet` below and the `.envelope` rule. */
+  --envelope-edge: #93a3bd;
+  --envelope-contact-rgb: 0, 2, 10;
+
+  /* An unlit telescope barrel, and a lit one. The lit value keeps the extra
+   * brightness `--cool` gives up to stay legible as text — a light source is
+   * not a label, and the two have to read as the same hue at different
+   * weights. */
+  --screen-off: #1b2740;
+  --screen-on: #7ad7f5;
+  --screen-on-rgb: 122, 215, 245;
+
+  /* Antenna mast metal, where the foliage was. */
+  --foliage: #7c8ea8;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become
+   * a star chart and a water cooler become a signal beacon without the token
+   * names going wrong. */
+  --mug: #9fb2cc; /* the console's dial */
+  --board-face: #0d1730; /* the star chart */
+  --board-frame: #4a5c80;
+  --bottle: #ffd9a0; /* the beacon's lamp head — warm, and meaningless */
+  --bottle-base: #e0a95c;
+  --cooler-body: #33425f; /* its mast */
+  --glass-sky: #16223f; /* the open sky, at the top of the opening */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The hood colour is per-character and arrives inline from `lookFor`; these
+   * are the four layers every night-watch explorer shares. See NIGHT_WATCH in
+   * worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the coat, and it is the one value here that was measured
+   * rather than picked. The office's slate torso is 8.3:1 against a cream
+   * floor and 2.2:1 against this deck — the hood would have carried the whole
+   * silhouette and the body below it would have dissolved into the dark. This
+   * clears 3.77:1 on the deck and 3.32:1 inside a bay, while staying darker
+   * than all eight hoods so identity still reads from the top down.
+   *
+   * `--sp-accent` is the headlamp, and it is the one warm thing on a
+   * character in this world. It reports nothing. */
+  --sp-skin: #caa079;
+  --sp-shirt: #68769b;
+  --sp-accent: #ffdda6;
+  --sp-detail: #0c1324;
+
+  /* Room structure. The wall band is open night sky and the trim is the
+   * railing that the bays drop to. */
+  --wall: #0a1226;
+  --wall-trim: #3f5173;
+  --rug: #1f2e4d; /* the moonlit platform */
+  --rug-edge-rgb: 126, 152, 196;
+  --chair: #3b4763;
+  --glass: #0c1530; /* the far end of the sky opening */
+
+  /* Shadows go black rather than brown, and harder: a 0.22 shadow that reads
+   * on cream is invisible on navy. */
+  --shadow-rgb: 0, 2, 10;
+  --shadow: rgba(var(--shadow-rgb), 0.5);
+  --vignette-rgb: 2, 5, 16;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a pale button with dark text here, so its hover settles
+   * *down* rather than lifting. */
+  --ink-hover: #cfd9ea;
+  --engage-flash: #20415e;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because the night sky,
+   * the moon and the paper sheets are objects the paper office does not have,
+   * and inventing a shared token for them would put Paper Office's stylesheet
+   * in the business of describing a world it is not. */
+  --sky-high: #050813;
+  --sky-low: #16243f;
+  --star: #e8f0ff;
+  --star-rgb: 232, 240, 255;
+  --line: rgba(var(--star-rgb), 0.17);
+  --moon-rgb: 214, 230, 255;
+  --sheet: #e4ebf7;
+  /* `--bottle` in channels, for the beacon's own glow. */
+  --beacon-rgb: 255, 217, 160;
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. The paper office's recipe is a wall band over two
+ * offset 45° checkers; this is a night sky over a ruled deck grid. The sky is
+ * a vertical gradient with a railing line along the horizon, and the deck is
+ * two sets of hairlines — a grid you can see the deck through rather than a
+ * tiled surface laid on it.
+ *
+ * The sky layer is opaque and first in the list, so the deck grid tiling
+ * underneath it never shows above the horizon. Same trick the base file uses,
+ * and the reason neither needs a mask. */
+:root[data-world='nightsky'] .floor {
+  background-image:
+    /* the horizon railing — transparent above it, so the sky below shows */
+    linear-gradient(transparent 0 calc(100% - 1px), var(--wall-trim) calc(100% - 1px) 100%),
+    linear-gradient(var(--sky-high), var(--sky-low)),
+    repeating-linear-gradient(90deg, var(--tile) 0 1px, transparent 1px var(--tile-size)),
+    repeating-linear-gradient(0deg, var(--tile) 0 1px, transparent 1px var(--tile-size));
+  background-size:
+    100% var(--walk-top),
+    100% var(--walk-top),
+    auto,
+    auto;
+  background-position: 0 0;
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  background-color: var(--floor);
+  /* Deeper and wider than the paper office's warm vignette. On navy the edges
+   * of the room should fall away into the dark rather than be dusted brown. */
+  box-shadow: inset 0 0 60px 14px rgba(var(--vignette-rgb), 0.55);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * The star field, confined to the back band: one `background-size` of
+ * `100% var(--walk-top)` applies to every layer in the list, so each
+ * `circle at X% Y%` places a star at an exact point inside the band and
+ * nothing tiles.
+ *
+ * Positions are chosen around the two fixtures that hang in this band — the
+ * star chart at x 44-56% and the sky opening at x 10-22% — so the field reads
+ * as sky rather than as dots disappearing behind furniture.
+ *
+ * The brighter stars are the two constellations: a chain of five across the
+ * left of the corridor, and a cross over the right-hand bay. Their joining
+ * lines are on `::before`, and both figures are built only from horizontal
+ * and vertical runs. That is deliberate: this band is 606x35 at the demo
+ * framing and roughly 1000x126 in the wide layout, so a diagonal defined by
+ * an angle would come unstuck from stars defined by percentages the moment
+ * the floor changed shape. */
+:root[data-world='nightsky'] .worldlayer--sky {
+  background-image:
+    /* the chain */
+    radial-gradient(circle at 24% 28%, var(--star) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 28% 28%, var(--star) 0 0.9px, transparent 1.7px),
+    radial-gradient(circle at 32% 28%, var(--star) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 36% 28%, var(--star) 0 0.9px, transparent 1.7px),
+    radial-gradient(circle at 40% 28%, var(--star) 0 1.1px, transparent 2px),
+    /* the cross */
+    radial-gradient(circle at 72% 16%, var(--star) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 72% 45%, var(--star) 0 1.2px, transparent 2.1px),
+    radial-gradient(circle at 72% 74%, var(--star) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 64% 45%, var(--star) 0 0.9px, transparent 1.7px),
+    radial-gradient(circle at 81% 45%, var(--star) 0 0.9px, transparent 1.7px),
+    /* the field */
+    radial-gradient(circle at 3% 40%, rgba(var(--star-rgb), 0.55) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 7% 74%, rgba(var(--star-rgb), 0.4) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 26% 62%, rgba(var(--star-rgb), 0.5) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 31% 80%, rgba(var(--star-rgb), 0.35) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 37% 62%, rgba(var(--star-rgb), 0.45) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 42% 18%, rgba(var(--star-rgb), 0.5) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 58% 24%, rgba(var(--star-rgb), 0.55) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 61% 70%, rgba(var(--star-rgb), 0.4) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 66% 82%, rgba(var(--star-rgb), 0.35) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 78% 22%, rgba(var(--star-rgb), 0.45) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 85% 66%, rgba(var(--star-rgb), 0.5) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 89% 30%, rgba(var(--star-rgb), 0.4) 0 0.7px, transparent 1.4px),
+    radial-gradient(circle at 94% 52%, rgba(var(--star-rgb), 0.55) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 98% 20%, rgba(var(--star-rgb), 0.35) 0 0.7px, transparent 1.4px);
+  background-size: 100% var(--walk-top);
+  background-repeat: no-repeat;
+}
+
+/* The lines between the constellation stars. Faint enough to be found rather
+ * than seen, which is what a constellation line is.
+ *
+ * `background-position: left X% top Y%` — the four-value form — rather than
+ * the two-value one, because `left 23%` means "the left edge at 23% of the
+ * box" while a bare `23%` means "align the image's own 23% point with the
+ * box's", and only the first of those puts a line where the stars are. */
+:root[data-world='nightsky'] .worldlayer--sky::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: var(--walk-top);
+  background-image:
+    linear-gradient(var(--line), var(--line)),
+    linear-gradient(var(--line), var(--line)),
+    linear-gradient(var(--line), var(--line));
+  background-size:
+    16% 1px,
+    1px 58%,
+    17% 1px;
+  background-position:
+    left 24% top 28%,
+    left 72% top 16%,
+    left 64% top 45%;
+  background-repeat: no-repeat;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * The lit path. Two runs of pale light laid on the deck: one down the corridor
+ * from the back wall, one across the mouth of the waiting platform where the
+ * queue actually stands.
+ *
+ * This is the one piece of world art with a job beyond atmosphere — it draws
+ * the route the scheduler dispatches along, so the walk from the queue to a
+ * freed desk happens *on* something rather than across open floor. It still
+ * reports nothing: it is the same light whether anyone is queued or not, and
+ * the queue is legible from the people standing on it and the ochre word under
+ * each of them, exactly as in Paper Office.
+ *
+ * Both runs are placed against the constants in components.jsx: the corridor
+ * is the 20% gap between ROOMS at x 40-60, and the queue line is WAIT_X0 38
+ * through WAIT_X0 + 4 * WAIT_DX = 74 at WAIT_Y0 80. */
+/* Both runs are ellipses rather than linear gradients, and that is a fix
+ * rather than a preference: a linear gradient fades along one axis and stops
+ * dead on the other two edges, which at the 1440 width drew a visible
+ * horizontal cut where the corridor light began. An ellipse has no edges. */
+:root[data-world='nightsky'] .worldlayer--ground::before {
+  content: '';
+  position: absolute;
+  left: 44%;
+  top: 13%;
+  width: 12%;
+  height: 64%;
+  background: radial-gradient(
+    ellipse 56% 52% at 50% 50%,
+    rgba(var(--moon-rgb), 0.085),
+    rgba(var(--moon-rgb), 0) 72%
+  );
+}
+
+/* Held inside the platform's own 21-79% box, so no part of the light spills
+ * past the edge of the thing it is lighting. Still covers the whole queue:
+ * WAIT_X0 38 through WAIT_X0 + 4 * WAIT_DX = 74. */
+:root[data-world='nightsky'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  left: 33%;
+  top: 70%;
+  width: 44%;
+  height: 20%;
+  background: radial-gradient(
+    ellipse 52% 58% at 50% 50%,
+    rgba(var(--moon-rgb), 0.075),
+    rgba(var(--moon-rgb), 0) 74%
+  );
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Very slow drifting stars — motes catching the moonlight, passing in front of
+ * people rather than behind them. Faint by a wide margin: this layer sits
+ * above every pawn, and anything strong enough to notice would be strong
+ * enough to sit on somebody's name label.
+ *
+ * Declared only inside `prefers-reduced-motion: no-preference`, which is where
+ * the base stylesheet keeps all of its motion. A reader who asked for less
+ * motion gets the static field and nothing else has to remember to turn it
+ * off. */
+:root[data-world='nightsky'] .worldlayer--air {
+  overflow: hidden;
+}
+
+/* Two fields rather than two layers on one element, and that is the whole
+ * trick. A tiled dot field is a lattice, and one lattice on a flat deck reads
+ * as a rendering artefact rather than as motes — which is exactly what the
+ * first version looked like. Two lattices whose tile sizes share no useful
+ * factor, drifting at different speeds, never resolve into one grid.
+ *
+ * Each seams-free loop needs its translate to be a whole tile, so they cannot
+ * share an element: `::before` moves 113px and `::after` moves 67px, and the
+ * two periods differ enough that the pair does not repeat inside a demo. */
+:root[data-world='nightsky'] .worldlayer--air::before,
+:root[data-world='nightsky'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Wider than the floor on both sides so the drift never reaches an edge. */
+  inset: -12% -60%;
+}
+
+:root[data-world='nightsky'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--star-rgb), 0.11) 0 0.7px,
+    transparent 1.5px
+  );
+  background-size: 113px 77px;
+}
+
+:root[data-world='nightsky'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--star-rgb), 0.07) 0 0.7px,
+    transparent 1.4px
+  );
+  background-size: 67px 53px;
+  background-position: 29px 19px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='nightsky'] .worldlayer--air::before {
+    animation: nightsky-drift-far 210s linear infinite;
+  }
+
+  :root[data-world='nightsky'] .worldlayer--air::after {
+    animation: nightsky-drift-near 140s linear infinite;
+  }
+
+  @keyframes nightsky-drift-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(113px, 0, 0);
+    }
+  }
+
+  @keyframes nightsky-drift-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(67px, 0, 0);
+    }
+  }
+}
+
+/* --- Observation bays ------------------------------------------------------
+ *
+ * The project rooms become glass-roofed bays. The walls drop to a low railing
+ * so the sky reads over them — the top edge goes entirely, which is what turns
+ * a room standing against a wall into a bay standing under the sky — and the
+ * glass roof is a single pane of sheen across one corner.
+ *
+ * `.room__door` keeps its geometry and becomes a gap in the railing; it is
+ * 1px now rather than 2px, because the railing it interrupts is 1px. */
+:root[data-world='nightsky'] .room {
+  background-color: var(--room-floor);
+  /* Light falling across the glass roof. Graded rather than stopped hard: a
+   * hard stop is invisible in a 170px bay at the demo framing and reads as a
+   * diagonal seam across a 335px one in the wide layout. */
+  background-image: linear-gradient(
+    152deg,
+    rgba(var(--sheen-rgb), 0.055) 0 14%,
+    rgba(var(--sheen-rgb), 0) 46%
+  );
+  border: 1px solid var(--wall-trim);
+  border-top: 0;
+  box-shadow: inset 0 0 22px 6px rgba(var(--vignette-rgb), 0.35);
+}
+
+:root[data-world='nightsky'] .room__door {
+  height: 1px;
+  bottom: -1px;
+  box-shadow:
+    -3px 0 0 0 var(--wall-trim),
+    3px 0 0 0 var(--wall-trim);
+}
+
+/* BUSY, and this is the state expression whose *form* this world changes.
+ *
+ * Paper Office announces a working room by tinting its floor. A bay announces
+ * it by lighting its dome: a pool of cool-white falling from the roof, which
+ * is what a lit observation bay looks like from the corridor. Same hue family,
+ * same `--cool` token, same label text — a different shape of light.
+ *
+ * Restated at this specificity on purpose. The `.room` rule above is (0,2,1)
+ * and the base `.room--busy` is (0,2,0), so without this the bay would keep
+ * its unlit roof while BUSY and the whole beat would vanish. */
+:root[data-world='nightsky'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse 62% 48% at 50% 0%,
+      rgba(var(--cool-rgb), 0.34),
+      rgba(var(--cool-rgb), 0) 72%
+    ),
+    linear-gradient(152deg, rgba(var(--sheen-rgb), 0.08) 0 14%, rgba(var(--sheen-rgb), 0) 46%);
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--cool-rgb), 0.3),
+    inset 0 0 22px 6px rgba(var(--vignette-rgb), 0.2);
+}
+
+/* --- Consoles --------------------------------------------------------------
+ *
+ * The desk becomes an instrument console and the monitor becomes the barrel of
+ * a telescope column standing on it: a rounded head, a lens ring, and a mount
+ * yoke underneath.
+ *
+ * The barrel keeps most of the monitor's footprint rather than becoming a
+ * genuinely narrow column, and that is a legibility decision over an art one —
+ * "this desk is working" is the single most important thing this floor says,
+ * and it says it by this element lighting up at recording size. */
+:root[data-world='nightsky'] .desk__monitor {
+  position: relative;
+  width: calc(26px * var(--furn));
+  height: calc(22px * var(--furn));
+  border-radius: 9px 9px 2px 2px;
+}
+
+/* The lens. */
+:root[data-world='nightsky'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  width: calc(11px * var(--furn));
+  height: calc(11px * var(--furn));
+  transform: translateX(-50%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(var(--sheen-rgb), 0.16);
+}
+
+/* The mount yoke, under the barrel. */
+:root[data-world='nightsky'] .desk__monitor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(-3px * var(--furn));
+  width: calc(16px * var(--furn));
+  height: calc(3px * var(--furn));
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: var(--desk-edge);
+}
+
+/* The barrel comes up. Restated here for the same specificity reason as
+ * `.room--busy`, and re-tuned besides: the base alphas are deliberately strong
+ * because a glow has to fight a cream floor. Against navy a glow is additive
+ * and barely has to try, and at 0.72/0.34 the desk went white. */
+:root[data-world='nightsky'] .desk--busy .desk__monitor {
+  background: var(--screen-on);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    0 0 12px 2px rgba(var(--screen-on-rgb), 0.42),
+    0 8px 26px 8px rgba(var(--screen-on-rgb), 0.2);
+}
+
+/* The lens catches the light when the barrel is lit. */
+:root[data-world='nightsky'] .desk--busy .desk__monitor::before {
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cream-rgb), 0.45),
+    0 0 4px 1px rgba(var(--sheen-rgb), 0.28);
+}
+
+/* The dial on the console, where the mug was. */
+:root[data-world='nightsky'] .desk__surface::before {
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    0 0 4px 0 rgba(var(--moon-rgb), 0.3);
+}
+
+/* A chart printout, where the loose paper was. Its own pale token rather than
+ * `--paper`, which is the panel surface and has gone dark. */
+:root[data-world='nightsky'] .desk__surface::after {
+  background: var(--sheet);
+  box-shadow: 0 0 0 1px rgba(var(--cream-rgb), 0.45);
+}
+
+/* The operator's stool. The base rule shades the near edge with
+ * `rgba(--ink-rgb, 0.32)`, which means "a dark line" and would come out pale
+ * here — `--ink` is the palest thing in this world. Re-pointed at the page
+ * ground, which is what it actually wanted. */
+:root[data-world='nightsky'] .desk__chair {
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--cream-rgb), 0.6),
+    0 3px 6px var(--shadow);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> star chart. A dark plate in a steel frame, ruled with a faint
+ * grid, and the two scribbles become tracks of plotted stars. */
+:root[data-world='nightsky'] .fixture--board {
+  background-color: var(--board-face);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--star-rgb), 0.07) 0 1px,
+      transparent 1px 9px
+    ),
+    repeating-linear-gradient(0deg, rgba(var(--star-rgb), 0.07) 0 1px, transparent 1px 9px);
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 3px 6px var(--shadow);
+}
+
+:root[data-world='nightsky'] .board__scribble {
+  background: radial-gradient(circle at 50% 50%, var(--star) 0 0.9px, transparent 1.6px) 0 50% /
+    8px 2px repeat-x;
+}
+
+/* Water cooler -> signal beacon: a warm lamp head on a mast. Warm because
+ * warmth is this world's resting character and reports nothing — a beacon that
+ * glowed cool would be a second, silent status light in a room whose whole
+ * argument is that there is exactly one. */
+:root[data-world='nightsky'] .cooler__bottle {
+  width: calc(11px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 50%;
+  background: var(--bottle);
+  box-shadow:
+    inset 0 -3px 0 0 var(--bottle-base),
+    0 0 8px 1px rgba(var(--beacon-rgb), 0.18);
+}
+
+:root[data-world='nightsky'] .cooler__body {
+  width: calc(5px * var(--furn));
+  height: calc(19px * var(--furn));
+  border-radius: 0 0 2px 2px;
+  background: var(--cooler-body);
+  box-shadow:
+    inset -1px 0 0 0 rgba(var(--cream-rgb), 0.5),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> open sky. The glazing goes: a mullion and a transom are exactly
+ * what an opening should not have. What is left is a dark aperture with two
+ * stars in it and a railing across the bottom, which is the same object the
+ * bays have and is why it reads as the same building. */
+:root[data-world='nightsky'] .fixture--window {
+  background-image:
+    radial-gradient(circle at 32% 34%, var(--star) 0 1px, transparent 1.9px),
+    radial-gradient(circle at 68% 58%, rgba(var(--star-rgb), 0.6) 0 0.9px, transparent 1.7px),
+    linear-gradient(160deg, var(--glass-sky), var(--glass));
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--star-rgb), 0.07),
+    0 0 0 1px var(--wall-trim);
+}
+
+:root[data-world='nightsky'] .fixture--window::before {
+  display: none;
+}
+
+:root[data-world='nightsky'] .fixture--window::after {
+  left: 2px;
+  right: 2px;
+  top: auto;
+  bottom: calc(5px * var(--furn));
+  height: 1px;
+  transform: none;
+  background: var(--wall-trim);
+}
+
+/* Daylight -> the moon-pool on the deck. Cool-white, and the one cool thing in
+ * this file that is allowed to mean nothing: it is in the same position and
+ * plays the same role as the paper office's sunlight, which is the purest
+ * possible case of a colour that reports nothing. Held far below the strength
+ * of a lit console so the two can never be confused — 0.10 against the
+ * console's 0.42. */
+:root[data-world='nightsky'] .fixture--daylight {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--moon-rgb), 0.1),
+    rgba(var(--moon-rgb), 0) 70%
+  );
+}
+
+/* Plants -> antenna masts: a dish on a post, with a lit feed at its centre. */
+:root[data-world='nightsky'] .decor__leaves {
+  position: relative;
+  width: calc(11px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 2px var(--foliage),
+    inset 0 -3px 0 0 rgba(var(--sheen-rgb), 0.05);
+}
+
+:root[data-world='nightsky'] .decor__leaves::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(3px * var(--furn));
+  height: calc(3px * var(--furn));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--bottle);
+}
+
+:root[data-world='nightsky'] .decor__pot {
+  width: calc(4px * var(--furn));
+  height: calc(12px * var(--furn));
+  margin-top: calc(2px * var(--furn));
+  border-radius: 0 0 2px 2px;
+  background: var(--desk);
+  box-shadow:
+    inset -1px 0 0 0 var(--desk-edge),
+    0 3px 5px var(--shadow);
+}
+
+/* --- The waiting platform --------------------------------------------------
+ *
+ * A moonlit platform at the end of the lit path. Still soft-edged and
+ * borderless for the reason the rug was — a bordered rectangle on the floor
+ * reads as another UI panel dropped onto the room — but the edge inverts: on
+ * cream it was a pale inset ring, and here it is a pale rim with the dark
+ * closing in behind it. */
+:root[data-world='nightsky'] .waiting {
+  background:
+    radial-gradient(
+      ellipse 64% 82% at 50% 44%,
+      rgba(var(--moon-rgb), 0.09),
+      rgba(var(--moon-rgb), 0) 74%
+    ),
+    var(--rug);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--rug-edge-rgb), 0.3),
+    inset 0 0 26px 7px rgba(var(--vignette-rgb), 0.6);
+}
+
+/* --- People ----------------------------------------------------------------
+ *
+ * The one-pixel rim around every sprite comes from `--ink-rgb`, which this
+ * world has inverted to the palest thing in the system — so what was a hard
+ * dark outline on cream becomes a moonlight edge on navy, which is both the
+ * right read for the world and the right physics for a deck lit from above.
+ * Dropped to 0.35 because at the base 0.8 a pale rim is a halo. */
+:root[data-world='nightsky'] .sprite::before,
+:root[data-world='nightsky'] .agentface::before {
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.35));
+}
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * Unchanged by design — a pale envelope already reads well on navy, and it has
+ * to stay pale. `--paper` carried it in Paper Office, and `--paper` is the
+ * *panel* surface, which in a dark world goes dark; left alone the envelope
+ * would be a dark rectangle crossing a dark floor. */
+:root[data-world='nightsky'] .envelope {
+  background: var(--sheet);
+}
+
+/* --- Chrome ----------------------------------------------------------------
+ *
+ * The two scrims are the other place the base stylesheet uses `--ink-rgb` to
+ * mean "dark" rather than "maximum contrast against the page". Re-pointed at
+ * the page ground, so a dialog still darkens the board behind it instead of
+ * washing it out. */
+:root[data-world='nightsky'] .modal {
+  background: rgba(var(--cream-rgb), 0.74);
+}
+
+:root[data-world='nightsky'] .drawer {
+  background: rgba(var(--cream-rgb), 0.6);
+}

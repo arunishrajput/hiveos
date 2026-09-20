@@ -14,8 +14,8 @@
 | **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 |
-| **Current phase** | **Phase 19 — Night Watch**, the next phase to *build*. **Phase 6 — demo readiness** stays open beside it and is blocked on the user, not on code |
-| **Phase status** | Phase 18 `COMPLETE` — deployed and verified 2026-09-20. The world mechanism is in and ships one world, which is correct for exactly one phase: the picker becomes a control at Phase 19. **Phase 6 is still `BLOCKED — WAITING FOR MANUAL ACTION`** — a full-system QA pass ran against the deployed URL on 2026-09-20 and found four defects, all fixed, deployed and re-verified live (see *Completed*). Gates after Phase 18: `pytest` **27/27**, `ws_smoke.py` **109/113** (four known stranger-connection false positives, unchanged), a real task on the deployed board spending **494 tokens**. Tasks 6, 7 and 9 (record, upload, submit) are the user's. |
+| **Current phase** | **Phase 20 — Enchanted Forest**, the next phase to *build*. **Phase 6 — demo readiness** stays open beside it and is blocked on the user, not on code |
+| **Phase status** | Phase 19 `COMPLETE` — deployed and verified 2026-09-20. The picker is a control: two worlds, and the board wears either. **Phase 6 is still `BLOCKED — WAITING FOR MANUAL ACTION`** — tasks 6, 7 and 9 (record, upload, submit) are the user's. Gates after Phase 19: `pytest` **27/27**, `ws_smoke.py` **113/113** (see the correction below — the four "known false positives" were never real), a real task run in Night Watch on the deployed board spending **494 tokens**, and Paper Office proven unchanged by computed-style diff. |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
@@ -51,8 +51,8 @@
 | 16 | Agent-to-agent handoff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 17 | The office — shell, and a floor you staff | `COMPLETE` — deployed and verified 2026-09-19 |
 | 18 | World system foundation | `COMPLETE` — deployed and verified 2026-09-20. The only one of the ten that touches shared code; ships no new world, by design |
-| 19 | Night Watch | `NOT STARTED` ← **here** — the first world, and what turns a one-entry picker into a control |
-| 20 | Enchanted Forest | `NOT STARTED` |
+| 19 | Night Watch | `COMPLETE` — deployed and verified 2026-09-20. The picker is a control now |
+| 20 | Enchanted Forest | `NOT STARTED` ← **here** |
 | 21 | Reef Station | `NOT STARTED` |
 | 22 | Alien Colony | `NOT STARTED` |
 | 23 | Cloud City | `NOT STARTED` |
@@ -66,6 +66,9 @@
 Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
 **19–26 depend on 18 and on nothing else**, so their order can be reshuffled — or any of them
 dropped — without touching the rest. 27 depends on whichever worlds actually shipped.
+**A dark world should now read Phase 19's four findings in `BUILD_PLAN.md` before starting** —
+they are the shared-code traps a costume change walks into, and three of the four have a fix
+already in `worlds/nightsky.css` to copy rather than rediscover.
 
 **Phase 3 is complete as of 2026-09-18**, but not as planned — Bedrock was abandoned, not
 integrated. See *Blocked* below for the evidence, and `ARCHITECTURE.md` decision 7 for the
@@ -92,6 +95,65 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 19 — Night Watch — 2026-09-20 — deployed and verified**
+
+The first world, and what turns a one-entry picker into a control. The office becomes a night
+observation deck: the floor under a star field, quiet, lit by instruments rather than by daylight.
+
+**What landed.** `frontend/src/worlds/nightsky.css` (new), a registry entry and a five-design cast
+in `worlds.js`, one import line in `main.jsx` — and, unplanned, a change to `index.html`; see
+finding 1 below. The stylesheet is a token block that repaints every surface in the product
+including the chrome and the landing page, plus 41 scoped rules that re-dress the objects:
+sky-and-deck-grid ground plane, glass-roofed bays with the walls dropped to railings, telescope
+consoles, a star chart, a signal beacon, an open sky, a moon-pool, antenna masts, a moonlit
+platform reached along a lit path, two constellations, and drifting motes.
+
+**The state expression whose form changed.** Paper Office announces a working room by tinting its
+floor. A bay announces it by **lighting its dome** — a pool of cool-white falling from the roof.
+Same `--cool` family, same label text, different shape of light.
+
+**Verified, not assumed:**
+
+| Check | Result |
+|---|---|
+| `npm run build` | clean; `./scripts/deploy-frontend.sh` job **30 → SUCCEED** |
+| Real task in Night Watch on the **deployed** board | **494 tokens**, bay lit, `for judge` / `working` read correctly |
+| Two bays, queue and handoff on the deployed floor | pale envelope legible on navy; `queued #1` in honey orange on the lit path |
+| **Paper Office unchanged** | **73 custom properties and 89 computed-style records identical** before/after; only diff was `.sprite` `transform: matrix(1,0,0,1,0,0)` vs `none` — the same identity transform caught mid-animation |
+| Every rule scoped | 41/41 carry `:root[data-world='nightsky']`; Paper Office cannot change by construction |
+| Layout parity | `scrollHeight`, `scrollWidth` and floor box **byte-identical** between the two worlds at 540 |
+| Contrast, measured | `--cool` 6.36 · `--safe` 6.03 · `--honey` 6.56 · `--alarm` 4.56 — worst case each, across all eight surfaces; `--screen-on` 7.63 as an indicator. All clear 4.5:1 |
+| Cold load, no CSS **and** no JS | Night Watch's first frame is **dark**, Paper Office's is light. No cream flash |
+| `prefers-reduced-motion: reduce` | both drift animations resolve to `none` |
+| Responsive sweep | 1440 / 1100 / 900 / 540 / 390 — zero horizontal overflow, workspace and landing page |
+| Console | **zero errors, zero warnings** |
+| `pytest` | **27/27** |
+| `ws_smoke.py` | **113/113** — see the correction below |
+| Colour literals outside the token block | **zero** |
+
+**Two corrections to things this file previously recorded as true:**
+
+1. **`ws_smoke.py` scores 113/113, not 109/113.** The four "known stranger-connection false
+   positives" carried in this file since Phase 17 were never a backend defect: they were *the
+   developer's own browser tabs*, each holding a live `CONN#` row against the deployed backend.
+   Run the suite with a browser attached and five checks fail; close the browser and all 113 pass.
+   **Close every tab on the deployed URL before running `ws_smoke.py`.**
+2. **The ≥4.5:1 contrast bar in `BUILD_PLAN.md` is not met by Paper Office.** Its state hues run
+   **2.63:1 to 5.26:1** against their own surfaces — `--honey` on a busy room floor is 2.98:1.
+   Night Watch clears the bar on all eight of its surfaces. The bar stands as written and Paper
+   Office is *not* being retuned: it is pixel-frozen for the recording, and changing it now would
+   invalidate a rehearsed demo to chase a number no judge will measure.
+
+**Four findings that belong to worlds 20-26, not to this one.** Recorded in full in
+`BUILD_PLAN.md` under Phase 19: a dark world needs the `hiveos.world.paint` pre-paint key (done
+once, in `index.html` — 20-26 inherit it and stay two files); `--ink` inverts but its three
+*dark*-meaning uses do not, so `.modal`, `.drawer` and `.desk__chair` need re-pointing in every
+dark world; `--paper` is both a panel surface and a sheet of paper, so "handoff unchanged"
+requires an active override; and on a dark ground `--honey` has to separate from the brand amber
+by **hue** rather than by value, because value is not available.
+
+---
 
 **Phase 18 — world system foundation — 2026-09-20 — deployed and verified**
 
@@ -177,6 +239,13 @@ than assumed, two ways: the row carried a live `connected_at` and a connection i
 between runs, and the invariant itself was then checked the way this file's standing note
 prescribes — open two connections, close them, confirm *our* `CONN#` rows **and their
 `CONN#/TEAM` index rows** are gone while the stranger's remain. Both were. No connection leaks.
+
+> **Updated at Phase 19: the suite does reach 113/113, and this note should not be read as
+> "109 is the ceiling".** The diagnosis above is right about the cause and wrong about the
+> remedy — the other connection does not have to be a stranger, and usually is not. Any tab the
+> developer has open on the deployed URL holds its own `CONN#` row and trips the same five
+> checks. Close every one of them, wait a few seconds, and all 113 pass. Do that before quoting
+> a score.
 
 **`ws_smoke.py` gained the check that would have caught defect 1** (section 26): a dismissal is
 still true for the *next* person to connect. The rest of that section asserted the floor from

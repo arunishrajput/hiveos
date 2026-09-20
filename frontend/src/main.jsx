@@ -25,6 +25,7 @@ import './styles.css'
 // Paper Office has no file here on purpose: it *is* bare `:root` in
 // styles.css, which is what keeps the recorded demo safe from a world that is
 // still being built.
+import './worlds/nightsky.css'
 
 import App from './App'
 

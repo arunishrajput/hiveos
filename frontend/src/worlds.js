@@ -41,7 +41,132 @@ import { DESIGNS, DEFAULT_LAYERS, HAIR_COLOURS, compileSheets } from './sprites'
 
 const STORAGE_KEY = 'hiveos.world'
 
+/* What the pre-paint script in index.html needs before any stylesheet exists.
+ *
+ * `data-world` alone is not enough to stop a cold load flashing. The attribute
+ * means nothing until the stylesheet that reads it arrives, and until then the
+ * canvas is painted from the `<meta name="color-scheme">` in index.html, which
+ * is Paper Office's literal `light`. A returning Night Watch visitor therefore
+ * got a pale canvas for as long as the CSS took to land — which on a slow cold
+ * load is the worst frame of the whole page and the one a recording catches.
+ *
+ * So the two values the browser needs *before* CSS are written here as well,
+ * and index.html replays them. It is stored rather than derived because the
+ * script is inline and pre-module: it cannot import this registry, and
+ * hard-coding a list of dark worlds in the HTML would put the same fact in two
+ * places and rot the moment world 20 lands. */
+const PAINT_KEY = 'hiveos.world.paint'
+
 export const DEFAULT_WORLD_ID = 'paper'
+
+/* --- Night Watch's cast ----------------------------------------------------
+ *
+ * Hooded night-watch explorers. Same 9x10 grid, same five-letter alphabet,
+ * same generator — a world supplies art, never machinery.
+ *
+ * What makes them not office workers in navy coats is the hood: it closes over
+ * the head so the face is a slot rather than a whole face, and it carries a
+ * headlamp on the `A` layer. That lamp is the one warm thing on a character in
+ * this world, and it reports nothing — warmth decorates, cool reports.
+ *
+ *   H  the hood        --sp-hair    per-character, from the palette below
+ *   F  skin            --sp-skin
+ *   S  the coat        --sp-shirt
+ *   A  the headlamp    --sp-accent  warm
+ *   D  the eyes        --sp-detail
+ *
+ * Five rather than three, because `lookFor` mods by the table length and the
+ * eight markers land on more of them — the office's three silhouettes differ
+ * only above the eyes, and under a hood there is less room to differ. The last
+ * row is legs and nothing else in every design, because `stepFrame` and
+ * `seatedFrame` replace exactly that row.
+ */
+const NIGHT_WATCH = [
+  // 0 — peaked hood, lamp across the brim
+  [
+    '....H....',
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHAAAHHH',
+    '.HDFFFDH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — wide brim, broad lamp
+  [
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHHHHHHHH',
+    'HHAAAAAHH',
+    '.HDFFFDH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — hood with an earpiece
+  [
+    '...HHH...',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHHHHHHHA',
+    '.HHAAAHH.',
+    '.HDFFFDH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — hood down, lamp on a headband
+  [
+    '...HHH...',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HAAAAAAAH',
+    '.HFFFFFH.',
+    '..DFFFD..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — tall crest, single lamp
+  [
+    '....H....',
+    '....H....',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHAHHHH',
+    '.HDFFFDH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+]
+
+/* One hood colour per marker.
+ *
+ * The office's eight are pitched to sit *darker* than a cream floor; every one
+ * of them disappears into a navy deck. These are the same eight identities
+ * lifted to read against it, and kept just as desaturated for the same reason:
+ * identity may carry hue, but none of it may be mistaken for the instrument
+ * blue of a running agent or the jade, orange and coral of budget health.
+ */
+const NIGHT_HOODS = [
+  '#9c82ad', // heather
+  '#8494a8', // steel
+  '#b08a68', // tan
+  '#8fa583', // moss
+  '#8089a8', // slate
+  '#a89384', // clay
+  '#a87f8d', // wine
+  '#83a398', // sage
+]
 
 /* One entry per world.
  *
@@ -78,6 +203,25 @@ const REGISTRY = [
     agentDesigns: null,
     layers: DEFAULT_LAYERS,
     palette: HAIR_COLOURS,
+  },
+  {
+    id: 'nightsky',
+    label: 'Night Watch',
+    blurb: 'A deck under a star field, lit by its instruments rather than by day.',
+    colorScheme: 'dark',
+    // `--cream` in worlds/nightsky.css. Literal for the same reason Paper
+    // Office's is: the browser needs it before a stylesheet exists.
+    themeColor: '#0b1020',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the bays at
+    // y=14, so a world that raised its band would run the sky behind them.
+    walkTop: 14,
+    designs: NIGHT_WATCH,
+    // The crew works this deck; the agents are crew too. A separate species
+    // would say the agents are visitors, and the whole claim of the floor is
+    // that they work here.
+    agentDesigns: null,
+    layers: DEFAULT_LAYERS,
+    palette: NIGHT_HOODS,
   },
 ]
 
@@ -119,6 +263,23 @@ function saveWorldId(id) {
   }
 }
 
+/* The two values index.html's pre-paint script replays. See PAINT_KEY.
+ *
+ * Written from the provider's effect rather than from `setWorld`, so it is
+ * also repaired for someone who chose a world before this key existed — their
+ * next visit still flashes, and every visit after it does not. */
+function savePaint(world) {
+  try {
+    window.localStorage.setItem(
+      PAINT_KEY,
+      JSON.stringify({ scheme: world.colorScheme, themeColor: world.themeColor }),
+    )
+  } catch {
+    // Same reasoning as above: a browser with storage blocked simply gets the
+    // literal light values in index.html, which is one repaint, not a failure.
+  }
+}
+
 const WorldContext = createContext(null)
 
 /** The active world, plus the setter the picker calls. */
@@ -149,6 +310,10 @@ export function WorldProvider({ children }) {
 
     const meta = document.querySelector('meta[name="theme-color"]')
     if (meta) meta.setAttribute('content', world.themeColor)
+
+    // Both of the above also have to be true *before* any of this runs on the
+    // next cold load, or a dark world flashes pale while the CSS is in flight.
+    savePaint(world)
   }, [world])
 
   const value = useMemo(
