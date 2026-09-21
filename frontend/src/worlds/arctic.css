@@ -1,0 +1,1872 @@
+/* Arctic Base — the office as a polar research station.
+ *
+ * The same floor, the same rooms, the same scheduler, at seventy-eight degrees
+ * south in the middle of winter. Insulated cabins standing on packed snow,
+ * antenna masts, an ice-core rack, a route of black flags across the ice, and
+ * a ridge along the back of the floor with an aurora hanging over it.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one is re-tuned for this world's
+ *    surfaces and none is reassigned. The words — `working`, `idle`,
+ *    `queued #N`, `HALT`, `WAITING AREA` — are untouched; this file contains
+ *    no `content` that carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *    THIS IS THE WORLD THAT RULE WAS WRITTEN FOR, and the gate it has to pass
+ *    is a single frame holding an idle cabin and a busy one.
+ *
+ * ---
+ *
+ * THIS IS THE FIRST WORLD SPLIT DOWN THE MIDDLE, AND EVERY DECISION BELOW
+ * FOLLOWS FROM IT.
+ *
+ * The three dark worlds are dark everywhere and Cloud City is bright
+ * everywhere. A polar station at midwinter is neither: the snow is the
+ * brightest surface in the product and the sky above it is very nearly the
+ * darkest, because snow is bright precisely by reflecting the whole sky dome
+ * and the sky is what is left over. The line between the two regimes is
+ * `--walk-top`, which is the one number this file may read and may never set.
+ *
+ * So both halves of the project's lighting experience apply here, each on its
+ * own side of one line:
+ *
+ *    BELOW THE LINE it is Cloud City's problem. There is no headroom above
+ *    white, so nothing reports by getting brighter. The four state hues are
+ *    deep (value 0.36-0.61) and saturated (0.83-0.96) against surfaces at
+ *    0.85-1.00 and saturations under 0.21, and relief on the snow — sastrugi,
+ *    boot tracks, the berm at the foot of the ridge, the drift at a cabin
+ *    door — is painted as the SHADOW it casts and not as the light it catches.
+ *
+ *    ABOVE THE LINE it is Night Watch's problem, and the old tools work again:
+ *    the aurora, the stars and the afterglow along the ridge are all additive
+ *    light on a near-black ground, and they barely have to try.
+ *
+ * AND A THIRD REGISTER IN BETWEEN, WHICH IS THE THING THIS WORLD HAS THAT
+ * CLOUD CITY DID NOT, AND THE REASON ITS GATE IS PASSABLE. A sky harbour's
+ * pavilion is open deck at value 0.99, so both of its lights had to report by
+ * going DOWN and the warm one could not exist at all. A polar cabin is a
+ * sealed insulated box, so its deck is legitimately darker than the snow
+ * outside — 1.32:1 below it — and that gap is headroom. It buys the one thing
+ * a bright world cannot otherwise have:
+ *
+ *    THE TWO LIGHTS MOVE IN OPPOSITE DIRECTIONS. The living window's warm pool
+ *    goes UP in value against the cabin deck; the instrument port's cool wash
+ *    goes DOWN. A viewer does not have to tell warm from cool at 540px on a
+ *    compressed recording — they have to tell lighter from darker, which
+ *    survives compression, colourblindness and a bad projector. Warm and cool
+ *    is what the pair means; light and dark is how it reads.
+ *
+ * WHAT IT COSTS, recorded because it was not obvious: a world with three value
+ * registers has to clear its small type against the DARKEST of them, and the
+ * darkest here is a lit cabin deck at L 0.61. That is what sets `--faint` (it
+ * carries `.desk__role` under every nameplate, which sits inside a cabin), and
+ * pulling `--faint` down to clear 4.71:1 there walks it into `--dim`. So `--dim`
+ * had to come down with it to keep the pair 1.43:1 apart, which is the gap
+ * Paper Office (1.42:1) and Cloud City (1.39:1) both hold. A value RANGE costs
+ * you the dim/faint distinction unless you widen it on purpose.
+ *
+ * ---
+ *
+ * THE AURORA IS NOT GREEN, AND THAT IS THE MOST DELIBERATE DECISION IN THIS
+ * FILE. The canonical aurora is the 557.7nm oxygen line, a yellow-green at
+ * roughly 140deg, which is `--safe` — the budget jade — as a glowing object
+ * the width of the whole board, sitting permanently on screen. That is the
+ * Forest's foliage problem and Reef Station's coral problem at the largest
+ * scale either has appeared at. High-altitude aurora is genuinely violet and
+ * rose, so this one is: core at 258deg, fringe at 259deg, 61deg from the
+ * nearest state hue and 103deg from the next. The read survives the swap
+ * because AN AURORA IS IDENTIFIED BY ITS FORM AND NOT BY ITS COLOUR — vertical
+ * rayed curtains hanging in a band, brightest along their lower border. Form
+ * carries the identification; hue is therefore free to be whatever the colour
+ * contract needs it to be.
+ *
+ * THAT GENERALISES, AND IT IS THIS WORLD'S FINDING FOR 25 AND 26. The brighter
+ * a world is, the more its real palette is pushed toward high-visibility hues,
+ * because high-visibility is DEFINED as "what stands out against white": an
+ * expedition parka is orange, a route marker is red, an aurora is green, a
+ * penguin's bill is orange. All four are state hues. The collision in a bright
+ * world is systematic rather than incidental, and every prop has to be checked
+ * against all four meanings before it is drawn — not just against the one the
+ * brief happens to name. Every one of those four is something else here.
+ *
+ * Measured rather than argued: `--cool` 5.84:1 · `--safe` 5.13:1 ·
+ * `--honey` 4.96:1 · `--alarm` 4.96:1, worst case each across all eight of
+ * this world's surfaces, and `--screen-on` 3.47:1 as an indicator.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="arctic"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every
+ * surface in the product including the chrome and the landing page; and the
+ * scoped rules, which re-dress the objects on the floor. A world that stopped
+ * at the first half would be a colour scheme, which is the one thing a world
+ * is not allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,3,0) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy`, `.room--busy::before` and `.desk--busy
+ * .desk__monitor` below exist for that reason as much as for the art.
+ */
+
+:root[data-world='arctic'] {
+  /* A light room, for the reason at the top of the file: all eight surfaces a
+   * word can land on are in the bright half, and the band carries no word and
+   * is not walkable. The pre-paint script in index.html replays
+   * `hiveos.world.paint`, so a cold load lands on this world's own pale ground
+   * rather than on Paper Office's cream. Inherited from Phase 19 — this world
+   * adds nothing to index.html. */
+  color-scheme: light;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Snow-shade blues, close together, separated by hairlines rather than by
+   * contrast — Paper Office's construction with the warmth taken out and the
+   * cold put in. `--sand` is the raised surface and is a shade DOWN from the
+   * page, exactly as it is on cream. */
+  --cream: #eef3f8;
+  --paper: #fbfdfe;
+  --sand: #e0e9f1;
+
+  /* `--ink` is "the mark on the page", and here it means both of the things it
+   * means in Paper Office at once: maximum contrast AND a dark colour. That is
+   * why this world needs none of the three overrides Phase 19 found every dark
+   * world needs — the `.modal` scrim, the `.drawer` scrim and
+   * `.desk__chair`'s under-edge all want `--ink-rgb` to be dark, and here it
+   * is. The band being dark does not change that: the band is scenery inside
+   * one panel, and `--ink` is a property of the page. */
+  --ink: #11202c;
+  --rule: #c6d7e2;
+  --rule-soft: #d9e6ee;
+  --rule-strong: #a8c0d0;
+
+  /* Both pulled below Cloud City's, and the reason is the third value register
+   * rather than the brightness of the page — see the note at the top. `--faint`
+   * carries `.pawn__state` when a person is idle, `.desk__role` under every
+   * nameplate and the `WAITING AREA` caption, and the nameplate one sits on a
+   * cabin deck that may be lit. It clears 4.71:1 there; `--dim` clears 6.75:1
+   * and the two stay 1.43:1 apart, which is the separation Paper Office and
+   * the harbour both hold. */
+  --dim: #31404b;
+  --faint: #475765;
+
+  /* Brand, still fills only. Warm, and on the coldest world in the set that is
+   * the point: a warm yellow rectangle on a blue-white board is the one thing
+   * that cannot be mistaken for weather, and the quota strip has to stay the
+   * loudest object on screen. Its dark label clears 9.80:1. */
+  --amber: #f0b23c;
+  --amber-deep: #d2932a;
+  --on-amber: #191305;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Deepened until each one carries a word on snow AND on a lit cabin deck.
+   * Measured against all eight of this world's surfaces, worst case 4.96:1 —
+   * the table is in PROGRESS.md. The binding surface every single time is the
+   * lit cabin deck, which is the darkest thing in the bright half.
+   *
+   * COOL vs THE WHOLE WORLD. Every surface in this world is a blue: the snow
+   * is 207deg, the ice 204deg, the cabin deck 204deg. That is Reef Station's
+   * problem with the values inverted — there the scenery was blue and the
+   * state had to be brighter than it, here the scenery is blue and the state
+   * has to be DARKER. The separation is saturation and value, not hue: the
+   * surfaces run 0.01-0.21 saturation at value 0.85-1.00 and `--cool` is 0.92
+   * at 0.41.
+   *
+   * COOL vs SAFE. 196.9deg against 148.2deg, a 48.7deg gap where Paper Office
+   * has 43deg — the busy cyan and the budget jade are the two saturated marks
+   * a reader has to tell apart at a glance, and this world is made of blue.
+   *
+   * HONEY vs AMBER. Phase 19's finding 4 was that a dark ground cannot
+   * separate them by value, so the dark worlds bought a 15-19deg hue gap
+   * instead. A bright world gets the value separation back — honey at 0.49
+   * against amber at 0.94, which is 4.16:1 apart where Paper Office manages
+   * 2.29:1 — so the hue gap stays small (8.3deg) and the guarantee underneath
+   * is the one that always held: amber is only ever a filled rectangle with
+   * dark text on it, honey is only ever a word.
+   *
+   * ALARM is held 26.3deg from honey. */
+  --cool: #084d68;
+  --safe: #095c30;
+  --honey: #7d4305;
+  --alarm: #9b251b;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 17, 32, 44;
+  --cream-rgb: 238, 243, 248;
+  --paper-rgb: 251, 253, 254;
+  --amber-rgb: 240, 178, 60;
+  --cool-rgb: 8, 77, 104;
+  --alarm-rgb: 155, 37, 27;
+
+  /* The quota strip's empty track. */
+  --tick: #dce8f1;
+
+  /* --- The snow ---------------------------------------------------------- *
+   *
+   * `--tile` is Phase 22's finding 4 for the fourth time and the fourth
+   * different answer. The token means "the other ground colour", not "lighter
+   * than the floor": a crater is darker than its regolith, deck plating
+   * greyer than its sand, a gap in a sky harbour brighter than the stone
+   * standing over it. The other ground colour on a polar plateau is where the
+   * wind has scoured the snow off and left the glacier ice bare — and bare ice
+   * is DENSER than snow, so it is darker and much bluer, 1.13:1 below it at
+   * twice the saturation. Ask what is actually on the other side before
+   * picking its value; here the answer was underneath rather than beyond. */
+  --floor: #f2f7fb;
+  --tile: #dcebf5;
+
+  /* Inside a cabin: an insulated deck, and the third value register this
+   * world's whole lighting argument rests on. Held 1.32:1 below the snow
+   * outside — enough that the cabin reads as a building without the deck
+   * getting dark enough to swallow a `--faint` caption. */
+  --room-floor: #cfdae1;
+  /* And the same deck with the instrument port lit. 1.11:1 DOWN and 2.3x the
+   * saturation: on cream "lit" means lighter, and on a bright world it means
+   * the colour arrives. Note that this is the cool half of the pair going
+   * down; the warm half, which is in `.room`'s own background and is not a
+   * token, goes up. */
+  --room-floor-busy: #b9d1e1;
+
+  /* Survey stations. Painted steel rather than laminate, and deliberately the
+   * darkest large object on the floor: a desk is the one piece of furniture a
+   * person has to find at a glance, and on snow the way to be found is to be
+   * dark. */
+  --desk: #6b7f8e;
+  --desk-edge: #3a4a57;
+  --desk-edge-rgb: 58, 74, 87;
+  --desk-top: #8ea1b0;
+
+  /* The handoff is a sealed dispatch tube here, so `--envelope-edge` stops
+   * being the hairline round a piece of paper and becomes the tube's end cap.
+   * Same token, same rules in the base stylesheet, a different object — which
+   * is the whole reason these are named for the thing and not for the colour. */
+  --envelope-edge: #8d9aa4;
+  --envelope-contact-rgb: 58, 84, 106;
+
+  /* A dark instrument pane and a lit one. `--screen-on` is still DARKER than
+   * every surface it sits on — see the note at the top of the file — and the
+   * two are 0.7deg apart in hue at 0.41 against 0.59 in value, which is the
+   * "one hue, two weights" relationship every world has, in the only range a
+   * bright world leaves for it. */
+  --screen-off: #3b4753;
+  --screen-on: #0a7197;
+  --screen-on-rgb: 10, 113, 151;
+
+  /* Antenna mast alloy, where the foliage was. There is nothing growing here,
+   * which makes this the one world where the Forest's "foliage green is not
+   * `--safe` green" problem cannot arise at all: the token is 10.4deg from
+   * `--cool` at a quarter of its saturation, and 91deg from the budget jade. */
+  --foliage: #7d8f9e;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become a
+   * weather board and a water cooler become an ice-core rack without the token
+   * names going wrong. */
+  --mug: #e6edf2; /* the enamel mug on the survey station */
+  --board-face: #f4f8fa; /* the weather board's enamel face */
+  --board-frame: #5a6d7d; /* its steel case */
+  --bottle: #cfe6f2; /* the ice cores in the rack */
+  --bottle-base: #9dc3d6; /* and the shaded side of one */
+  --cooler-body: #4d5f6d; /* the rack they stand in */
+  --glass-sky: #dbe9f2; /* frosted glass, high in the pane */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The parka shell is per-character and arrives inline from `lookFor`; these
+   * are the four layers every explorer and every penguin shares. See
+   * PARKA_TEAM and PENGUINS in worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the parka body, and it is the one part of a character that
+   * has to hold its own silhouette against snow: 8.9:1 on the corridor and
+   * 5.0:1 inside a lit cabin, which is more than any world before has asked of
+   * it in two directions at once.
+   *
+   * `--sp-accent` is the ruff fur on a parka, the mittens at the ends of row 8
+   * and the bill on a penguin, and IT IS NOT ORANGE. Fourth world running that
+   * the prop with the obvious real-world colour turned out to be a state hue
+   * in costume — the reef's aqua fin, the harbour's brass fitting and its
+   * orange windsock, and now a gentoo's bill and a high-visibility parka. Held
+   * at 0.18 saturation against `--honey`'s 0.96, a 5.5x gap, on the guarantee
+   * that has held in every world: honey is only ever a word and a fur ruff is
+   * never one. */
+  --sp-skin: #d9a879;
+  --sp-shirt: #394753;
+  --sp-accent: #d8cbb2;
+  --sp-detail: #16202b;
+
+  /* Structure. `--wall` is read only by the base `.floor` recipe, which this
+   * file replaces wholesale; it is kept honest at the band's own mid-sky so
+   * nothing downstream is surprised. `--wall-trim` is the cabin's outer wall
+   * seen from above, and it is the darkest line on the floor — on snow an edge
+   * is the only thing that says a wall is a wall. */
+  --wall: #2a4260;
+  --wall-trim: #455a69;
+
+  /* The swept ice path the queue waits on. Measured rather than picked: a
+   * queued member's `queued #N` is `--honey` and stands on this, so it is a
+   * surface a word lands on — 5.31:1 for honey and 5.05:1 for the
+   * `WAITING AREA` caption in `--faint`. */
+  --rug: #d8e7f0;
+  --rug-edge-rgb: 132, 164, 190;
+  --chair: #556775; /* the survey station's stool */
+  --glass: #b6d2e2; /* frosted glass, low in the pane */
+
+  /* Shadows go blue, and on snow that is not a stylistic choice — a shadow on
+   * snow is lit by the sky dome and nothing else, which is why it is the one
+   * place in nature where shadows are famously and measurably blue. They also
+   * do more work here than anywhere but the harbour: on a surface at value
+   * 0.98 a shadow is the only mark available to say that something is above
+   * it. */
+  --shadow-rgb: 74, 106, 140;
+  --shadow: rgba(var(--shadow-rgb), 0.24);
+  /* Deliberately a different blue from `--shadow`: the darkening at the edge
+   * of this floor is ice haze thickening with distance, not an object blocking
+   * light. Very gentle, because a heavy vignette on a bright world reads as a
+   * dirty lens. */
+  --vignette-rgb: 96, 132, 164;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a dark button with pale text here, as in Paper Office, so
+   * its hover lifts rather than settling down. */
+  --ink-hover: #1e3040;
+  --engage-flash: #cde3ef;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because an aurora, a
+   * ridge, a sastrugi crest, a boot track, an ice core, a route flag and a
+   * dispatch tube are objects the paper office does not have, and inventing a
+   * shared token for them would put Paper Office's stylesheet in the business
+   * of describing a world it is not.
+   */
+
+  /* The band. Three stops from the top of the sky down to the horizon, where
+   * civil twilight is still holding on. None of these is one of the eight
+   * surfaces and none may ever be: the band is not walkable and carries no
+   * word — the same standing Reef Station's `--water-lit` and the harbour's
+   * `--sky-high` have. */
+  --sky-deep: #16233c;
+  --sky-deep-rgb: 22, 35, 60;
+  --sky-mid: #22395a;
+  --sky-low: #3f5f80;
+  --sky-low-rgb: 63, 95, 128;
+
+  /* The aurora. Violet, for the reason at the top of the file. The core is the
+   * curtain's body and the fringe is its lower border, which in a real aurora
+   * is the brightest part of it. */
+  --aurora-rgb: 138, 106, 214;
+  --aurora-pale-rgb: 198, 178, 240;
+  --star-rgb: 226, 236, 250;
+
+  /* THE SUN IS BELOW THE RIDGE AND THERE IS NO DISC ANYWHERE IN THIS WORLD.
+   * The brief asks for "a low winter sun" on `.fixture--daylight`, which sits
+   * at (17%, 46%) — the middle of the snow — and Phase 22's finding 2 is that
+   * a celestial object rendered there is a celestial object lying on the
+   * ground. The harbour solved that by moving its sun into the sky slot; this
+   * world does not have to solve it at all, because at midwinter the sun IS
+   * down. What is left along the ridge is its afterglow, and the fixture
+   * carries the long raking pool that afterglow throws across the snow — which
+   * keeps the fixture's actual role, a patch of illumination in a fixed place.
+   * It also resolves the contradiction in the brief, which asks for an aurora
+   * and a sun in the same sky. Held at 17.1deg — 12.5deg off `--alarm` and
+   * 13.9deg off `--honey`, further from both than either is from the other. */
+  --afterglow-rgb: 255, 200, 178;
+
+  /* The ridge across the back of the floor, and the far one behind it. Held at
+   * 0.48 saturation against `--cool`'s 0.92 — the same standing and very
+   * nearly the same numbers as the harbour's sky band, which sits 13.6deg from
+   * its own busy hue at half its saturation. A dark mass in a band that
+   * carries no word is not a mark. */
+  --ridge: #22344a;
+  --ridge-far: #33495f;
+  /* The lit lip of the drift where the ridge meets the floor. This is the
+   * baseboard's job — the single line that turns a plan view into a room — and
+   * on a bright world it is the one line that is allowed to be brighter than
+   * the snow, because it is a specular crest rather than a surface. */
+  --berm: #ffffff;
+
+  --snow-bright-rgb: 255, 255, 255; /* every lit crest, flake and drift lip */
+  --snow-shade-rgb: 150, 176, 202; /* and every shadow they cast */
+  --crack-rgb: 122, 156, 184; /* fissures in the bare ice */
+  --track-rgb: 156, 181, 203; /* compacted snow where people have walked */
+
+  /* The two lights, and they are the point of this world. `--hearth` is the
+   * living window and reports NOTHING; the cool half of the pair is `--cool`
+   * and `--screen-on` above, and reports everything. Held 3.5deg from `--honey`
+   * at 2.4x less saturation, which is the same standing the harbour's lantern
+   * has at 7deg and 2.4x — a light is not a word. */
+  --hearth: #ffd49a;
+  --hearth-rgb: 255, 212, 154;
+
+  --frost: #dceaf4; /* rime on a pane, a frame, a mast */
+  --frost-rgb: 220, 234, 244;
+  --steel: #8494a1; /* fittings: frames, bands, rungs, guys */
+  --steel-lit: #c4d1da;
+  --steel-dark: #46525c;
+  --door: #3d4b56; /* the heavy insulated door in a cabin wall */
+
+  /* The route flags. CHARCOAL, AND THAT IS THE SAME DECISION THE HARBOUR MADE
+   * ABOUT ITS WINDSOCK. Route markers on ice are red, orange or green in every
+   * photograph anybody has seen, because those are the colours that stand out
+   * against snow — which is exactly why they are the colours this board has
+   * already spent on meaning. Black flags are real too (they mark crevasse
+   * hazard), they carry no hue at all, and on white they are the highest
+   * contrast object available. */
+  --flag: #262c33;
+
+  /* The dispatch tube, and see the note at the bottom of the file. Near-neutral
+   * at 0.19 saturation and DARK at 0.29 value, which is the whole decision. */
+  --tube: #3b4149;
+  --tube-cap: #98a4ae;
+  --tube-band: #e2e8ee;
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. Paper Office's recipe is a wall band over two offset
+ * 45deg checkers; this is a twilight sky and a ridge over a plateau of packed
+ * snow with bare ice showing through it.
+ *
+ * THREE TEXTURES, AND EACH ONE ANSWERS A DIFFERENT ONE OF THE THREE RULES THE
+ * EARLIER WORLDS HAD TO SEPARATE.
+ *
+ *   THE SASTRUGI MAY TILE, AND MUST. Sastrugi are the parallel ridges wind
+ *   carves into a snow surface, and they are genuinely periodic — that is what
+ *   makes them sastrugi rather than lumps. Reef Station's finding 3 exactly:
+ *   the question is never whether a surface is periodic, it is which PART of
+ *   it is. Each crest is an asymmetric pair — one bright pixel of lit crest
+ *   against three of shadow behind it — because on a surface at value 0.98 the
+ *   highlight has almost nowhere to go and the shadow has the whole range.
+ *
+ *   THE CRACKS MAY TILE, at two different weights. A fissure is a discrete
+ *   linear object, which is Phase 19's case, so two families at 27deg and
+ *   104deg with periods sharing no useful factor read as a network rather than
+ *   as a grid. They are deliberately unequal — 0.30 alpha against 0.17 — which
+ *   is Cloud City's finding 4: a line that means one thing and a line that
+ *   means another cannot be drawn at the same weight, or you have two grids
+ *   instead of one texture.
+ *
+ *   THE SNOW ITSELF MAY NOT. Drifted snow is a continuous variation in colour,
+ *   and Phase 20's finding is that any periodicity in one of those reads as a
+ *   rendering artefact. So the bare-ice patches and the drift shading are five
+ *   large shapes at hand-picked positions with `background-repeat: no-repeat`,
+ *   sized off `--tile-size` and never as floor percentages — the floor is
+ *   516x260 at the 540 framing and 515x622 at 960, so a percentage radius is a
+ *   different shape at each.
+ *
+ * The band's five layers are first in the list and the sky under them is
+ * opaque, so everything below stops at the ridge — the same trick the base
+ * file uses, and the reason neither needs a mask.
+ */
+:root[data-world='arctic'] .floor {
+  background-image:
+    /* The berm: the lit lip of the drift piled at the foot of the ridge. This
+       is the baseboard, and it is the only line in this world allowed to be
+       brighter than the snow. */
+    linear-gradient(transparent 0 calc(100% - 3px), var(--berm) calc(100% - 3px) 100%),
+    /* The near ridge, anchored on the band's own foot so its height is a
+       LENGTH rather than a fraction of a band that is 36px tall at one framing
+       and 87px at the other. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 3.4) calc(var(--tile-size) * 0.3) at 24% 100%,
+        var(--ridge) 0 74%,
+        transparent 76%
+      ),
+    /* and the far one behind it, wider and lower */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 4.3) calc(var(--tile-size) * 0.22) at 69% 100%,
+        var(--ridge-far) 0 76%,
+        transparent 78%
+      ),
+    /* The afterglow where the sun went down, behind the far ridge. Ends in
+       `transparent` like every shaped layer in this file — Phase 21's finding
+       1, which is a silent failure and has to be written rather than
+       remembered. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.6) calc(var(--tile-size) * 0.44) at 78% 104%,
+        rgba(var(--afterglow-rgb), 0.5),
+        rgba(var(--afterglow-rgb), 0) 76%
+      ),
+    /* The sky. Opaque, which is what stops the snow textures below from
+       painting over the band. */
+      linear-gradient(var(--sky-deep), var(--sky-mid) 56%, var(--sky-low)),
+    /* THE ICE CRACKS ARE NOT A LAYER, AND THAT TOOK TWO FAILURES TO ARRIVE AT.
+       They were first drawn as two repeating families at 27deg and 104deg with
+       periods sharing no useful factor, on the reasonable-sounding grounds
+       that a fissure is a discrete linear object and Phase 19's two-lattice
+       rule therefore applies. It rendered as graph paper: that rule holds for
+       a field of SMALL objects, where the eye takes the field in at once and
+       never resolves a single member, and a line crossing the whole floor is
+       not a member of a field — it is a ruled line, and eight ruled lines are
+       a grid however cleverly their spacings are chosen.
+
+       The second attempt was four hand-placed hairlines, each clipped to its
+       own box, which is the construction the Forest's irregular blotches use
+       and which has no lattice in it at all. They read as SCRATCHES. A 1px
+       diagonal on a plain pale ground also antialiases into a dotted line,
+       which makes it look like a defect rather than a feature.
+
+       The general lesson, and it is the one worth keeping: A CRACK IS NOT A
+       LINE, IT IS AN EDGE BETWEEN TWO MATERIALS, and at this scale the
+       material boundary is the only part of it that survives. So the cracks
+       are gone and the bare-ice patches below each grew a hard, slightly dark
+       rim instead — which is exactly what the edge of a wind-scoured ice plate
+       looks like from above, costs no extra layer, and reads instantly as
+       'the snow has been stripped off down to here'. Ask what the mark is an
+       edge BETWEEN before drawing it as a stroke.
+    */
+    /* Sastrugi: one lit pixel of crest, two of shadow behind it.
+       BOTH NUMBERS CAME DOWN HARD after the first look, and the reason is Reef
+       Station's cell-count lesson in one dimension: at 0.43 of a tile there
+       were thirty-odd crests across the floor at 0.26 alpha, and a field that
+       dense at that weight is not a surface with relief on it, it is corduroy.
+       A texture is legible as a texture only when the eye takes the whole
+       field at once instead of resolving its members — which here meant fewer
+       crests AND fainter ones, because on near-white snow the shadow is the
+       only part that registers at all and it registers very easily. */
+      repeating-linear-gradient(
+        174deg,
+        rgba(var(--snow-bright-rgb), 0.5) 0 1px,
+        rgba(var(--snow-shade-rgb), 0.1) 1px 3px,
+        transparent 3px calc(var(--tile-size) * 0.72)
+      ),
+    /* Drifted shading, which does not tile. Three of them and stronger than
+       the first pass: with the crack lattice gone the snow has to get its form
+       from somewhere, and on a surface at value 0.98 the only place it can
+       come from is shadow. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.4) calc(var(--tile-size) * 1.1) at 31% 38%,
+        rgba(var(--snow-shade-rgb), 0.3),
+        rgba(var(--snow-shade-rgb), 0) 74%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.7) calc(var(--tile-size) * 1.4) at 82% 72%,
+      rgba(var(--snow-shade-rgb), 0.24),
+      rgba(var(--snow-shade-rgb), 0) 76%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 2.9) calc(var(--tile-size) * 0.8) at 56% 95%,
+      rgba(var(--snow-shade-rgb), 0.2),
+      rgba(var(--snow-shade-rgb), 0) 76%
+    ),
+    /* And the bare ice the wind has scoured down to, which does not either.
+       Each one ends on a hard darker rim rather than fading out — see the note
+       above about what a crack actually is. That rim is the whole ice-crack
+       story in this world, and it costs nothing. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.1) calc(var(--tile-size) * 0.9) at 63% 30%,
+        var(--tile) 0 64%,
+        rgba(var(--crack-rgb), 0.24) 64% 68%,
+        transparent 70%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.9) calc(var(--tile-size) * 0.75) at 13% 78%,
+      var(--tile) 0 62%,
+      rgba(var(--crack-rgb), 0.2) 62% 66%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1) calc(var(--tile-size) * 1.5) at 46% 88%,
+      var(--tile) 0 64%,
+      rgba(var(--crack-rgb), 0.18) 64% 68%,
+      transparent 70%
+    );
+  background-size:
+    /* the five band layers */
+    100% var(--walk-top),
+    100% var(--walk-top),
+    100% var(--walk-top),
+    100% var(--walk-top),
+    100% var(--walk-top),
+    /* the sastrugi, the drifts and the bare ice */
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 0,
+    0 calc(var(--tile-size) * 0.19),
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat;
+  background-color: var(--floor);
+  /* Ice haze rather than dirt. As gentle as the harbour's, and for the same
+   * reason: anything stronger on a bright scene reads as a smeared lens. */
+  box-shadow: inset 0 0 44px 10px rgba(var(--vignette-rgb), 0.13);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * The band above the ridge: a star field and two auroral curtains.
+ *
+ * Everything here is confined to the band by `overflow: hidden` on the slot
+ * plus `height: var(--walk-top)` on the two pseudo-elements — taking the number
+ * the registry owns and never setting it.
+ *
+ * The stars are a field of discrete objects, so they may tile — Phase 19's
+ * rule, which is where it came from. Two periods sharing no useful factor, and
+ * they do not move: the aurora is the thing that moves up here, and a sky in
+ * which everything drifts has nothing to measure the drift against.
+ */
+:root[data-world='arctic'] .worldlayer--sky {
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle 1px at 22% 26%, rgba(var(--star-rgb), 0.9), transparent 62%),
+    radial-gradient(circle 1px at 74% 17%, rgba(var(--star-rgb), 0.55), transparent 64%),
+    radial-gradient(circle 1px at 41% 44%, rgba(var(--star-rgb), 0.4), transparent 66%);
+  background-size:
+    83px calc(var(--walk-top) - var(--tile-size) * 0.34),
+    127px calc(var(--walk-top) - var(--tile-size) * 0.34),
+    59px calc(var(--walk-top) - var(--tile-size) * 0.34);
+  background-position: left 0 top 0;
+  background-repeat: repeat-x;
+}
+
+/* The two auroral curtains.
+ *
+ * REBUILT ONCE, AND THE FIRST VERSION IS THE INSTRUCTIVE ONE. The obvious way
+ * to draw a rayed curtain is a `repeating-linear-gradient` of vertical stripes
+ * with a veil over its top and foot to give it a falloff. It renders as a
+ * barcode. Two things are wrong with it and they compound:
+ *
+ *   A REPEATING GRADIENT HAS NO VERTICAL EXTENT, so every ray runs the full
+ *   height of the band and has to be cut back by something painted on top of
+ *   it. The veil that does the cutting is opaque sky, which then also covers
+ *   the ridge and the berm underneath — the two marks the band most needed.
+ *
+ *   AND THE STRIPES ARE EVENLY SPACED, WHICH AN AURORA NEVER IS. This is Phase
+ *   20's rule arriving somewhere nobody expected it: an aurora is a continuous
+ *   luminous sheet with irregular structure in it, not a field of discrete
+ *   objects, so it may not tile — for exactly the reason moss may not. The
+ *   regularity is what makes the eye read "texture applied to a rectangle"
+ *   instead of "light in the sky".
+ *
+ * So each ray is its own soft lozenge at a hand-picked position: a radial
+ * gradient that is soft on both axes and carries its own vertical falloff, so
+ * no veil is needed at all and nothing is painted over the ridge. Eleven of
+ * them across two elements, unevenly spaced, at four different widths.
+ *
+ * AND THE CURTAIN STOPS ABOVE THE RIDGE BY CONSTRUCTION rather than by being
+ * covered up: the element's height is the band minus the ridge's own crest
+ * height, `calc(var(--walk-top) - var(--tile-size) * 0.34)`, which is exact at
+ * every framing because the band is a percentage of the floor and the ridge is
+ * a length off the tile. Mixing the two units in one `calc` is the only way to
+ * say "as tall as the sky above that mountain" without hard-coding either.
+ *
+ * The pale fringe is used LOW in each ray, because that is where a real aurora
+ * is brightest — its lower border is the sharpest thing about it. Getting that
+ * upside down is the quickest way to draw something that reads as smoke.
+ */
+:root[data-world='arctic'] .worldlayer--sky::before,
+:root[data-world='arctic'] .worldlayer--sky::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--walk-top) - var(--tile-size) * 0.34);
+  background-repeat: no-repeat;
+}
+
+/* The near curtain: seven rays, brighter, hanging lower in the band. */
+:root[data-world='arctic'] .worldlayer--sky::before {
+  background-image:
+    radial-gradient(
+      ellipse 50% 40% at 50% 54%,
+      rgba(var(--aurora-pale-rgb), 0.5) 0 12%,
+      rgba(var(--aurora-rgb), 0.3) 52%,
+      transparent 86%
+    ),
+    radial-gradient(
+      ellipse 50% 46% at 50% 48%,
+      rgba(var(--aurora-pale-rgb), 0.62) 0 14%,
+      rgba(var(--aurora-rgb), 0.34) 50%,
+      transparent 84%
+    ),
+    radial-gradient(
+      ellipse 50% 34% at 50% 60%,
+      rgba(var(--aurora-pale-rgb), 0.4) 0 12%,
+      rgba(var(--aurora-rgb), 0.24) 54%,
+      transparent 88%
+    ),
+    radial-gradient(
+      ellipse 50% 44% at 50% 50%,
+      rgba(var(--aurora-pale-rgb), 0.55) 0 14%,
+      rgba(var(--aurora-rgb), 0.3) 52%,
+      transparent 86%
+    ),
+    radial-gradient(
+      ellipse 50% 38% at 50% 56%,
+      rgba(var(--aurora-pale-rgb), 0.45) 0 12%,
+      rgba(var(--aurora-rgb), 0.26) 52%,
+      transparent 86%
+    ),
+    radial-gradient(
+      ellipse 50% 42% at 50% 52%,
+      rgba(var(--aurora-pale-rgb), 0.5) 0 14%,
+      rgba(var(--aurora-rgb), 0.28) 52%,
+      transparent 86%
+    ),
+    radial-gradient(
+      ellipse 50% 32% at 50% 58%,
+      rgba(var(--aurora-pale-rgb), 0.34) 0 12%,
+      rgba(var(--aurora-rgb), 0.2) 54%,
+      transparent 88%
+    ),
+    /* and the curtain's own lower border, running under the whole group —
+       one wide soft streak, which is what welds seven lozenges into one
+       object rather than seven */
+      radial-gradient(
+        ellipse 44% 13% at 41% 78%,
+        rgba(var(--aurora-pale-rgb), 0.3),
+        rgba(var(--aurora-pale-rgb), 0) 78%
+      );
+  background-size:
+    calc(var(--tile-size) * 0.5) 100%,
+    calc(var(--tile-size) * 0.3) 100%,
+    calc(var(--tile-size) * 0.66) 100%,
+    calc(var(--tile-size) * 0.38) 100%,
+    calc(var(--tile-size) * 0.54) 100%,
+    calc(var(--tile-size) * 0.28) 100%,
+    calc(var(--tile-size) * 0.72) 100%,
+    100% 100%;
+  background-position:
+    left 7% top 0,
+    left 16% top 0,
+    left 24% top 0,
+    left 38% top 0,
+    left 47% top 0,
+    left 58% top 0,
+    left 71% top 0,
+    left 0 top 0;
+}
+
+/* The far curtain: four rays, fainter, higher, and off to the other side so
+ * the two never stack into one column. */
+:root[data-world='arctic'] .worldlayer--sky::after {
+  background-image:
+    radial-gradient(
+      ellipse 50% 34% at 50% 40%,
+      rgba(var(--aurora-pale-rgb), 0.3) 0 12%,
+      rgba(var(--aurora-rgb), 0.18) 52%,
+      transparent 88%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 50% 36%,
+      rgba(var(--aurora-pale-rgb), 0.24) 0 14%,
+      rgba(var(--aurora-rgb), 0.15) 52%,
+      transparent 88%
+    ),
+    radial-gradient(
+      ellipse 50% 30% at 50% 44%,
+      rgba(var(--aurora-pale-rgb), 0.26) 0 12%,
+      rgba(var(--aurora-rgb), 0.16) 54%,
+      transparent 90%
+    ),
+    radial-gradient(
+      ellipse 50% 36% at 50% 38%,
+      rgba(var(--aurora-pale-rgb), 0.22) 0 14%,
+      rgba(var(--aurora-rgb), 0.14) 52%,
+      transparent 90%
+    ),
+    radial-gradient(
+      ellipse 40% 11% at 78% 58%,
+      rgba(var(--aurora-pale-rgb), 0.18),
+      rgba(var(--aurora-pale-rgb), 0) 80%
+    );
+  background-size:
+    calc(var(--tile-size) * 0.44) 100%,
+    calc(var(--tile-size) * 0.26) 100%,
+    calc(var(--tile-size) * 0.6) 100%,
+    calc(var(--tile-size) * 0.34) 100%,
+    100% 100%;
+  background-position:
+    left 55% top 0,
+    left 64% top 0,
+    left 79% top 0,
+    left 92% top 0,
+    left 0 top 0;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * Boot tracks worn into the snow, and the ground drift blowing across them.
+ *
+ * ON THE SNOW AND NOT ON THE SKY. The slot is `inset: 0` in the base
+ * stylesheet, which includes the band — and a boot track up there would be a
+ * footprint in mid-air. The top is pulled down to `--walk-top`, the same
+ * number the floor paints the sky from and the walk math uses, taken and never
+ * set. Reef Station's finding 2. The consequence to remember is that positions
+ * inside this slot are then no longer floor percentages:
+ * `layer_y = (floor_y - 14) / 0.86`.
+ */
+:root[data-world='arctic'] .worldlayer--ground {
+  top: var(--walk-top);
+  overflow: hidden;
+}
+
+/* The tracks. Static, because a footprint that moved would be a footprint
+ * being made, and nobody is making it.
+ *
+ * Three worn aprons at hand-picked positions — one outside each cabin door and
+ * one across the approach to the waiting area — plus two tiled fields of
+ * individual prints. The aprons do not tile because compacted snow is a
+ * continuous variation; the prints do, because a print is a discrete object.
+ * That is the same pair of rules the floor itself follows, on one element.
+ *
+ * The cabin doors are at floor x 23 and x 77, floor y 62, which is y 55.8 in
+ * this slot's own coordinates. */
+:root[data-world='arctic'] .worldlayer--ground::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(
+      ellipse 9% 6% at 32% 38%,
+      rgba(var(--track-rgb), 0.2) 0 44%,
+      transparent 76%
+    ),
+    radial-gradient(
+      ellipse 8% 5% at 68% 64%,
+      rgba(var(--track-rgb), 0.16) 0 46%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 0.34) at 23% 56%,
+      rgba(var(--track-rgb), 0.5),
+      rgba(var(--track-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 0.34) at 77% 56%,
+      rgba(var(--track-rgb), 0.5),
+      rgba(var(--track-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 3.1) calc(var(--tile-size) * 0.4) at 50% 70%,
+      rgba(var(--track-rgb), 0.34),
+      rgba(var(--track-rgb), 0) 78%
+    );
+  background-size:
+    53px 41px,
+    79px 61px,
+    auto,
+    auto,
+    auto;
+  background-position:
+    0 0,
+    17px 9px,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat;
+}
+
+/* The ground drift: blown snow streaming across the surface, low and fast.
+ *
+ * TWO LAYERS RATHER THAN ONE, and they are the asymmetric pair again. A
+ * streamer of blown snow is lit along its top and throws a shadow immediately
+ * under it, and on a surface at value 0.98 it is the shadow that does all the
+ * work — a white streak on white snow is nothing. The shade layer is offset
+ * one pixel down from the bright one and tiles at exactly the same period, so
+ * the pair stays welded together while it drifts.
+ */
+:root[data-world='arctic'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  /* Wider than the floor on both axes, so a drifting field never reaches an
+   * edge. */
+  inset: -30% -60%;
+  background-image:
+    radial-gradient(
+      ellipse 24% 2% at 38% 46%,
+      rgba(var(--snow-bright-rgb), 0.8) 0 44%,
+      rgba(var(--snow-bright-rgb), 0) 78%
+    ),
+    radial-gradient(
+      ellipse 24% 2% at 38% 46%,
+      rgba(var(--snow-shade-rgb), 0.26) 0 46%,
+      rgba(var(--snow-shade-rgb), 0) 80%
+    );
+  background-size: 131px 47px;
+  background-position:
+    0 0,
+    0 2px;
+  background-repeat: repeat;
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Falling snow, in front of everything.
+ *
+ * EVERY FLAKE CARRIES ITS OWN SHADOW, and that is this world's split down the
+ * middle showing up in a two-pixel object. This layer sits above every pawn,
+ * which means the same flake crosses the darkest surface in the world (the
+ * band) and the brightest (the snow) within one cycle of its own animation. A
+ * pale dot vanishes over the snow and a dark one vanishes over the sky, so
+ * each flake is drawn as a bright core inside a darker ring — one gradient,
+ * three stops — and reads on both. A particle layer that crosses two lighting
+ * registers has to bring both of them with it.
+ *
+ * Faint by a wide margin besides: anything strong enough to notice would be
+ * strong enough to sit on somebody's name label.
+ */
+:root[data-world='arctic'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='arctic'] .worldlayer--air::before,
+:root[data-world='arctic'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Tall and wide enough that a full tile of travel never exposes an edge. */
+  inset: -60% -40%;
+}
+
+:root[data-world='arctic'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle 2px at 31% 24%,
+    rgba(var(--snow-bright-rgb), 0.92) 0 42%,
+    rgba(var(--snow-shade-rgb), 0.45) 42% 74%,
+    transparent 80%
+  );
+  background-size: 67px 53px;
+}
+
+:root[data-world='arctic'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle 1.5px at 66% 71%,
+    rgba(var(--snow-bright-rgb), 0.75) 0 44%,
+    rgba(var(--snow-shade-rgb), 0.32) 44% 76%,
+    transparent 82%
+  );
+  background-size: 97px 79px;
+}
+
+/* All five of this world's animations live here, and nowhere else. A reader
+ * who asked for less motion gets a still station: the two curtains stop lit
+ * and visible in the band, the falling snow stops as a field of flakes hanging
+ * in the air, and the ground drift stops as streamers lying on the snow. Every
+ * one of those is a legible resting state, which is the bar a world with
+ * continuous motion has to clear — and none of them reports anything, which is
+ * why none of them has to.
+ *
+ * NOTHING THAT REPORTS MOVES IN THIS WORLD. The harbour let its beacon breathe;
+ * a lit cabin window does not flicker, and a steady one is the more honest
+ * object anyway. That leaves `reduce` with nothing to take away from the state
+ * layer at all. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='arctic'] .worldlayer--sky::before {
+    animation: arctic-aurora-near 71s ease-in-out infinite alternate;
+  }
+
+  :root[data-world='arctic'] .worldlayer--sky::after {
+    animation: arctic-aurora-far 104s ease-in-out infinite alternate;
+  }
+
+  :root[data-world='arctic'] .worldlayer--ground::after {
+    animation: arctic-drift 43s linear infinite;
+  }
+
+  :root[data-world='arctic'] .worldlayer--air::before {
+    animation: arctic-snow-near 21s linear infinite;
+  }
+
+  :root[data-world='arctic'] .worldlayer--air::after {
+    animation: arctic-snow-far 34s linear infinite;
+  }
+
+  /* A curtain does not traverse — it hangs, sways and brightens. A traverse
+   * would park it off the edge of the band when `reduce` stops it, which is
+   * the mistake the harbour's airship was written to avoid. */
+  @keyframes arctic-aurora-near {
+    from {
+      transform: translate3d(-3%, 0, 0);
+      opacity: 0.72;
+    }
+    to {
+      transform: translate3d(3%, 0, 0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes arctic-aurora-far {
+    from {
+      transform: translate3d(2%, 0, 0);
+      opacity: 0.95;
+    }
+    to {
+      transform: translate3d(-2%, 0, 0);
+      opacity: 0.55;
+    }
+  }
+
+  /* Each translate is exactly one tile of its own field, which is what makes
+   * the loop seamless. The snow falls with the wind rather than straight down:
+   * a vertical-only field on a world that has a ground drift blowing sideways
+   * reads as two unrelated effects. */
+  @keyframes arctic-drift {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(131px, 0, 0);
+    }
+  }
+
+  @keyframes arctic-snow-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(67px, 53px, 0);
+    }
+  }
+
+  @keyframes arctic-snow-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(97px, 79px, 0);
+    }
+  }
+}
+
+/* --- Cabins ----------------------------------------------------------------
+ *
+ * The project rooms become insulated cabins: a warm deck under a panelled
+ * roof, a heavy door in the front wall, and two windows side by side on the
+ * back one.
+ *
+ * THE DECK IS DARKER THAN THE SNOW, WHICH IS THE WHOLE STRUCTURAL MOVE OF THIS
+ * WORLD. Paper Office's rooms separate from its corridor by being a shade
+ * LIGHTER; a sky harbour could not do that at all, because its deck was
+ * already at value 0.99, and had to buy the separation with a drop shadow
+ * instead. A cabin is a sealed box rather than open deck, so it is allowed to
+ * be darker — and it takes the drop shadow as well, because on snow a cast
+ * shadow is the only thing that says a building is standing ON the ground
+ * rather than painted onto it.
+ *
+ * The roof is drawn as the shadow of its panel joints falling across the deck,
+ * for the reason the whole file keeps coming back to: you are looking down at
+ * a floor, and on a bright world a shadow is the only thing that says there is
+ * anything above it. A panelled roof is a manufactured run of discrete
+ * objects, so it may tile.
+ *
+ * The radii are in PX rather than percentages: this box is 175x125 at the 540
+ * framing and 175x299 at 960, so a percentage radius is a different shape at
+ * each — Phase 20's finding 2 applied to a room instead of to the floor.
+ *
+ * The border stays 2px and keeps the base geometry, so the room's padding box —
+ * and therefore where DESK_IN_ROOM puts the desk — is identical to every other
+ * world.
+ */
+:root[data-world='arctic'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* THE WARM HALF OF THE PAIR. The living window's pool on the deck, falling
+       from the window's own corner. It goes UP in value against the deck and
+       it means NOTHING — this is the world being warm, not the world
+       reporting. Deliberately not restated under `.room--busy` below, where it
+       survives unchanged, because a light that changed when the agent started
+       working would be a second status light and this board has exactly one. */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.76) at 84% 8%,
+      rgba(var(--hearth-rgb), 0.62),
+      rgba(var(--hearth-rgb), 0) 76%
+    ),
+    /* The panel joints in the roof, read as their own shadow. ACROSS rather
+       than along, and at a third of the weight the first pass used: a 2px
+       vertical rule every 14px over a box 175px wide and 298px tall read as
+       corrugated siding, which is a wall rather than a roof, and it fought the
+       vertical stack of monitor, nameplate and pawn standing in front of it. */
+      repeating-linear-gradient(
+        180deg,
+        rgba(var(--shadow-rgb), 0.08) 0 1px,
+        transparent 1px calc(19px * var(--furn))
+      );
+  border-radius: 5px 5px 6px 6px;
+  box-shadow:
+    /* rime along the inside of the wall */
+    inset 0 0 0 2px rgba(var(--frost-rgb), 0.55),
+    inset 0 0 18px 6px rgba(var(--vignette-rgb), 0.07),
+    /* and the cabin's own shadow on the snow */
+    0 6px 14px var(--shadow);
+}
+
+/* The door. The base rule paints the gap in the corridor's own floor colour,
+ * so it reads as an opening; a polar cabin's door is the one thing on the
+ * station that is never left open, so it is a slab instead. */
+:root[data-world='arctic'] .room__door {
+  background: var(--door);
+  box-shadow:
+    -3px 0 0 0 var(--wall-trim),
+    3px 0 0 0 var(--wall-trim);
+}
+
+/* `.room__door` has no pseudo-element in the base stylesheet, so this is free:
+ * the drift that piles against a door and has been kicked back from it. It is
+ * the one place a viewer can see that somebody actually goes in and out. */
+:root[data-world='arctic'] .room__door::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: calc(30px * var(--furn));
+  height: calc(7px * var(--furn));
+  border-radius: 0 0 60% 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--snow-bright-rgb), 0.95),
+    rgba(var(--snow-bright-rgb), 0) 82%
+  );
+  box-shadow: 0 1px 0 0 rgba(var(--snow-shade-rgb), 0.35);
+}
+
+/* THE INSTRUMENT PORT, AND THIS IS THE STATE EXPRESSION WHOSE FORM THIS WORLD
+ * CHANGES.
+ *
+ * Paper Office announces a working room by tinting its floor. A bay lights its
+ * dome, a hollow glows from inside, a module lights its antenna array, a dome
+ * lights its porthole, a pavilion lights the beacon on its roof. A CABIN LIGHTS
+ * THE INSTRUMENT PORT IN ITS BACK WALL, right beside the living window that is
+ * lit whatever the agent is doing — which is the pair the whole world is built
+ * around and the frame the phase gate asks for.
+ *
+ * ON THE BACK WALL AND NOT ON THE FRONT ONE, and that is taken from Cloud City
+ * rather than rediscovered: `.desk` is centred in the room with a two-line
+ * nameplate riding above the desk stack, and the base stylesheet's speech
+ * bubble sits over the monitor whenever an agent has anything to say. So the
+ * desk's own instrument window cannot be relied on as the thing a viewer sees,
+ * and the room-level expression has to live somewhere the nameplate and the
+ * bubble never reach. The top corners are that place in every world and at
+ * every framing.
+ *
+ * A WIDE LOW RECTANGLE, where the living window opposite it is a small square
+ * with a cross mullion. The pair must not read as two of the same fitting, and
+ * at 540px on a compressed recording shape carries that better than hue does.
+ * One is an instrument and one is a window somebody lives behind.
+ *
+ * Idle it is a dark frosted pane in a steel frame — the darkest small object in
+ * the cabin, and dark on purpose, so that when it lights the change is from one
+ * strong value to another rather than from nothing to a glow that a bright
+ * world would swallow.
+ */
+:root[data-world='arctic'] .room::before {
+  content: '';
+  position: absolute;
+  left: 7%;
+  top: 5%;
+  width: calc(17px * var(--furn));
+  height: calc(8px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--screen-off);
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(var(--frost-rgb), 0.16) 0 1px,
+    transparent 1px 4px
+  );
+  box-shadow:
+    inset 0 0 0 2px var(--steel-dark),
+    0 2px 4px var(--shadow);
+}
+
+/* THE LIVING WINDOW. Warm, always lit, and it reports nothing at all.
+ *
+ * The cross mullion is what makes it domestic rather than technical — two
+ * gradients on one element, which is cheap and is the only shape at this size
+ * that says "somebody is in there" instead of "something is measuring".
+ */
+:root[data-world='arctic'] .room::after {
+  content: '';
+  position: absolute;
+  right: 9%;
+  top: 5%;
+  width: calc(10px * var(--furn));
+  height: calc(10px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--hearth);
+  background-image:
+    linear-gradient(90deg, transparent 0 42%, var(--steel-dark) 42% 58%, transparent 58%),
+    linear-gradient(180deg, transparent 0 42%, var(--steel-dark) 42% 58%, transparent 58%);
+  box-shadow:
+    inset 0 0 0 2px var(--steel-dark),
+    0 0 7px 1px rgba(var(--hearth-rgb), 0.5),
+    0 2px 4px var(--shadow);
+}
+
+/* BUSY. The deck takes the port's cool wash and the wall goes cool with it.
+ *
+ * Restated at this specificity on purpose: the `.room` rule above is (0,3,0)
+ * and the base `.room--busy` is (0,2,0), so without this the cabin would keep
+ * its idle deck while BUSY and the whole beat would vanish.
+ *
+ * NOTE WHAT THE TWO GRADIENTS DO, because it is the point of the world. The
+ * cool wash falls from the port's corner and goes DOWN in value against the
+ * deck; the warm pool from the living window is carried through unchanged and
+ * goes UP. They are side by side in one frame, moving in opposite directions,
+ * which is a difference that survives compression, a bad projector and a
+ * colourblind viewer — none of which a warm/cool difference on its own does.
+ */
+:root[data-world='arctic'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 1.2) at 12% 6%,
+      rgba(var(--cool-rgb), 0.36),
+      rgba(var(--cool-rgb), 0) 78%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.76) at 84% 8%,
+      rgba(var(--hearth-rgb), 0.62),
+      rgba(var(--hearth-rgb), 0) 76%
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--shadow-rgb), 0.08) 0 1px,
+      transparent 1px calc(19px * var(--furn))
+    );
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cool-rgb), 0.28),
+    inset 0 0 18px 6px rgba(var(--vignette-rgb), 0.06),
+    0 6px 14px var(--shadow);
+}
+
+/* And the port lights. Same specificity as `.room::before` above, so this has
+ * to come after it in source order — which it does.
+ *
+ * A hard-edged saturated pane rather than a soft bright halo, which is the
+ * harbour's correction taken as given: the halo is the part that does not work
+ * on a bright ground. What is left is an object that changes colour decisively,
+ * and it survives compression better anyway. */
+:root[data-world='arctic'] .room--busy::before {
+  background-color: var(--screen-on);
+  background-image:
+    linear-gradient(180deg, rgba(var(--sheen-rgb), 0.22), rgba(var(--sheen-rgb), 0) 60%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--ink-rgb), 0.16) 0 1px,
+      transparent 1px 4px
+    );
+  box-shadow:
+    inset 0 0 0 2px var(--cool),
+    0 0 0 2px rgba(var(--cool-rgb), 0.38),
+    0 0 12px 4px rgba(var(--cool-rgb), 0.3);
+}
+
+/* --- Survey stations -------------------------------------------------------
+ *
+ * The desk becomes a painted steel survey bench and the monitor becomes the
+ * instrument window the brief names: a frosted readout pane in a heavy frame.
+ */
+:root[data-world='arctic'] .desk__surface {
+  border-radius: 2px 2px 4px 4px;
+  background-image:
+    /* the cable channel along the front of it */
+    repeating-linear-gradient(90deg, rgba(var(--desk-edge-rgb), 0.28) 0 1px, transparent 1px 13px),
+    linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.28),
+    inset 0 -4px 0 0 var(--desk-edge),
+    0 4px 7px var(--shadow);
+}
+
+/* The enamel mug, where the office's mug was. Some things survive a change of
+ * latitude, and on this station it is the only one anybody would fight for. */
+:root[data-world='arctic'] .desk__surface::before {
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--shadow-rgb), 0.3);
+}
+
+/* The day's log sheet, where the loose paper was. `--paper` is the panel
+ * surface and is pale in this world, so unlike the three dark worlds this one
+ * needs no separate sheet token — Phase 19's finding 3 is the other half of
+ * finding 2, and neither bites on a light ground. */
+:root[data-world='arctic'] .desk__surface::after {
+  background: var(--paper);
+  box-shadow: 0 0 0 1px rgba(var(--desk-edge-rgb), 0.45);
+}
+
+/* The logging keypad, where the keyboard was: a sealed plate with two dials. */
+:root[data-world='arctic'] .desk__keyboard {
+  border-radius: 2px;
+  background-color: var(--desk-edge);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 22%,
+    var(--steel) 22% 30%,
+    transparent 30% 48%,
+    var(--steel) 48% 56%,
+    transparent 56%
+  );
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.16);
+}
+
+/* The instrument window.
+ *
+ * HEIGHT UNCHANGED AT 20px, and only the width moves. `.desk` is a centred flex
+ * column, so a pane one pixel taller than the base monitor shifts the whole
+ * stack — and therefore the nameplate under it — half that far up, which is a
+ * layout difference between worlds that this file has no reason to introduce.
+ * Reef Station measured it at 1.5px and the number has not changed. */
+:root[data-world='arctic'] .desk__monitor {
+  position: relative;
+  width: calc(26px * var(--furn));
+  height: calc(20px * var(--furn));
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--screen-off);
+  box-shadow:
+    inset 0 0 0 2px var(--steel-dark),
+    inset 0 2px 4px 0 rgba(var(--ink-rgb), 0.4),
+    0 2px 4px var(--shadow);
+}
+
+/* The rime that never quite clears off the outside of it. Present whether the
+ * pane is lit or not, because it is weather rather than state. */
+:root[data-world='arctic'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(
+      ellipse 42% 30% at 14% 12%,
+      rgba(var(--frost-rgb), 0.45),
+      rgba(var(--frost-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse 34% 26% at 88% 86%,
+      rgba(var(--frost-rgb), 0.34),
+      rgba(var(--frost-rgb), 0) 74%
+    );
+}
+
+/* The lit readout, hidden while the desk is idle. */
+:root[data-world='arctic'] .desk__monitor::after {
+  content: '';
+  position: absolute;
+  inset: calc(2px * var(--furn));
+  border-radius: 1px;
+  opacity: 0;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--sheen-rgb), 0.22) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(180deg, var(--screen-on), var(--cool));
+}
+
+/* The pane comes up. Restated at this specificity for the `.room--busy` reason.
+ *
+ * The two spills are tighter and far more saturated than the base stylesheet's,
+ * and that is the bright-world correction rather than a taste one: a wide soft
+ * glow over a deck at value 0.85 raises very little, so it goes unseen while
+ * costing the same paint. What reads is a small ring of strongly coloured light
+ * right at the source, because a hue change on a pale surface is visible where
+ * a brightness change is not. */
+:root[data-world='arctic'] .desk--busy .desk__monitor {
+  background: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px var(--cool),
+    0 0 6px 1px rgba(var(--cool-rgb), 0.5),
+    0 4px 12px 3px rgba(var(--cool-rgb), 0.28);
+}
+
+:root[data-world='arctic'] .desk--busy .desk__monitor::after {
+  opacity: 1;
+}
+
+/* The stool. Height unchanged at 18px so the desk stack — and therefore where
+ * the nameplate lands under it — is exactly where every other world puts it. */
+:root[data-world='arctic'] .desk__chair {
+  width: calc(20px * var(--furn));
+  height: calc(18px * var(--furn));
+  border-radius: 6px 6px 9px 9px;
+  background: linear-gradient(180deg, var(--chair), var(--desk-edge));
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--ink-rgb), 0.3),
+    0 3px 6px var(--shadow);
+}
+
+/* A folded sheepskin over the back of it, because a steel stool at this
+ * latitude is not a thing anybody sits on. Warm, and it means nothing. */
+:root[data-world='arctic'] .desk__chair::before {
+  left: 50%;
+  top: 14%;
+  width: calc(13px * var(--furn));
+  height: calc(5px * var(--furn));
+  border-radius: 3px;
+  background: var(--sp-accent);
+  box-shadow: 0 1px 0 0 rgba(var(--ink-rgb), 0.2);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> the weather board: the day's readings on an enamel face in a
+ * steel case, standing on the ridge.
+ *
+ * PALE, WHICH IS THE EXACT OPPOSITE OF THE CALL CLOUD CITY HAD TO MAKE ON THE
+ * SAME FIXTURE, and the clearest single illustration of what a split world
+ * costs. The harbour's board had to go dark because a pale board hung in a
+ * band of bright sky floats in it and disappears. This band is night, so the
+ * only thing that reads against it is a pale object — which is also what Paper
+ * Office's board is. THE FIXTURE THAT SITS IN THE BAND TAKES THE BAND'S
+ * LIGHTING REGIME, NOT THE WORLD'S. A world that picked one register and
+ * applied it everywhere would have got this backwards.
+ */
+:root[data-world='arctic'] .fixture--board {
+  border-radius: 2px;
+  background-color: var(--board-face);
+  background-image:
+    /* the header strip along the top */
+    linear-gradient(
+      180deg,
+      rgba(var(--ink-rgb), 0.12) 0 calc(4px * var(--furn)),
+      transparent calc(4px * var(--furn))
+    ),
+    /* and the snow that has settled along its upper edge */
+      linear-gradient(180deg, rgba(var(--sheen-rgb), 0.9), rgba(var(--sheen-rgb), 0) 22%);
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 3px 6px var(--shadow);
+}
+
+/* The post it stands on. `.fixture--board` has no pseudo-element in the base
+ * stylesheet, so this is free — and it is needed for the harbour's reason: an
+ * unsupported board in a band of open sky is a board hovering in mid-air. */
+:root[data-world='arctic'] .fixture--board::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: calc(5px * var(--furn));
+  height: calc(9px * var(--furn));
+  border-radius: 0 0 2px 2px;
+  background: var(--board-frame);
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+/* The marks become a barograph trace and a row of scale ticks rather than
+ * continuous strokes — a weather board is read off, and a solid bar on one
+ * reads as a sticker. */
+:root[data-world='arctic'] .board__scribble {
+  height: calc(3px * var(--furn));
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--ink-rgb), 0.26) 0 calc(5px * var(--furn)),
+    transparent calc(5px * var(--furn)) calc(8px * var(--furn))
+  );
+}
+
+/* Water cooler -> the ice-core rack. The bottle becomes the cores and the body
+ * becomes the rack they stand in.
+ *
+ * THE RACK IS WIDER THAN THE CORES IT HOLDS, which is the Forest's well lesson
+ * and the reef's twinset: from directly overhead, the thing UNDER an object is
+ * what tells you what the object is. A stack of pale cylinders on a narrower
+ * base is a bundle of pipes; the same stack in a frame that is visibly a frame
+ * is a rack. */
+:root[data-world='arctic'] .cooler__bottle {
+  position: relative;
+  z-index: 1;
+  width: calc(15px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--bottle);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 3px,
+    var(--bottle-base) 3px 4px,
+    transparent 4px 5px
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--frost-rgb), 0.8),
+    inset 0 -2px 0 0 var(--bottle-base),
+    0 2px 5px var(--shadow);
+}
+
+:root[data-world='arctic'] .cooler__body {
+  width: calc(21px * var(--furn));
+  height: calc(8px * var(--furn));
+  margin-top: calc(-2px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--cooler-body);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--steel) 0 1px,
+    transparent 1px 6px
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--steel-dark),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> a frosted observation pane, framed and standing on the ridge.
+ *
+ * The fixture is 70x28 — a wide, low box — and the Forest found that any wide
+ * low shape filled with a single pale colour reads as one object whatever its
+ * border-radius. Four things instead: frosted glass, two ferns of frost across
+ * it, the base rule's glazing bar, and a row of icicles hanging off its sill.
+ * The icicles are what make it a window in a cold place rather than a window.
+ *
+ * Every shaped layer ends in `transparent` — Phase 21's finding 1. */
+:root[data-world='arctic'] .fixture--window {
+  border-radius: 2px;
+  background-color: var(--glass);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.38) calc(var(--tile-size) * 0.2) at 22% 24%,
+      rgba(var(--frost-rgb), 0.92) 0 38%,
+      rgba(var(--frost-rgb), 0) 76%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.3) calc(var(--tile-size) * 0.16) at 78% 70%,
+      rgba(var(--frost-rgb), 0.75) 0 40%,
+      rgba(var(--frost-rgb), 0) 78%
+    ),
+    linear-gradient(170deg, var(--glass-sky), var(--glass) 76%);
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 3px var(--steel-dark),
+    0 3px 6px var(--shadow);
+}
+
+/* The base rule's vertical glazing bar stays a glazing bar — the same element
+ * doing the same job in a colder building. */
+:root[data-world='arctic'] .fixture--window::before {
+  background: var(--steel-dark);
+}
+
+/* And the base rule's horizontal bar becomes the icicles along the sill.
+ *
+ * ONE `clip-path` POLYGON RATHER THAN A ROW OF STACKED BOXES, which is Cloud
+ * City's courier-bird lesson taken as given: below a certain size a shape
+ * assembled from overlapping boxes stops being a shape and becomes the average
+ * of its parts, and what survives is a single outline. The polygon is also
+ * exact at every framing without arithmetic, because its points are
+ * percentages of a box whose sides both scale with `--furn`. */
+:root[data-world='arctic'] .fixture--window::after {
+  left: 2px;
+  right: 2px;
+  top: auto;
+  bottom: calc(-6px * var(--furn));
+  height: calc(8px * var(--furn));
+  transform: none;
+  background: linear-gradient(
+    180deg,
+    var(--frost) 0 22%,
+    var(--glass) 58%,
+    rgba(var(--crack-rgb), 0.9)
+  );
+  clip-path: polygon(
+    0% 0%,
+    100% 0%,
+    100% 30%,
+    92% 30%,
+    88% 100%,
+    84% 30%,
+    68% 30%,
+    63% 76%,
+    58% 30%,
+    42% 30%,
+    37% 100%,
+    32% 30%,
+    16% 30%,
+    12% 62%,
+    8% 30%,
+    0% 30%
+  );
+}
+
+/* Daylight -> the long raking pool the afterglow throws across the snow.
+ *
+ * The fixture keeps its role exactly: a patch of illumination in a fixed place
+ * at (17%, 46%). There is no disc anywhere in this world — the sun is below
+ * the ridge, which is the note in the token block and the reason Phase 22's
+ * finding 2 never has to be solved here.
+ *
+ * WIDER AND MUCH FLATTER than the base cone, because that is what a light
+ * source at the horizon does: the pool it throws is long, low and raking, and
+ * a round one would put the sun overhead. Sized off `--tile-size` for Phase
+ * 18's reason — `calc()` will not divide a length by a length, so the ratio is
+ * written `tile * n / 44` and not `tile / 44 * n`.
+ *
+ * Held at 0.3 alpha against the 0.5 a lit port spills at, and warm against that
+ * port's deep cyan — which is more separation than it looks like it needs, and
+ * it needs to be, because on snow a pool of light is a hue rather than a
+ * brightness and a hue is what the state uses too. */
+:root[data-world='arctic'] .fixture--daylight {
+  width: calc(var(--tile-size) * 252 / 44);
+  height: calc(var(--tile-size) * 98 / 44);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--afterglow-rgb), 0.3),
+    rgba(var(--afterglow-rgb), 0) 68%
+  );
+}
+
+/* Plants -> antenna masts. There is nothing growing at this latitude, which is
+ * the one clean way past the Forest's problem: no foliage, no collision with
+ * the budget jade, and `--foliage` becomes mast alloy.
+ *
+ * TWO DIFFERENT MASTS, and deliberately not the night deck's dish-on-a-post —
+ * a fourth world with a parabolic dish on it would be the same prop four
+ * times. One is a guyed lattice mast carrying a crossed array; the other is a
+ * met tower with an anemometer head. Both stand in a drift, which is what
+ * anything standing outdoors here does.
+ *
+ * The two plants are adjacent siblings — PLANTS.map in components.jsx renders
+ * them back to back with nothing between — so `+` is what tells them apart.
+ * `:nth-of-type` would not: it counts divs, and these sit among a great many
+ * other divs. */
+:root[data-world='arctic'] .decor__leaves {
+  position: relative;
+  width: calc(13px * var(--furn));
+  height: calc(4px * var(--furn));
+  border-radius: 1px;
+  background: var(--foliage);
+  box-shadow:
+    0 calc(4px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    0 2px 4px var(--shadow);
+}
+
+:root[data-world='arctic'] .decor__pot {
+  width: calc(4px * var(--furn));
+  height: calc(14px * var(--furn));
+  margin-top: calc(3px * var(--furn));
+  border-radius: 1px;
+  background-color: var(--foliage);
+  /* the lattice rungs */
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(var(--ink-rgb), 0.3) 0 1px,
+    transparent 1px 4px
+  );
+  /* the guy wires out to each side, and the drift piled at the foot */
+  box-shadow:
+    calc(-7px * var(--furn)) calc(6px * var(--furn)) 0 calc(-1.5px * var(--furn)) var(--steel),
+    calc(7px * var(--furn)) calc(6px * var(--furn)) 0 calc(-1.5px * var(--furn)) var(--steel),
+    0 calc(7px * var(--furn)) 0 calc(-2px * var(--furn)) rgba(var(--snow-bright-rgb), 0.95),
+    0 3px 5px var(--shadow);
+}
+
+/* The second one is an anemometer: three cups on a hub rather than a crossed
+ * array, on a plain mast with no guys. */
+:root[data-world='arctic'] .decor--plant + .decor--plant .decor__leaves {
+  width: calc(5px * var(--furn));
+  height: calc(5px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, var(--steel-dark) 0 34%, var(--steel-lit) 42%);
+  box-shadow:
+    calc(-9px * var(--furn)) calc(-3px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    calc(9px * var(--furn)) calc(-3px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    0 calc(9px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    0 2px 4px var(--shadow);
+}
+
+:root[data-world='arctic'] .decor--plant + .decor--plant .decor__pot {
+  width: calc(3px * var(--furn));
+  height: calc(16px * var(--furn));
+  margin-top: calc(5px * var(--furn));
+  background-image: none;
+  box-shadow:
+    0 calc(8px * var(--furn)) 0 calc(-2px * var(--furn)) rgba(var(--snow-bright-rgb), 0.95),
+    0 3px 5px var(--shadow);
+}
+
+/* --- The flagged route -----------------------------------------------------
+ *
+ * The waiting area becomes a stretch of swept ice with route flags planted
+ * along it. A queued member stands BETWEEN two flags, which is what the brief
+ * asks for and what a marked route actually is — the flags bound the safe
+ * ground rather than marking the spots.
+ *
+ * The flags are placed against the queue's own constants in components.jsx:
+ * WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the first row land at
+ * floor x 38/47/56/65/74, which is 29.3/44.8/60.3/75.9/91.4% of this box —
+ * it runs from 21% to 79%. The gaps between and before them are therefore
+ * centred at 21.6/37.1/52.6/68.1/83.6%, and a flag goes in each.
+ *
+ * SOLVED RATHER THAN NUDGED, which is Phase 20's finding 3: `background-position
+ * left p%` offsets by p% of (container - image), so putting a layer's CENTRE at
+ * c% needs p = (c - w/2) / (100 - w) with w the image width as a percentage.
+ * The wands are sized as a percentage of the box precisely so that w is one,
+ * which makes p framing-independent — this box is 298x83 at the 540 framing and
+ * 298x199 at 960, and a length-based width would have drifted in the wide
+ * layout.
+ *
+ * The hatching may tile and the ice may not, which is the same pair of rules
+ * the floor itself follows, on one element.
+ */
+:root[data-world='arctic'] .waiting {
+  border-radius: 5px;
+  background-color: var(--rug);
+  background-image:
+    linear-gradient(180deg, var(--flag) 0 38%, var(--steel-dark) 38%),
+    linear-gradient(180deg, var(--flag) 0 38%, var(--steel-dark) 38%),
+    linear-gradient(180deg, var(--flag) 0 38%, var(--steel-dark) 38%),
+    linear-gradient(180deg, var(--flag) 0 38%, var(--steel-dark) 38%),
+    linear-gradient(180deg, var(--flag) 0 38%, var(--steel-dark) 38%),
+    /* broom and sledge marks along the swept route */
+      repeating-linear-gradient(
+        97deg,
+        rgba(var(--track-rgb), 0.09) 0 1px,
+        transparent 1px calc(var(--tile-size) * 0.58)
+      ),
+    /* and the drift banked along the upwind edge, which does not repeat */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.2) calc(var(--tile-size) * 0.34) at 38% 8%,
+        rgba(var(--snow-bright-rgb), 0.9),
+        rgba(var(--snow-bright-rgb), 0) 76%
+      );
+  background-size:
+    1.35% calc(12px * var(--furn)),
+    1.35% calc(12px * var(--furn)),
+    1.35% calc(12px * var(--furn)),
+    1.35% calc(12px * var(--furn)),
+    1.35% calc(12px * var(--furn)),
+    auto,
+    auto;
+  background-position:
+    left 21.16% top 46%,
+    left 36.87% top 46%,
+    left 52.6% top 46%,
+    left 68.32% top 46%,
+    left 84.05% top 46%,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--snow-bright-rgb), 0.95),
+    inset 0 0 0 2px rgba(var(--rug-edge-rgb), 0.35),
+    inset 0 0 16px 6px rgba(var(--vignette-rgb), 0.07);
+}
+
+/* --- The cast --------------------------------------------------------------
+ *
+ * Nothing to do. The one-pixel rim round every sprite comes from `--ink-rgb`,
+ * which in this world is still the darkest thing in the system — so the base
+ * stylesheet's hard dark outline is exactly right and needs no override. Reef
+ * Station had to drop its to 0.28 because an inverted `--ink` turned the rim
+ * into a halo; that was a dark-world correction and it does not reach here.
+ * Recorded rather than left silent, because the absence of these rules is the
+ * difference between a light world and a dark one in this file. */
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * A sealed dispatch tube, crossing the station. The path is untouched, the
+ * 1100 ms timing is untouched and still comes from the base `.envelope`
+ * transition in step with `ENVELOPE_MS` in components.jsx, and the `aria-live`
+ * label is untouched because it lives in the markup and this file has no reach
+ * into it. Only the thing travelling changes.
+ *
+ * DARK, for the harbour's reason rather than in imitation of it. Four of the
+ * six handoff objects in the product are pale, and every one of those is pale
+ * because the floor it crosses is dark. This floor is the second-brightest
+ * surface in the product, so the same reasoning gives the opposite answer: the
+ * object separates from the ground by being on the other side of it, and the
+ * other side of snow is dark. A white tube on white snow is a tube nobody sees.
+ *
+ * Near-neutral besides — 0.19 saturation — for the reason the reef's capsule
+ * was not cyan and the Forest's leaf was not green: a coloured object detaching
+ * from a desk and flying across the room is a state hue on the loose.
+ *
+ * THE FLAP IS REUSED RATHER THAN STOOD DOWN, and that is the one place this
+ * world departs from the harbour. Cloud City had to hide it because a bird is a
+ * silhouette and a second shape stacked on a silhouette becomes the average of
+ * the two. A tube is not a silhouette — it is a solid object with a strap round
+ * it, and a strap is a LINE rather than a blob, which is exactly the kind of
+ * mark that survives at 24x10 real pixels. One dark capsule, two pale caps, one
+ * pale band.
+ */
+:root[data-world='arctic'] .envelope {
+  width: calc(24px * var(--furn));
+  height: calc(10px * var(--furn));
+  border: 0;
+  border-radius: 999px;
+  background-image:
+    /* the lit top of the cylinder and the shade under it */
+    linear-gradient(
+      180deg,
+      rgba(var(--sheen-rgb), 0.26) 0 26%,
+      transparent 26% 70%,
+      rgba(var(--ink-rgb), 0.3) 70%
+    ),
+    /* and the two sealed end caps */
+      linear-gradient(
+        90deg,
+        var(--tube-cap) 0 13%,
+        var(--tube) 13% 87%,
+        var(--tube-cap) 87%
+      );
+  box-shadow:
+    0 3px 6px var(--shadow),
+    0 1px 2px rgba(var(--envelope-contact-rgb), 0.45);
+}
+
+/* The flap becomes the strap that seals it shut. */
+:root[data-world='arctic'] .envelope__flap {
+  border-radius: 999px;
+}
+
+:root[data-world='arctic'] .envelope__flap::before {
+  left: 50%;
+  top: -12%;
+  width: calc(4px * var(--furn));
+  height: 124%;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 1px;
+  background: var(--tube-band);
+}
