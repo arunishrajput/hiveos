@@ -379,3 +379,77 @@ class TestUserAdmissionLifecycle:
         assert claimed == "iris"
         assert len(dispatched) == 1
         assert state.is_user_active(TEAM, "alice") is True
+
+    def test_handoff_release_transition_prevents_concurrent_claim(self, mock_db):
+        """Verify that during a handoff from Ada to Iris:
+        1. Ada's slot is released with release_admission=False.
+        2. Alice retains ACTIVE#alice continuously throughout the transition.
+        3. A concurrent claim_agent from Alice while Ada is idle is rejected.
+        4. Hand-off claims Iris.
+        5. When Iris finishes without handoff, release_admission=True clears admission.
+        """
+        sent_messages = []
+
+        def mock_send(conn_id, payload):
+            sent_messages.append((conn_id, payload))
+
+        dispatched = []
+
+        def mock_dispatch(team, slot_id, user_id, requested, prompt, connection_id, task_id=None, **kwargs):
+            dispatched.append({"slot_id": slot_id, "user_id": user_id, "task_id": task_id})
+
+        task = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "job-original",
+            "prompt": "Initial job",
+            "hops": 0,
+            "connection_id": "conn-1",
+        }
+
+        # Step 1: Alice has acquired admission and is running on Ada
+        assert state.acquire_user_admission(TEAM, "alice", "job-original") is True
+        scheduler.try_claim(TEAM, "ada", "alice")
+
+        # Step 2: Ada finishes with handoff -> calls release_and_dispatch with release_admission=False
+        scheduler.release_and_dispatch(TEAM, "ada", expected_holder="alice", release_admission=False)
+
+        # Ada is now IDLE
+        assert mock_db.items[(f"TEAM#{TEAM}", "AGENT#ada")]["status"] == "IDLE"
+        # But Alice is STILL ACTIVE!
+        assert state.is_user_active(TEAM, "alice") is True
+
+        # Step 3: Concurrent claim_agent from Alice trying to take Ada
+        with patch("shared.broadcast.send_to_connection", side_effect=mock_send), \
+             patch("shared.scheduler.dispatch", side_effect=mock_dispatch), \
+             patch("shared.state.connection_user", return_value="alice"):
+
+            res = router._claim_agent(
+                TEAM, "conn-concurrent", {"agent_type": "ada", "prompt": "Concurrent second task", "user_id": "alice"}
+            )
+
+        assert res == {"statusCode": 200}
+        # Concurrent request was rejected
+        errors = [p for c, p in sent_messages if p.get("event") == "error"]
+        assert len(errors) == 1
+        assert "you already have an agent running or queued" in errors[0]["message"]
+        # Ada is still IDLE (Alice did not take it)
+        assert mock_db.items[(f"TEAM#{TEAM}", "AGENT#ada")]["status"] == "IDLE"
+
+        # Step 4: Handoff to Iris executes
+        with patch("shared.scheduler.dispatch", side_effect=mock_dispatch):
+            claimed = scheduler.hand_off(TEAM, task, "iris", "Passing to iris")
+
+        assert claimed == "iris"
+        assert mock_db.items[(f"TEAM#{TEAM}", "AGENT#iris")]["status"] == "BUSY"
+        assert mock_db.items[(f"TEAM#{TEAM}", "AGENT#iris")]["current_user"] == "alice"
+        assert state.is_user_active(TEAM, "alice") is True
+
+        # Step 5: Iris completes leg 2 without handoff -> release_admission=True
+        scheduler.release_and_dispatch(TEAM, "iris", expected_holder="alice", release_admission=True)
+        assert mock_db.items[(f"TEAM#{TEAM}", "AGENT#iris")]["status"] == "IDLE"
+        assert state.is_user_active(TEAM, "alice") is False
+
+        # Alice can now submit a new task
+        assert state.acquire_user_admission(TEAM, "alice", "job-new") is True
