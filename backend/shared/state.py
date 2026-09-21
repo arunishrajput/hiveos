@@ -226,6 +226,80 @@ def connection_user(team, connection_id):
     return (response.get("Item") or {}).get("user_id")
 
 
+def is_user_active(team, user_id):
+    """Check if the user has an active admission record."""
+    if not user_id:
+        return False
+    item = table().get_item(
+        Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
+    ).get("Item")
+    return bool(item)
+
+
+def acquire_user_admission(team, user_id, task_id):
+    """Atomically admit a user for a task, guaranteeing at most one running or queued task.
+
+    Returns True if admission was granted, False if the user already has an active
+    task or admission record.
+    """
+    if not user_id:
+        return False
+    try:
+        table().put_item(
+            Item={
+                "PK": team_pk(team),
+                "SK": f"ACTIVE#{user_id}",
+                "user_id": user_id,
+                "task_id": task_id,
+                "claimed_at": now_iso(),
+            },
+            ConditionExpression="attribute_not_exists(SK)",
+        )
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return False
+        raise
+
+    # Double check if user is already holding a desk or in queue (e.g. reconnect or legacy state)
+    for item in query_team(team):
+        sk = item.get("SK", "")
+        if sk.startswith("AGENT#") and item.get("current_user") == user_id:
+            release_user_admission(team, user_id)
+            return False
+        if sk.startswith("QUEUE#") and item.get("user_id") == user_id:
+            release_user_admission(team, user_id)
+            return False
+
+    return True
+
+
+def release_user_admission(team, user_id):
+    """Free a user's active admission record."""
+    if not user_id:
+        return
+    try:
+        table().delete_item(
+            Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
+        )
+    except Exception as exc:
+        print(f"[state] failed to release user admission for {user_id}: {exc}")
+
+
+def set_user_admission(team, user_id, task_id):
+    """Set or refresh a user's active admission record (e.g. across handoff or requeue)."""
+    if not user_id:
+        return
+    table().put_item(
+        Item={
+            "PK": team_pk(team),
+            "SK": f"ACTIVE#{user_id}",
+            "user_id": user_id,
+            "task_id": task_id,
+            "claimed_at": now_iso(),
+        }
+    )
+
+
 
 # --- Workspace passphrases -------------------------------------------------
 

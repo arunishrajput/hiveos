@@ -171,6 +171,8 @@ def set_idle(team, slot_id, expected_holder):
             },
         )
         print(f"[scheduler] released slot={slot_id}")
+        if expected_holder:
+            state.release_user_admission(team, expected_holder)
         return True
     except ClientError as error:
         if _is_conditional_failure(error):
@@ -269,6 +271,8 @@ def requeue(team, item):
     back of the line for losing a race they never saw.
     """
     state.table().put_item(Item=item)
+    if item.get("user_id"):
+        state.set_user_admission(team, item["user_id"], item.get("task_id"))
     print(f"[scheduler] requeued {item['SK']} — no slot was free after all")
 
 
@@ -554,6 +558,7 @@ def hand_off(team, task, target_slot, note):
     )
 
     if claimed:
+        state.set_user_admission(team, user_id, task_id)
         broadcast_slot(team, target_slot, "BUSY", user_id)
         dispatch(
             team,
@@ -582,6 +587,7 @@ def hand_off(team, task, target_slot, note):
         hops=hops,
         handoff_from=from_slot,
     )
+    state.set_user_admission(team, user_id, task_id)
     broadcast_queue(team)
     print(f"[scheduler] handoff {from_slot} -> {target_slot} queued")
 

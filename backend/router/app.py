@@ -352,33 +352,38 @@ def _claim_agent(team, connection_id, body):
     if requested not in slots:
         requested = None
 
-    if _already_working(team, user_id):
-        return _error(connection_id, "you already have an agent running or queued")
-
-    # Minted here, where the work is *requested*, and carried unchanged through
-    # a queue and across a handoff. It identifies the job, not the leg — the
-    # ledger needs one id spanning both desks when an agent passes work on.
     task_id = scheduler.new_task_id()
 
-    slot_id = scheduler.claim_any(team, requested, user_id, slots)
+    if not state.acquire_user_admission(team, user_id, task_id):
+        return _error(connection_id, "you already have an agent running or queued")
 
-    if slot_id is None:
-        scheduler.enqueue(
-            team, user_id, requested, prompt, connection_id, task_id=task_id
+    slot_id = None
+    try:
+        slot_id = scheduler.claim_any(team, requested, user_id, slots)
+
+        if slot_id is None:
+            scheduler.enqueue(
+                team, user_id, requested, prompt, connection_id, task_id=task_id
+            )
+            scheduler.broadcast_queue(team)
+            return OK
+
+        # Announce BUSY *before* handing the task to SQS. The slot is already BUSY
+        # in DynamoDB, so this frame is accurate either way — but dispatching first
+        # lets a fast-failing task post its reply ahead of this frame, and a client
+        # that sees BUSY arrive after the release is left showing a slot that never
+        # goes idle again.
+        scheduler.broadcast_slot(team, slot_id, "BUSY", user_id)
+        scheduler.dispatch(
+            team, slot_id, user_id, requested, prompt, connection_id, task_id=task_id
         )
-        scheduler.broadcast_queue(team)
         return OK
-
-    # Announce BUSY *before* handing the task to SQS. The slot is already BUSY
-    # in DynamoDB, so this frame is accurate either way — but dispatching first
-    # lets a fast-failing task post its reply ahead of this frame, and a client
-    # that sees BUSY arrive after the release is left showing a slot that never
-    # goes idle again.
-    scheduler.broadcast_slot(team, slot_id, "BUSY", user_id)
-    scheduler.dispatch(
-        team, slot_id, user_id, requested, prompt, connection_id, task_id=task_id
-    )
-    return OK
+    except Exception:
+        if slot_id:
+            scheduler.set_idle(team, slot_id, expected_holder=user_id)
+        else:
+            state.release_user_admission(team, user_id)
+        raise
 
 
 def _release_agent(team, connection_id, body):
@@ -492,6 +497,8 @@ def _already_working(team, user_id):
     running, it just moved desks, and letting them start a second one while a
     second leg waits is exactly the double-claim this prevents.
     """
+    if state.is_user_active(team, user_id):
+        return True
     for item in state.query_team(team):
         sk = item["SK"]
         if sk.startswith("AGENT#") and item.get("current_user") == user_id:
