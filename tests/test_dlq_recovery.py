@@ -1,4 +1,4 @@
-"""Tests for DLQ inspection, recovery, replay, and idempotency clearing mechanics (Bug G)."""
+"""Tests for DLQ inspection, recovery, replay, idempotency clearing, and partial-failure safety (Bug G)."""
 
 import json
 import sys
@@ -22,6 +22,8 @@ DLQ_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/hiveos-agent-tasks-d
 
 @pytest.fixture(autouse=True)
 def set_env(monkeypatch):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("AWS_REGION", "us-east-1")
     monkeypatch.setenv("QUEUE_URL", MAIN_QUEUE_URL)
     monkeypatch.setenv("DLQ_URL", DLQ_URL)
     monkeypatch.setenv("TABLE_NAME", "hiveos-state")
@@ -36,7 +38,13 @@ class TestDLQInspection:
 
         items = dlq.inspect_dlq(dlq_url=DLQ_URL)
         assert items == []
-        mock_sqs.receive_message.assert_called_once()
+        mock_sqs.receive_message.assert_called_once_with(
+            QueueUrl=DLQ_URL,
+            MaxNumberOfMessages=10,
+            AttributeNames=["All"],
+            MessageAttributeNames=["All"],
+            VisibilityTimeout=0,
+        )
 
     @patch("shared.dlq.sqs")
     def test_inspect_dlq_with_messages(self, mock_sqs_fn):
@@ -77,6 +85,27 @@ class TestDLQInspection:
         assert items[1]["task"] is None
         assert items[1]["parse_error"] is not None
 
+    @patch("shared.dlq.sqs")
+    def test_inspect_dlq_multi_batch_pagination(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        batch_1 = [
+            {"MessageId": f"msg-{i}", "ReceiptHandle": f"h-{i}", "Body": json.dumps({"task_id": f"t-{i}"})}
+            for i in range(10)
+        ]
+        batch_2 = [
+            {"MessageId": f"msg-{i}", "ReceiptHandle": f"h-{i}", "Body": json.dumps({"task_id": f"t-{i}"})}
+            for i in range(10, 15)
+        ]
+        mock_sqs.receive_message.side_effect = [
+            {"Messages": batch_1},
+            {"Messages": batch_2},
+        ]
+        mock_sqs_fn.return_value = mock_sqs
+
+        items = dlq.inspect_dlq(dlq_url=DLQ_URL, max_messages=20, visibility_timeout=15)
+        assert len(items) == 15
+        assert mock_sqs.receive_message.call_count == 2
+
 
 class TestDLQRecoveryAndReplay:
     @patch("shared.state.table")
@@ -93,10 +122,12 @@ class TestDLQRecoveryAndReplay:
             }
         )
 
+    @patch("shared.state.release_dlq_redrive")
+    @patch("shared.state.claim_dlq_redrive", return_value=True)
     @patch("shared.state.clear_idempotency_marker")
     @patch("shared.dlq.sqs")
     def test_redrive_message_clears_idempotency_and_sends_to_main_queue(
-        self, mock_sqs_fn, mock_clear_marker
+        self, mock_sqs_fn, mock_clear_marker, mock_claim_fn, mock_release_fn
     ):
         mock_sqs = MagicMock()
         mock_sqs.send_message.return_value = {"MessageId": "new-msg-123"}
@@ -122,21 +153,104 @@ class TestDLQRecoveryAndReplay:
         assert result["success"] is True
         assert result["new_message_id"] == "new-msg-123"
         assert result["task_id"] == "task-abc"
+        assert result["already_dispatched"] is False
 
-        # 1. Cleared idempotency marker
+        mock_claim_fn.assert_called_once_with(TEAM, "task-abc", hops=0)
         mock_clear_marker.assert_called_once_with(TEAM, "task-abc", hops=0)
-
-        # 2. Sent to main queue
         mock_sqs.send_message.assert_called_once_with(
             QueueUrl=MAIN_QUEUE_URL,
             MessageBody=json.dumps(task_payload),
         )
-
-        # 3. Deleted from DLQ
         mock_sqs.delete_message.assert_called_once_with(
             QueueUrl=DLQ_URL,
             ReceiptHandle="handle-123",
         )
+        mock_release_fn.assert_called_once_with(TEAM, "task-abc", hops=0)
+
+    @patch("shared.state.clear_idempotency_marker")
+    @patch("shared.state.release_dlq_redrive")
+    @patch("shared.state.claim_dlq_redrive", return_value=True)
+    @patch("shared.dlq.sqs")
+    def test_redrive_message_rolls_back_claim_if_send_fails(
+        self, mock_sqs_fn, mock_claim_fn, mock_release_fn, mock_clear_marker
+    ):
+        mock_sqs = MagicMock()
+        mock_sqs.send_message.side_effect = RuntimeError("SQS send error")
+        mock_sqs_fn.return_value = mock_sqs
+
+        task_payload = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-err-01",
+            "hops": 0,
+            "prompt": "Fix something",
+        }
+
+        with pytest.raises(RuntimeError, match="SQS send error"):
+            dlq.redrive_message(
+                receipt_handle="handle-err",
+                task_payload=task_payload,
+                dlq_url=DLQ_URL,
+                target_queue_url=MAIN_QUEUE_URL,
+            )
+
+        mock_claim_fn.assert_called_once_with(TEAM, "task-err-01", hops=0)
+        mock_release_fn.assert_called_once_with(TEAM, "task-err-01", hops=0)
+
+    @patch("shared.state.release_dlq_redrive")
+    @patch("shared.state.clear_idempotency_marker")
+    @patch("shared.state.claim_dlq_redrive")
+    @patch("shared.dlq.sqs")
+    def test_redrive_message_prevents_duplicate_send_when_dlq_delete_previously_failed(
+        self, mock_sqs_fn, mock_claim_fn, mock_clear_marker, mock_release_fn
+    ):
+        """Proves that if step 2 (send) succeeded but step 3 (delete) failed,
+
+        a subsequent redrive attempt does NOT send the message again and does NOT
+        clear idempotency again, preventing duplicate executions.
+        """
+        mock_sqs = MagicMock()
+        mock_sqs_fn.return_value = mock_sqs
+
+        task_payload = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-partial-fail",
+            "hops": 0,
+            "prompt": "Test partial failure",
+        }
+
+        # Simulate subsequent recovery run: claim_dlq_redrive returns False (already claimed)
+        mock_claim_fn.return_value = False
+
+        result = dlq.redrive_message(
+            receipt_handle="handle-retry",
+            task_payload=task_payload,
+            dlq_url=DLQ_URL,
+            target_queue_url=MAIN_QUEUE_URL,
+            reset_idempotency=True,
+        )
+
+        assert result["success"] is True
+        assert result["already_dispatched"] is True
+        assert result["new_message_id"] is None
+
+        # 1. Did NOT clear idempotency again
+        mock_clear_marker.assert_not_called()
+
+        # 2. Did NOT send message to main queue again
+        mock_sqs.send_message.assert_not_called()
+
+        # 3. Retried and succeeded in deleting from DLQ
+        mock_sqs.delete_message.assert_called_once_with(
+            QueueUrl=DLQ_URL,
+            ReceiptHandle="handle-retry",
+        )
+
+        # 4. Cleaned up claim marker
+        mock_release_fn.assert_called_once_with(TEAM, "task-partial-fail", hops=0)
 
     @patch("shared.dlq.redrive_message")
     @patch("shared.dlq.inspect_dlq")
@@ -162,13 +276,34 @@ class TestDLQRecoveryAndReplay:
         assert mock_redrive_msg.call_count == 2
 
     @patch("shared.dlq.sqs")
-    def test_purge_dlq(self, mock_sqs_fn):
+    def test_purge_dlq_direct(self, mock_sqs_fn):
         mock_sqs = MagicMock()
         mock_sqs_fn.return_value = mock_sqs
 
         res = dlq.purge_dlq(dlq_url=DLQ_URL)
         assert res["ok"] is True
+        assert res["method"] == "purge"
         mock_sqs.purge_queue.assert_called_once_with(QueueUrl=DLQ_URL)
+
+    @patch("shared.dlq.sqs")
+    def test_purge_dlq_fallback_drain(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        # Simulate rate-limited purge_queue
+        mock_sqs.purge_queue.side_effect = ClientError(
+            {"Error": {"Code": "PurgeQueueInProgress"}},
+            "PurgeQueue",
+        )
+        mock_sqs.receive_message.side_effect = [
+            {"Messages": [{"ReceiptHandle": "h1"}, {"ReceiptHandle": "h2"}]},
+            {"Messages": []},
+        ]
+        mock_sqs_fn.return_value = mock_sqs
+
+        res = dlq.purge_dlq(dlq_url=DLQ_URL)
+        assert res["ok"] is True
+        assert res["method"] == "drain"
+        assert res["drained"] == 2
+        assert mock_sqs.delete_message.call_count == 2
 
 
 class TestRunnerReplayWithIdempotencyClear:

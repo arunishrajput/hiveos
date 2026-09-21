@@ -6,14 +6,17 @@ outages, or unhandled exceptions), SQS moves them to the DLQ (`TaskDLQ`).
 This module provides operational visibility and safe replay for dead-lettered tasks:
 1. `inspect_dlq()`: Peek and inspect messages currently sitting in the DLQ.
 2. `redrive_message()`: Safely re-dispatch a dead-lettered task to the main queue
-   after clearing its `IDEMPOTENCY#` marker so it is not skipped as a duplicate.
+   after clearing its `IDEMPOTENCY#` marker so it is not skipped as a duplicate,
+   with atomic claim semantics to prevent duplicate re-dispatch if DLQ deletion fails.
 3. `redrive_all()`: Batch recovery for all dead-lettered tasks in the DLQ.
 4. `purge_dlq()`: Drain/clear the DLQ after operational review.
 """
 
 import json
 import os
+import time
 import boto3
+from botocore.exceptions import ClientError
 
 from . import history, scheduler, state
 
@@ -53,8 +56,12 @@ def get_main_queue_url(override=None):
         return None
 
 
-def inspect_dlq(dlq_url=None, max_messages=10, visibility_timeout=10):
-    """Inspect up to `max_messages` from the DLQ without deleting them.
+def inspect_dlq(dlq_url=None, max_messages=10, visibility_timeout=0):
+    """Inspect up to `max_messages` from the DLQ without removing them.
+
+    By default, `visibility_timeout=0` is used for passive peeking so messages
+    remain immediately visible to other tools/operators. Callers doing active
+    batch recovery can specify `visibility_timeout > 0` to temporarily hold messages.
 
     Returns a list of message descriptors containing the raw SQS metadata and
     the parsed task payload.
@@ -63,34 +70,47 @@ def inspect_dlq(dlq_url=None, max_messages=10, visibility_timeout=10):
     if not url:
         raise ValueError("DLQ URL could not be determined. Set DLQ_URL or pass dlq_url.")
 
-    resp = sqs().receive_message(
-        QueueUrl=url,
-        MaxNumberOfMessages=min(max(1, max_messages), 10),
-        AttributeNames=["All"],
-        MessageAttributeNames=["All"],
-        VisibilityTimeout=visibility_timeout,
-    )
-
     items = []
-    for msg in resp.get("Messages", []):
-        raw_body = msg.get("Body", "")
-        parsed_task = None
-        parse_error = None
-        try:
-            parsed_task = json.loads(raw_body)
-        except Exception as exc:
-            parse_error = str(exc)
+    remaining = max(1, max_messages)
 
-        items.append(
-            {
-                "message_id": msg.get("MessageId"),
-                "receipt_handle": msg.get("ReceiptHandle"),
-                "attributes": msg.get("Attributes", {}),
-                "raw_body": raw_body,
-                "task": parsed_task,
-                "parse_error": parse_error,
-            }
+    while remaining > 0:
+        batch_size = min(remaining, 10)
+        resp = sqs().receive_message(
+            QueueUrl=url,
+            MaxNumberOfMessages=batch_size,
+            AttributeNames=["All"],
+            MessageAttributeNames=["All"],
+            VisibilityTimeout=visibility_timeout,
         )
+        msgs = resp.get("Messages", [])
+        if not msgs:
+            break
+
+        for msg in msgs:
+            raw_body = msg.get("Body", "")
+            parsed_task = None
+            parse_error = None
+            try:
+                parsed_task = json.loads(raw_body)
+            except Exception as exc:
+                parse_error = str(exc)
+
+            items.append(
+                {
+                    "message_id": msg.get("MessageId"),
+                    "receipt_handle": msg.get("ReceiptHandle"),
+                    "attributes": msg.get("Attributes", {}),
+                    "raw_body": raw_body,
+                    "task": parsed_task,
+                    "parse_error": parse_error,
+                }
+            )
+
+        remaining -= len(msgs)
+        # In passive inspection mode (visibility_timeout=0), prevent infinite loops over same messages
+        if visibility_timeout == 0 or len(msgs) < batch_size:
+            break
+
     return items
 
 
@@ -103,9 +123,14 @@ def redrive_message(
 ):
     """Replay a dead-lettered task back to the main queue and remove it from DLQ.
 
-    If `reset_idempotency` is True, any existing `IDEMPOTENCY#<task_id>#<hops>`
-    marker in DynamoDB is cleared so the runner will execute the replayed task
-    rather than dropping it as a duplicate.
+    Safety semantics against partial failures:
+    - Atomically claims the redrive in DynamoDB via `state.claim_dlq_redrive()`.
+    - If step 2 (send to main queue) succeeds but step 3 (delete from DLQ) fails,
+      the message remains in DLQ with the redrive claim recorded.
+    - A subsequent recovery run detects the claim, skips duplicate re-dispatch
+      and idempotency clearing, and directly retries DLQ message deletion.
+    - If step 2 fails, the redrive claim is rolled back so it can be retried.
+    - Upon verified DLQ deletion, the redrive claim is cleaned up.
     """
     target_url = get_main_queue_url(target_queue_url)
     if not target_url:
@@ -121,31 +146,68 @@ def redrive_message(
     task_id = task_payload.get("task_id")
     hops = int(task_payload.get("hops", 0) or 0)
 
-    # 1. Clear idempotency marker so the runner will execute the replayed task
-    if reset_idempotency and task_id:
-        state.clear_idempotency_marker(team, task_id, hops=hops)
-        print(f"[dlq] cleared idempotency marker for team={team} task={task_id} hops={hops}")
+    already_dispatched = False
+    new_message_id = None
 
-    # 2. Send task back to the main processing queue
-    send_resp = sqs().send_message(
-        QueueUrl=target_url,
-        MessageBody=json.dumps(task_payload),
-    )
-    new_message_id = send_resp.get("MessageId")
-    print(f"[dlq] redrove task={task_id} to {target_url} (new_msg_id={new_message_id})")
+    if task_id:
+        is_first_claim = state.claim_dlq_redrive(team, task_id, hops=hops)
+        if not is_first_claim:
+            already_dispatched = True
+            print(
+                f"[dlq] task={task_id} hops={hops} was already dispatched in prior redrive; "
+                f"skipping duplicate send and completing DLQ cleanup"
+            )
 
-    # 3. Delete from DLQ
-    sqs().delete_message(
-        QueueUrl=source_dlq_url,
-        ReceiptHandle=receipt_handle,
-    )
-    print(f"[dlq] deleted receipt={receipt_handle[:16]}... from DLQ")
+    if not already_dispatched:
+        # 1. Clear idempotency marker so runner will execute the replayed task
+        if reset_idempotency and task_id:
+            state.clear_idempotency_marker(team, task_id, hops=hops)
+            print(f"[dlq] cleared idempotency marker for team={team} task={task_id} hops={hops}")
+
+        # 2. Send task back to the main processing queue
+        try:
+            send_resp = sqs().send_message(
+                QueueUrl=target_url,
+                MessageBody=json.dumps(task_payload),
+            )
+            new_message_id = send_resp.get("MessageId")
+            print(f"[dlq] redrove task={task_id} to {target_url} (new_msg_id={new_message_id})")
+        except Exception:
+            if task_id:
+                state.release_dlq_redrive(team, task_id, hops=hops)
+            raise
+
+    # 3. Delete from DLQ with retry
+    delete_succeeded = False
+    last_delete_err = None
+    for attempt in range(3):
+        try:
+            sqs().delete_message(
+                QueueUrl=source_dlq_url,
+                ReceiptHandle=receipt_handle,
+            )
+            delete_succeeded = True
+            print(f"[dlq] deleted receipt={receipt_handle[:16]}... from DLQ")
+            break
+        except Exception as exc:
+            last_delete_err = exc
+            if attempt < 2:
+                time.sleep(0.05 * (2**attempt))
+
+    if not delete_succeeded:
+        print(f"[dlq] failed to delete message from DLQ after retries: {last_delete_err}")
+        raise last_delete_err
+
+    # 4. Clean up redrive claim marker once DLQ deletion is complete
+    if task_id:
+        state.release_dlq_redrive(team, task_id, hops=hops)
 
     return {
         "success": True,
         "task_id": task_id,
         "new_message_id": new_message_id,
         "team_id": team,
+        "already_dispatched": already_dispatched,
     }
 
 
@@ -215,9 +277,27 @@ def purge_dlq(dlq_url=None):
     try:
         sqs().purge_queue(QueueUrl=url)
         return {"ok": True, "method": "purge"}
-    except Exception as exc:
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "")
         # PurgeQueue is rate-limited to once per 60 seconds per queue.
-        # Fallback to manual drain if rate-limited.
+        # Fallback to manual drain if rate-limited or PurgeQueueInProgress.
+        if code in ("PurgeQueueInProgress", "AWS.SimpleQueueService.PurgeQueueInProgress", "ThrottlingException"):
+            drained = 0
+            while True:
+                msgs = sqs().receive_message(
+                    QueueUrl=url,
+                    MaxNumberOfMessages=10,
+                    VisibilityTimeout=10,
+                ).get("Messages", [])
+                if not msgs:
+                    break
+                for m in msgs:
+                    sqs().delete_message(QueueUrl=url, ReceiptHandle=m["ReceiptHandle"])
+                    drained += 1
+            return {"ok": True, "method": "drain", "drained": drained}
+        raise
+    except Exception as exc:
+        # Generic drain fallback
         drained = 0
         while True:
             msgs = sqs().receive_message(
