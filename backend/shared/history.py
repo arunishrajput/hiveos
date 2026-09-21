@@ -18,6 +18,8 @@ to UUID order, i.e. random. The queue learned this the hard way in Phase 2.
 import time
 import uuid
 
+from botocore.exceptions import BotoCoreError, ClientError
+
 from . import agents, state
 
 # How much of the prompt to keep. Enough to recognise a task in a list, not so
@@ -35,6 +37,45 @@ REFUSED = "refused"
 
 MAX_RETRIES = 3
 INITIAL_BACKOFF = 0.05
+
+TRANSIENT_CLIENT_ERROR_CODES = {
+    "ProvisionedThroughputExceededException",
+    "ThrottlingException",
+    "RequestLimitExceeded",
+    "InternalServerError",
+    "ServiceUnavailable",
+    "TransactionConflictException",
+    "TransactionInProgressException",
+}
+
+TRANSIENT_BOTOCORE_EXCEPTIONS = (
+    "EndpointConnectionError",
+    "ConnectTimeoutError",
+    "ReadTimeoutError",
+    "ConnectionClosedError",
+    "HTTPClientError",
+    "IncompleteReadError",
+)
+
+
+def is_transient_error(exc):
+    """Determine if an exception is a transient failure worthy of retrying."""
+    if isinstance(exc, ClientError):
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code in TRANSIENT_CLIENT_ERROR_CODES:
+            return True
+        status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+        if 500 <= status_code < 600:
+            return True
+        return False
+
+    if isinstance(exc, BotoCoreError):
+        return exc.__class__.__name__ in TRANSIENT_BOTOCORE_EXCEPTIONS
+
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return True
+
+    return False
 
 
 def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
@@ -93,8 +134,14 @@ def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
             return item
         except Exception as exc:
             last_exc = exc
+            if not is_transient_error(exc):
+                # Non-transient error (validation, permissions, programming bug) — do not retry
+                print(
+                    f"[history] permanent write error ({type(exc).__name__}: {exc})"
+                )
+                raise
             print(
-                f"[history] write attempt {attempt + 1}/{retries} failed "
+                f"[history] transient write attempt {attempt + 1}/{retries} failed "
                 f"({type(exc).__name__}: {exc})"
             )
             if attempt < retries - 1:

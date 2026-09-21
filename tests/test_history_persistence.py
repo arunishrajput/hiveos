@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError, EndpointConnectionError
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
 if str(BACKEND_DIR) not in sys.path:
@@ -17,9 +17,12 @@ from shared import history, state
 TEAM = "test-team"
 
 
-def _client_error(code="ProvisionedThroughputExceededException"):
+def _client_error(code="ProvisionedThroughputExceededException", status=400):
     return ClientError(
-        {"Error": {"Code": code, "Message": f"Mock {code}"}},
+        {
+            "Error": {"Code": code, "Message": f"Mock {code}"},
+            "ResponseMetadata": {"HTTPStatusCode": status},
+        },
         "PutItem",
     )
 
@@ -87,9 +90,78 @@ class TestHistoryPersistence:
 
     @patch("time.sleep")
     @patch("shared.state.table")
+    def test_record_retries_botocore_endpoint_error_and_succeeds(self, mock_table_fn, mock_sleep):
+        mock_table = MagicMock()
+        mock_table.put_item.side_effect = [
+            EndpointConnectionError(endpoint_url="https://dynamodb.us-east-1.amazonaws.com"),
+            {},
+        ]
+        mock_table_fn.return_value = mock_table
+
+        item = history.record(
+            team=TEAM,
+            user_id="bob",
+            agent_type="iris",
+            tokens=150,
+            estimated=False,
+            status=history.DONE,
+            retries=3,
+        )
+
+        assert mock_table.put_item.call_count == 2
+        assert mock_sleep.call_count == 1
+        assert item["user_id"] == "bob"
+
+    @patch("time.sleep")
+    @patch("shared.state.table")
+    def test_record_does_not_retry_validation_error(self, mock_table_fn, mock_sleep):
+        mock_table = MagicMock()
+        mock_table.put_item.side_effect = _client_error("ValidationException", status=400)
+        mock_table_fn.return_value = mock_table
+
+        with pytest.raises(ClientError) as exc_info:
+            history.record(
+                team=TEAM,
+                user_id="alice",
+                agent_type="ada",
+                tokens=100,
+                estimated=False,
+                status=history.DONE,
+                retries=3,
+            )
+
+        assert exc_info.value.response["Error"]["Code"] == "ValidationException"
+        # Non-transient errors must NOT be retried:
+        assert mock_table.put_item.call_count == 1
+        assert mock_sleep.call_count == 0
+
+    @patch("time.sleep")
+    @patch("shared.state.table")
+    def test_record_does_not_retry_programming_error(self, mock_table_fn, mock_sleep):
+        mock_table = MagicMock()
+        mock_table.put_item.side_effect = TypeError("Mock programming error")
+        mock_table_fn.return_value = mock_table
+
+        with pytest.raises(TypeError):
+            history.record(
+                team=TEAM,
+                user_id="alice",
+                agent_type="ada",
+                tokens=100,
+                estimated=False,
+                status=history.DONE,
+                retries=3,
+            )
+
+        # Must fail immediately on programming bugs
+        assert mock_table.put_item.call_count == 1
+        assert mock_sleep.call_count == 0
+
+    @patch("time.sleep")
+    @patch("shared.state.table")
     def test_record_raises_on_persistent_failure(self, mock_table_fn, mock_sleep):
         mock_table = MagicMock()
-        mock_table.put_item.side_effect = _client_error("InternalServerError")
+        mock_table.put_item.side_effect = _client_error("InternalServerError", status=500)
         mock_table_fn.return_value = mock_table
 
         with pytest.raises(ClientError) as exc_info:
@@ -173,6 +245,41 @@ class TestFairnessAndAccountingImpact:
 
 
 class TestRunnerHandlingOnRecordFailure:
+    @patch("agent_runner.app.broadcast.broadcast_to_team")
+    @patch("agent_runner.app.history.record")
+    @patch("shared.state.add_tokens")
+    def test_record_failure_in_reply_rolls_back_tokens_added(
+        self, mock_add_tokens, mock_record, mock_broadcast
+    ):
+        """If history.record() raises in _reply(), added tokens are rolled back so METADATA does not diverge."""
+        from agent_runner import app
+
+        mock_add_tokens.side_effect = [
+            {"tokens_used": 1500, "usage_estimated": False},  # first call: +500
+            {"tokens_used": 1000, "usage_estimated": False},  # rollback call: -500
+        ]
+        mock_record.side_effect = _client_error("InternalServerError", status=500)
+
+        task = {
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-abc",
+            "prompt": "Hello",
+        }
+        result = MagicMock(tokens=500, estimated=False)
+        names = {"ada": "Ada"}
+
+        with pytest.raises(ClientError):
+            app._reply(TEAM, task, result, names)
+
+        assert mock_add_tokens.call_count == 2
+        mock_add_tokens.assert_has_calls([
+            call(TEAM, 500, estimated=False),
+            call(TEAM, -500),
+        ])
+        # Broadcasts should NOT have gone out
+        assert mock_broadcast.call_count == 0
+
     @patch("agent_runner.app.scheduler.release_and_dispatch")
     @patch("agent_runner.app._reply_error")
     @patch("agent_runner.app.history.record")
@@ -191,7 +298,7 @@ class TestRunnerHandlingOnRecordFailure:
             None,
         )
         # record raises on write failure
-        mock_record.side_effect = _client_error("InternalServerError")
+        mock_record.side_effect = _client_error("InternalServerError", status=500)
 
         task = {
             "team_id": TEAM,

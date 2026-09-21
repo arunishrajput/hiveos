@@ -538,27 +538,33 @@ def _reply(team, task, result, names):
 
     # After the ADD, never before: the ledger must not be able to report a cost
     # that the team counter has not actually taken.
-    history.record(
-        team,
-        task.get("user_id"),
-        slot_id,
-        tokens=result.tokens,
-        estimated=result.estimated,
-        status=history.DONE,
-        prompt=task.get("prompt", ""),
-        requested_agent=requested,
-        # Both legs of a handed-over task carry the same chain id, so the
-        # ledger can say the work cost the team N tokens rather than showing
-        # two unrelated tasks that happen to sit next to each other.
-        task_id=task.get("task_id"),
-        handoff_from=handed_from,
-        # Written now, at the moment the work ran, rather than joined on when
-        # the ledger is read. An agent can be fired, and a ledger that looked
-        # its names up later would attribute this row to whoever holds that id
-        # next — or to nobody.
-        agent_name=_named(names, slot_id),
-        handoff_from_name=_named(names, handed_from),
-    )
+    try:
+        history.record(
+            team,
+            task.get("user_id"),
+            slot_id,
+            tokens=result.tokens,
+            estimated=result.estimated,
+            status=history.DONE,
+            prompt=task.get("prompt", ""),
+            requested_agent=requested,
+            # Both legs of a handed-over task carry the same chain id, so the
+            # ledger can say the work cost the team N tokens rather than showing
+            # two unrelated tasks that happen to sit next to each other.
+            task_id=task.get("task_id"),
+            handoff_from=handed_from,
+            # Written now, at the moment the work ran, rather than joined on when
+            # the ledger is read. An agent can be fired, and a ledger that looked
+            # its names up later would attribute this row to whoever holds that id
+            # next — or to nobody.
+            agent_name=_named(names, slot_id),
+            handoff_from_name=_named(names, handed_from),
+        )
+    except Exception:
+        # If writing the ledger row fails permanently, roll back the tokens
+        # added to METADATA so tokens_used never diverges from the TASK# ledger.
+        state.add_tokens(team, -result.tokens)
+        raise
 
     # `usage` already carries `estimated`, read back from the row, so the
     # broadcast reports the provenance of the whole total rather than of this
