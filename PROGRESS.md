@@ -16,9 +16,9 @@
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
 | **▶ Current phase** | **Phase 25 — Desert Outpost. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 25.** Queue after it: **26 → 27** (27 last — it depends on every world that shipped) |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 24 `COMPLETE` — deployed and verified 2026-09-21. **Seven looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base — and the board wears any of them. **Six of the eight world phases have shipped; two remain and are queued.** Gates after Phase 24: `pytest` **65/65** (42 before PR #7), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding **zero** `CONN#` rows anywhere in the table — every state hue measured at **≥4.96:1 against all eight of this world's surfaces**, hiring and real tasks walked on the deployed board (21,688 real tokens spent on `TEAM#p24arctic`, 4/4 desks confirmed `BUSY` at once in DynamoDB), and Paper Office proven unchanged by a **73/73 custom-property, 37,959-computed-field** diff against a HEAD build with **zero** deltas. |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 24 `COMPLETE` — deployed and verified 2026-09-21. **Seven looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base — and the board wears any of them. **Six of the eight world phases have shipped; two remain and are queued.** Gates after Phase 24: `pytest` **42/42** at the time — **65/65** now, after PR #7 — `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding **zero** `CONN#` rows anywhere in the table — every state hue measured at **≥4.96:1 against all eight of this world's surfaces**, hiring and real tasks walked on the deployed board (21,688 real tokens spent on `TEAM#p24arctic`, 4/4 desks confirmed `BUSY` at once in DynamoDB), and Paper Office proven unchanged by a **73/73 custom-property, 37,959-computed-field** diff against a HEAD build with **zero** deltas. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 37, the Arctic Base build**. ⚠️ **`main` is ahead of the stack on the backend.** PR #7 (the budget ceiling reservation, merged 2026-09-21) changes `agent_runner/app.py` and `shared/state.py` and **has not been deployed** — run `sam build --use-container && sam deploy`, then `ws_smoke.py` section 17. The frontend is in step: Phase 24 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. Before PR #7 the last backend change was PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission). DynamoDB TTL is `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 37, the Arctic Base build**. **`main` and the stack are in step.** The last backend change is PR #7 (the budget ceiling reservation), merged and deployed 2026-09-21 and re-verified at `ws_smoke.py` **109/113** plus a dedicated ceiling gate on a scratch workspace. Phase 24 is frontend-only and in step as well. DynamoDB TTL is `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -132,7 +132,7 @@ a fresh session reads first.
 
 ## Completed
 
-**PR #7 — the budget ceiling under concurrency — 2026-09-21 — merged, ⚠️ not yet deployed**
+**PR #7 — the budget ceiling under concurrency — 2026-09-21 — merged, deployed and verified**
 
 Community PR from @Phantom9869, reviewed, reworked and merged. The bug it found is real: the
 ceiling *read* `tokens_used` and decided, then committed the spend at the end of the task, so two
@@ -173,8 +173,29 @@ METADATA row that evaluates the real condition against live state, and every cla
 checked by mutation — shrinking the hold, dropping the clamp, dropping the `ConditionExpression`
 and dropping the settlement each fail tests that name the failure.
 
-**`pytest` 65/65.** Not deployed: the stack still runs the pre-PR runner. `sam build
---use-container && sam deploy` is what takes it live, and `ws_smoke.py` section 17 is the gate.
+**Verified on the deployed stack, not just locally.** `pytest` **65/65**; `sam build
+--use-container && sam deploy` at 17:54 UTC (runner `CodeSha256 nIcfOCnE19…`, was
+`jmqvPgsr6t…`); `ws_smoke.py` **109/113** — the same four documented `CONN#` false positives and
+nothing else, with section 17 (the ceiling refusal) and section 24's `chain=2007, team total=2007`
+both passing, which is the settlement reconciling exactly across two legs of a handoff. Unlike the
+Phase 24 run, the post-run scan found **three** lingering `CONN#` rows rather than zero (two on
+`alpha` from the run's own sockets, one on `p24arctic` from an earlier browser session) — the same
+ungraceful-`$disconnect` residue the four checks have always been tripping on, and nothing this PR
+touches.
+
+A throwaway workspace then drove the three things the smoke test does not reach, because they are
+new. Numbers as measured:
+
+| | |
+|---|---|
+| The hold is taken *before* the model answers | `tokens_used` went **0 → 1,805** while the task ran, then settled to **633** |
+| It is the size of a task, not of a prompt | **1,805** held against a task that cost **633** |
+| It settles with no residue | METADATA **633** = the `token_update` frame's **633** |
+| Clamped at the ceiling | started at **99,999/100,000**, the hold parked the counter on **exactly 100,000** and never above it |
+| The settlement is still exact there | **100,625** = 99,999 + the **626** the task really cost |
+| A refusal takes no hold | parked at **100,000/100,000**, `budget_exhausted` broadcast, counter **unchanged** |
+
+The scratch workspace was deleted afterwards; the public board was never touched.
 
 **The world picker on the landing page — 2026-09-21 — deployed and verified**
 
@@ -3038,7 +3059,7 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | WebSocket API `hiveos-ws` | ✅ `mel2gpat9c`, stage `prod` |
 | Router Lambda `hiveos-router` | ✅ verified end to end |
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered |
-| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens. ⚠️ **running the pre-PR-#7 code**: the budget-ceiling reservation is merged on `main` and not yet deployed |
+| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens, **and the PR #7 budget-ceiling reservation** (deployed 2026-09-21 17:54 UTC, `CodeSha256 nIcfOCnE19HI6m7bfFi9pf7oI8MjBCxuvbzMCNolxg8=`) |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
 | Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 37**, Phase 24 build |
 | Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base** — read back from the live picker |
