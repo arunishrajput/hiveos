@@ -27,6 +27,7 @@ import './styles.css'
 // still being built.
 import './worlds/nightsky.css'
 import './worlds/forest.css'
+import './worlds/underwater.css'
 import './worlds/alien.css'
 
 import App from './App'

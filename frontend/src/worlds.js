@@ -287,6 +287,140 @@ const FOREST_COATS = [
   '#8fb2be', // kingfisher
 ]
 
+/* --- The Reef Station's cast ------------------------------------------------
+ *
+ * The animals that live on the reef the station was built into. Fish, ray,
+ * turtle, octopus and crab.
+ *
+ *   H  scales / shell  --sp-hair    per-character, from the palette below
+ *   F  pale markings   --sp-skin    a bleached stripe, a head, a carapace band
+ *   S  the hind body   --sp-shirt
+ *   A  fins and claws  --sp-accent  the thin parts, where the light goes through
+ *   D  the eyes        --sp-detail
+ *
+ * IDENTITY LIVES IN THE FIRST TWO ROWS, AND THIS CAST WAS DRAWN TWICE TO FIND
+ * THAT OUT. The first attempt reasoned that a sea creature seen from directly
+ * above shows you its whole body plan — that is the view every field guide
+ * uses — so the five were given genuinely different outlines top to bottom: a
+ * narrow dart, a wide diamond, an oval between four flippers, a dome trailing
+ * arms, a flat shell. Rendered at 12x they were five coloured blobs with two
+ * eyes each, and no better at 4x.
+ *
+ * The reason is structural rather than artistic. Rows 6-9 are not available —
+ * they are the walk machinery, and `stepFrame` and `seatedFrame` both rewrite
+ * the last one, so every design has to share that torso. Rows 2-5 are
+ * dominated by the eyes, and any two things with two eyes at 9px apart read as
+ * the same thing. That leaves rows 0 and 1, which is exactly where Night
+ * Watch put its hoods and the Forest put its ears — arrived at there by
+ * drawing heads from above, and true here for a different reason.
+ *
+ * So each of these five is identified by what sticks out at the FRONT: a
+ * pointed snout, a wing to each edge, a small head between two flippers, a
+ * rounded mantle, and a pair of claws held up. The `A` layer is those
+ * extremities in every design, which is what the brief asks for.
+ *
+ * The last row is the tail rather than legs, which turns out to be a gift:
+ * `..S...S..` is a closed caudal fin and `.S.....S.` is a spread one, so the
+ * walk cycle the office uses for feet is a tail beat here for free.
+ */
+const REEF = [
+  // 0 — fish: a pointed snout, and pectoral fins out at the midline
+  [
+    '....H....',
+    '...HHH...',
+    '..HHHHH..',
+    '.HDHHHDH.',
+    'AAHHHHHAA',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — ray: a wing to each edge, and the widest front on the floor
+  [
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHDHHHDHH',
+    'AHHHHHHHA',
+    'AAHHHHHAA',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — turtle: a small head out front, between two front flippers
+  [
+    '....F....',
+    '.AHHHHHA.',
+    'AAHHHHHAA',
+    '.HDHHHDH.',
+    '.HHHHHHH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — octopus: a tall rounded mantle, and arms out at the shoulders
+  [
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHDHHHDHH',
+    'A.HFFFH.A',
+    'ASSSSSSSA',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — crab: two claws held up, over a wide flat carapace
+  [
+    'AA.....AA',
+    '.AA...AA.',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHDHHHDHH',
+    'HHFFFFFHH',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+]
+
+/* One scale colour per marker.
+ *
+ * Measured against the three grounds a creature is ever seen on — the seabed,
+ * a dome's deck and the settled plating — and every one clears 4.0:1 on all
+ * three, worst case 4.06.
+ *
+ * Held between 0.13 and 0.39 saturation, where the four state hues run
+ * 0.48-0.74. That gap does more work here than in any world before it: this is
+ * the world whose ambient hue IS its busy hue, so `--cool` cannot separate
+ * itself from the water by hue and separates by saturation and value instead.
+ * An identity that wandered into a saturated cyan would be taking away the one
+ * argument the whole world rests on. The steel at 211deg is the closest any of
+ * them comes to the busy cyan at 190deg, and it is held at 0.24 saturation
+ * against `--cool`'s 0.74.
+ *
+ * Spread across the hue circle rather than kept inside the reef's blues, for
+ * the reason the Forest's coats are not all green: eight blues are one blue at
+ * sprite size.
+ */
+const REEF_SCALES = [
+  '#d29b81', // clownfish
+  '#c9b47a', // wrasse
+  '#a9c47f', // parrot
+  '#b0a3cd', // urchin
+  '#cc9dbc', // orchid
+  '#9db5cf', // steel
+  '#c7ad95', // driftwood
+  '#a7c0b8', // pearl
+]
+
 /* --- The Alien Colony's cast ------------------------------------------------
  *
  * The first world to use `agentDesigns`, and the first where the two casts are
@@ -542,6 +676,31 @@ const REGISTRY = [
     agentDesigns: null,
     layers: DEFAULT_LAYERS,
     palette: FOREST_COATS,
+  },
+  {
+    id: 'underwater',
+    label: 'Reef Station',
+    blurb: 'Research domes on the seabed, under caustics from a surface far above.',
+    colorScheme: 'dark',
+    // `--cream` in worlds/underwater.css. Literal for the same reason the
+    // others are: the browser needs it before a stylesheet exists.
+    themeColor: '#071a24',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the domes at
+    // y=14, so a world that raised its band would run the water column behind
+    // them.
+    walkTop: 14,
+    designs: REEF,
+    // One cast, and this world has a reason of its own on top of Night Watch's
+    // and the Forest's. The obvious second species is a machine — an ROV, a
+    // crawler, a manipulator unit — and every machine anybody draws underwater
+    // has a lamp on the front of it. A small bright lamp walking about the
+    // floor is precisely what this world may not have: the whole of Reef
+    // Station's argument is that the only lit things down here are the desks
+    // that are spending the budget. So the reef keeps one cast, and the agents
+    // are the animals that live here.
+    agentDesigns: null,
+    layers: DEFAULT_LAYERS,
+    palette: REEF_SCALES,
   },
   {
     id: 'alien',

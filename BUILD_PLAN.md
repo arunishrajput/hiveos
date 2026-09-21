@@ -533,12 +533,12 @@ there was a submittable deliverable at every point.
 
 > ### ▶ These are the active phases as of 2026-09-21
 >
-> The hackathon is over and submitted. **Three worlds have shipped — 19 Night Watch, 20 Enchanted
-> Forest and 22 Alien Colony** (Paper Office is the Phase 12 default, not a world phase). The user
-> is building the rest, one phase per session.
+> The hackathon is over and submitted. **Four worlds have shipped — 19 Night Watch, 20 Enchanted
+> Forest, 21 Reef Station and 22 Alien Colony** (Paper Office is the Phase 12 default, not a world
+> phase). The user is building the rest, one phase per session.
 >
 > **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
-> **21 → 23 → 24 → 25 → 26 → 27.**
+> **23 → 24 → 25 → 26 → 27.**
 >
 > 19–26 depend on 18 and on nothing else, so that order is a convention and the user may reorder
 > or drop any of them. **27 is genuinely last** — it depends on whichever worlds actually shipped.
@@ -959,6 +959,55 @@ not done regardless of how good the reef looks. And both moving layers must go f
 
 **Gate.** Busy reads instantly in a world made of the busy colour, and motion respects the
 reduced-motion preference.
+
+**Shipped 2026-09-21. Four things the plan got wrong, corrected in flight — and all four are
+findings for worlds 23–26 rather than details of this one:**
+
+1. **A `radial-gradient` paints its LAST colour across the whole background positioning area,
+   not out to its radius.** The three portholes each ended on their rim colour, so the first
+   layer filled all 77x31px of the hull plate with pale metal and hid the two under it: the
+   fixture rendered as one pale slab with a single disc in it, which is precisely the "one wide
+   low object" the Forest's window lesson says it must not be. Every shaped gradient layer that
+   is not meant to fill its box has to end in `transparent`. This is the compositing sibling of
+   Phase 18's `calc()` trap — the CSS is valid, nothing warns, and the result is silently the
+   opposite of what was written. **Every world from here paints multi-layer fixtures.**
+2. **`.worldlayer--ground` is `inset: 0`, which includes the wall band, and for anything painted
+   onto the ground *surface* that is wrong.** The caustic net ran up over the water column, where
+   there is no surface for light to land on, and read as rings floating in mid-water. The fix is
+   one line — `top: var(--walk-top)` in the world's own rule, taking the number the registry owns
+   and never setting it. Paper Office never noticed because its slots are empty. The consequence
+   to remember is that positions inside the slot are then **no longer floor percentages**:
+   `layer_y = (floor_y − 14) / 0.86`. **24's snow and 25's sand both put texture on the ground.**
+3. **A texture can be periodic AND continuous, and that is a third case the rule did not have.**
+   Phase 19 and 22: fields of discrete objects may tile. Phase 20: a continuous surface may not
+   tile at all. Sand ripples are both — the ripples are genuinely periodic, which is what makes
+   them ripples, while the sand they are cut into is a continuous variation that must not repeat.
+   So they are split: two repeating ripple fields at 4deg and 176deg with periods sharing no
+   useful factor, and four large non-repeating drifts carrying the colour. **The question is not
+   whether the surface is periodic, it is which part of it is.** 24's snow and 26's moss-on-
+   flagstone are the same shape of problem.
+4. **Motion is a third answer to the lattice problem and it is not a substitute for the other
+   two.** Two caustic fields drifting at different speeds never present the same arrangement
+   twice, so the periodicity has nothing to lock onto — and `prefers-reduced-motion: reduce`
+   takes exactly that away, so the static pair still has to hold on its own (43x33 and 61x47
+   here). Separately and just as costly: the first attempt used 74x58 and 103x79 cells, which at
+   the 960 framing put seven rings across a 515px floor and read as **circles lying on the sand**
+   rather than as shimmer. A field of cells is legible as a field only when the cells are small
+   enough that the eye takes the whole thing at once instead of counting them.
+
+**Two notes that are not corrections.** The cast was **drawn twice**, and the second draft is the
+transferable part: identity in a 9x10 top-down sprite lives in **rows 0 and 1 and nowhere else**.
+The first draft reasoned that a sea creature seen from above shows its whole body plan and gave
+the five genuinely different outlines top to bottom; at 12x they were five coloured blobs with two
+eyes each. Rows 6–9 are the walk machinery — `stepFrame` and `seatedFrame` rewrite the last one —
+and rows 2–5 are dominated by the eyes, so the front two rows are the only ones free to carry
+species. That is where Night Watch's hoods and the Forest's ears already were. And **this is the
+first world whose `--sp-accent` could not carry a hue**: the obvious accent for a reef is a
+translucent aqua fin, and a small bright cyan mark riding on every pawn is the one thing a world
+whose busy state is cyan may not have. The fins are bone instead. The same check caught the
+defect that nearly shipped — **the state hue a world's scenery collides with is not always the
+one the brief names.** This brief names the busy blue; what was about to go on the floor was a
+red-orange coral sitting permanently in the corner, 6deg from `--alarm`. The coral is mauve.
 
 ---
 

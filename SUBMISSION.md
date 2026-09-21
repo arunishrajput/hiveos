@@ -61,10 +61,11 @@ A deployed, public, multi-user office where:
 - An agent can **hand work to another desk** when it is a better fit — one request, two agents,
   **one bill** under a single task id, bounded to one hop
 - A **per-person spend ledger** records who spent what, and which agent ran it
-- The board can **wear a different world** — Paper Office, Night Watch or Alien Colony — swapped
-  from the title bar with no reload. Same sockets, same scheduler, same rows; re-dressed. A
-  world may never change what anything *means*, so each one's state hues are re-tuned for its own
-  surfaces and **measured at ≥4.5:1 against all eight of them**, and never reassigned
+- The board can **wear a different world** — Paper Office, Night Watch, Enchanted Forest, Reef
+  Station or Alien Colony — swapped from the title bar with no reload. Same sockets, same
+  scheduler, same rows; re-dressed. A world may never change what anything *means*, so each one's
+  state hues are re-tuned for its own surfaces and **measured at ≥4.5:1 against all eight of
+  them**, and never reassigned
 
 The scheduler, the fair queue and the enforced ceiling were the original pitch. They did not go
 anywhere — they became the governance layer *inside* the office, because a queue is a thing you

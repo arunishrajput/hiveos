@@ -20,28 +20,27 @@ This overrides anything further down in this file or in any other doc that still
 
 **The project is live again as of 2026-09-21, on user decision.** With the hackathon closed, the user is building out the world/theme phases that time ran out on. **This is the current work. "Start the next phase" means the next world phase.**
 
-**Three** worlds have shipped — **19 Night Watch**, **20 Enchanted Forest** and **22 Alien Colony** — alongside **Paper Office**, which is the Phase 12 default and is not a world phase. Five phases remain, all fully specified in `BUILD_PLAN.md` → *Phases 18–27 — the worlds*.
+**Four** worlds have shipped — **19 Night Watch**, **20 Enchanted Forest**, **21 Reef Station** and **22 Alien Colony** — alongside **Paper Office**, which is the Phase 12 default and is not a world phase. Four phases remain, all fully specified in `BUILD_PLAN.md` → *Phases 18–27 — the worlds*.
 
 **The queue, in order. Take the first one the `PROGRESS.md` phase board does not mark `COMPLETE`:**
 
 | Order | Phase | World | File |
 |---|---|---|---|
-| 1 | **21** | Reef Station | `frontend/src/worlds/underwater.css` |
-| 2 | **23** | Cloud City | `frontend/src/worlds/cloudcity.css` |
-| 3 | **24** | Arctic Base | `frontend/src/worlds/arctic.css` |
-| 4 | **25** | Desert Outpost | `frontend/src/worlds/desert.css` |
-| 5 | **26** | Ancient Ruins | `frontend/src/worlds/ruins.css` |
-| 6 | **27** | World polish + Random World | **last — it depends on every world that shipped** |
+| 1 | **23** | Cloud City | `frontend/src/worlds/cloudcity.css` |
+| 2 | **24** | Arctic Base | `frontend/src/worlds/arctic.css` |
+| 3 | **25** | Desert Outpost | `frontend/src/worlds/desert.css` |
+| 4 | **26** | Ancient Ruins | `frontend/src/worlds/ruins.css` |
+| 5 | **27** | World polish + Random World | **last — it depends on every world that shipped** |
 
 Phases 19–26 depend on 18 and on nothing else, so this order is a convention, not a constraint — the user may reorder or drop any of them. **27 genuinely runs last.** Check the phase board in `PROGRESS.md` for live status before assuming; it is the record of what actually shipped.
 
 **Before starting any world phase, read in this order:**
 
 1. `BUILD_PLAN.md` → the `## Phases 18–27` intro — the fixed scope, **the recolour test**, and **the state-legibility contract**. Both are applied at every world gate and a session will not infer them.
-2. **Phase 19's four findings, Phase 20's four and Phase 22's four**, same file — every shared-code trap found so far. Most have a fix already written in `worlds/nightsky.css`, `worlds/forest.css` or `worlds/alien.css` to copy rather than rediscover.
+2. **The four findings under each of Phases 19, 20, 21 and 22**, same file — every shared-code trap found so far. Most have a fix already written in `worlds/nightsky.css`, `worlds/forest.css`, `worlds/underwater.css` or `worlds/alien.css` to copy rather than rediscover.
 3. The brief for the phase itself, then the shared **Validation** block that every world phase must pass.
 
-**The traps that have already cost time, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed. **Paper Office is the default and must stay byte-for-byte unchanged.** A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number. **Size anything shaped on the floor off `--tile-size`, never as a floor percentage** — the floor is 516×260 at the 540 demo framing and 515×622 at 960, so a percentage radius is a different shape at each. **A continuous surface may not tile**; only fields of discrete objects may. Frontend only: no backend, no protocol, no schema, no new dependency.
+**The traps that have already cost time, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed — and **check the scenery against all four, not just the one the brief names.** **Paper Office is the default and must stay byte-for-byte unchanged.** A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number — but it usually has to **read** it, because `.worldlayer--ground` is `inset: 0` and will otherwise paint the ground onto the sky. **Size anything shaped on the floor off `--tile-size`, never as a floor percentage** — the floor is 516×260 at the 540 demo framing and 515×622 at 960, so a percentage radius is a different shape at each. **End every shaped gradient layer in `transparent`** — a `radial-gradient`'s last colour fills its whole box, not just to the radius, and hides every layer under it. **A continuous surface may not tile**; a field of discrete objects may; and a surface can be both at once, so ask which *part* of it is periodic. Frontend only: no backend, no protocol, no schema, no new dependency.
 
 ---
 

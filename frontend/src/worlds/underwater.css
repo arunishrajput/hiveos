@@ -1,0 +1,1579 @@
+/* Reef Station — the office on the seabed.
+ *
+ * The same floor, the same rooms, the same scheduler, submerged. Research
+ * domes standing on settled deck plating, sand ripples between them, kelp and
+ * coral in the corners, and everything lit from a surface far enough above
+ * that only a net of caustics and a few shafts of it ever arrive.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one is re-tuned for water and none is
+ *    reassigned. The words — `working`, `idle`, `queued #N`, `HALT`,
+ *    `WAITING AREA` — are untouched; this file contains no `content` that
+ *    carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *
+ * THE RISK THIS WORLD IS NAMED FOR, AND IT IS THE HARDEST IN THE SET. Every
+ * other world could separate its busy state from its scenery by HUE: a cyan
+ * console against navy, against moss, against regolith. Here the scenery IS
+ * blue, so hue is not available and the separation has to be made out of the
+ * two things that are:
+ *
+ *    VALUE.       Every surface in this world sits between 0.14 and 0.31.
+ *                 `--cool` is 0.94 and `--screen-on` is 0.97. Nothing that is
+ *                 not reporting is allowed above 0.35 on the floor, and the
+ *                 one thing that comes close — the caustic net — is held at
+ *                 0.075 alpha, where a lit scope glows at 0.5.
+ *
+ *    SATURATION.  The water is dark and fairly saturated; the state cyan is
+ *                 bright and MORE saturated. Everything between them — the
+ *                 caustics at 0.11, the identity palette at 0.13-0.39, the
+ *                 sprite body at 0.22 — is deliberately washed out. A pale
+ *                 blue thing on this floor is scenery; a saturated bright one
+ *                 is a desk that is spending money.
+ *
+ *    AND MOTION.  The brief asks the busy indicator to earn its separation by
+ *                 brightness AND by the flicker, and this is the one world
+ *                 where the base stylesheet's `screen-flicker` is not enough
+ *                 on its own. The sonar scope sweeps: a bearing line goes
+ *                 round the scope once every 2.6s while the desk is BUSY and
+ *                 is not there at all when it is idle. Nothing else on this
+ *                 floor turns.
+ *
+ * Measured rather than argued: `--cool` 5.47:1 · `--safe` 5.48:1 ·
+ * `--honey` 5.24:1 · `--alarm` 4.53:1, worst case each across all eight of
+ * this world's surfaces, and `--screen-on` 6.67:1 as an indicator.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="underwater"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every
+ * surface in the product including the chrome and the landing page; and the
+ * scoped rules, which re-dress the objects on the floor. A world that stopped
+ * at the first half would be a colour scheme, which is the one thing a world
+ * is not allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,3,0) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy`, `.room--busy::before` and `.desk--busy
+ * .desk__monitor` below exist for that reason as much as for the art.
+ */
+
+:root[data-world='underwater'] {
+  /* A dark room, and it says so before a single pixel is painted. The
+   * pre-paint script in index.html stamps `data-world` and replays
+   * `hiveos.world.paint` from localStorage, so this lands with the stylesheet
+   * rather than after React mounts. Inherited from Phase 19 — this world adds
+   * nothing to index.html. */
+  color-scheme: dark;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Three blues, close together, separated by hairlines rather than by
+   * contrast — the paper office's construction, inverted. `--sand` is the
+   * *raised* surface, so on dark it is the lightest of the three, and the
+   * token's name has never been more literal than it is here. */
+  --cream: #071a24;
+  --paper: #0d2632;
+  --sand: #14323f;
+
+  /* `--ink` is "the mark on the page", not "a dark colour" — so it inverts
+   * with the page and becomes the palest thing in the system. That is what
+   * keeps `--text`, the solid `.btn--ink` and every `--on` selection border
+   * correct for free. The three places the base stylesheet uses `--ink-rgb` to
+   * mean *dark* rather than *maximum contrast* — the two scrims and the
+   * chair's under-edge — are re-pointed at `--cream-rgb` below. Phase 19's
+   * finding 2, written up front rather than discovered again. */
+  --ink: #e2f2f5;
+  --rule: #22475a;
+  --rule-soft: #1a3846;
+  --rule-strong: #3c6b7d;
+
+  --dim: #adcbd4;
+  --faint: #8aa9b4;
+
+  /* Brand, still fills only, and deepened well below #ffca54 for Night Watch's
+   * two reasons: at full brightness an amber button on a near-black page is
+   * the loudest thing on the board, and the quota strip has to stay the
+   * loudest thing on the board; and it buys the value headroom `--honey` needs
+   * below. Its dark label clears at 9.23:1.
+   *
+   * Amber does one more job in this world than in any other: it is the only
+   * warm colour in the chrome, so it is also the eye's reference for "this is
+   * not blue". Every judgement about the cyan is made against it. */
+  --amber: #e2ac36;
+  --amber-deep: #c9962c;
+  --on-amber: #12100a;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Lifted until each one carries a word underwater. Measured against all
+   * eight of this world's surfaces, worst case 4.53:1 — the table is in
+   * PROGRESS.md.
+   *
+   * COOL vs THE WHOLE WORLD. This world's own problem, and the one its brief
+   * names. See the note at the top of the file: value 0.94 against surfaces at
+   * 0.14-0.31, saturation 0.74 against a caustic net at 0.11, and a sweep
+   * line that turns. Hue is not part of the argument and cannot be.
+   *
+   * COOL vs SAFE. Still held apart — 189.8deg against 142.7deg, a 47.1deg gap
+   * where the paper office has 43deg — because the busy cyan and the budget
+   * jade are the two bright saturated marks a reader has to tell apart at a
+   * glance, and a blue world makes the cyan half of that pair more common, not
+   * less.
+   *
+   * HONEY vs AMBER. Phase 19's finding 4: on a dark ground "darker" is not
+   * available, so a text-weight warn hue has to come *up*, which is where the
+   * brand amber already sits. The separation moves to hue — honey an orange at
+   * 25.9deg, amber a yellow at 41.2deg, 15.2deg apart where the paper office
+   * has 5.4deg. The guarantee underneath is the one that actually holds: amber
+   * is only ever a filled rectangle with dark text on it, honey is only ever a
+   * word.
+   *
+   * ALARM is a shade paler than the other worlds' and that was forced rather
+   * than chosen: the plating is the lightest thing on this floor, and a
+   * fully-saturated coral could not clear 4.5:1 against it. Held at 18.6deg
+   * from honey, which is the gap the last two dark worlds shipped. */
+  --cool: #3fd3f0;
+  --safe: #4fdb84;
+  --honey: #ffab6b;
+  --alarm: #ff9384;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 226, 242, 245;
+  --cream-rgb: 7, 26, 36;
+  --paper-rgb: 13, 38, 50;
+  --amber-rgb: 226, 172, 54;
+  --cool-rgb: 63, 211, 240;
+  --alarm-rgb: 255, 147, 132;
+
+  /* The quota strip's empty track. */
+  --tick: #10323f;
+
+  /* --- The seabed -------------------------------------------------------- *
+   *
+   * Sand, with the station's deck plating settled into it. `--tile` is the
+   * plating, which is Phase 22's finding 4 taken at its word: the token means
+   * "the other ground colour", not "lighter than the floor" — a crater was
+   * darker than its regolith, and machined plate is greyer and a shade lighter
+   * than the sand drifted over it. */
+  --floor: #283c44;
+  --tile: #2d4850;
+  /* Inside a dome: a dry deck, a shade above the seabed outside. */
+  --room-floor: #2a454e;
+  /* The wash a lit porthole throws down the dome's deck, and the only place a
+   * dome takes a hue. Note that it is the same VALUE as the idle deck and half
+   * again its saturation — on this floor, "lit" is not "lighter". */
+  --room-floor-busy: #163d50;
+
+  /* Console pods. Machined housing rather than laminate. */
+  --desk: #3f5f6b;
+  --desk-edge: #14303a;
+  --desk-edge-rgb: 20, 48, 58;
+  --desk-top: #52757f;
+
+  /* The handoff is a sealed capsule in this world, so `--envelope-edge` stops
+   * being a hairline around a piece of paper and becomes the capsule's own rim
+   * and seal band. Same token, same rules in the base stylesheet, a different
+   * object — which is the whole reason these are named for the thing and not
+   * for the colour. */
+  --envelope-edge: #7fb8c4;
+  --envelope-contact-rgb: 0, 8, 12;
+
+  /* A dark sonar scope, and a woken one. The woken value keeps the extra
+   * brightness `--cool` gives up to stay legible as text — a light source is
+   * not a label, and the two have to read as the same hue at different
+   * weights. 3.9deg apart in hue, and it should stay that way. */
+  --screen-off: #12313c;
+  --screen-on: #5ee8f7;
+  --screen-on-rgb: 94, 232, 247;
+
+  /* The kelp. An OLIVE, not a sea-green, and that is the single most
+   * load-bearing value in this half of the file. Real kelp is olive-brown, so
+   * this is the true colour as well as the safe one: at hue 74.1deg it sits
+   * 68.7deg from the budget jade at 142.7deg, where a plausible blue-green
+   * kelp would have landed inside 10deg of it. The paper office keeps
+   * `--foliage` muted away from the jade for exactly this reason; a reef makes
+   * the collision easier to cause and easier to miss. */
+  --foliage: #6b7a3a;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become a
+   * riveted chart and a water cooler become an air tank without the token
+   * names going wrong. */
+  --mug: #9fbcc4; /* the sample canister on the pod */
+  --board-face: #123544; /* the chart's own ground */
+  --board-frame: #4e7180; /* the hull plate it is riveted to */
+  --bottle: #93a8ad; /* the tanks */
+  --bottle-base: #5f7278;
+  --cooler-body: #46626d; /* the cradle they sit in */
+  --glass-sky: #bfe6ee; /* bright water seen through a porthole */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The scale colour is per-character and arrives inline from `lookFor`; these
+   * are the four layers every animal on the reef shares. See REEF in worlds.js
+   * for the art the letters map onto.
+   *
+   * `--sp-shirt` is the hind body, measured rather than picked: 4.91:1 on the
+   * seabed, 4.34:1 on a dome's deck and 4.15:1 on the plating, while staying
+   * at value 0.72 against the palest scales' 0.82 and the darkest's 0.75 — so
+   * identity still reads from the front of the animal, which for a creature
+   * seen from above is where its outline is.
+   *
+   * `--sp-accent` IS THE ONE VALUE IN THIS FILE THAT IS NOT WHAT THE PATTERN
+   * WOULD PREDICT. Every world before this gave the accent layer a hue — a
+   * warm headlamp, a warm ear, a violet antenna — and the obvious accent for a
+   * reef is a translucent aqua fin. It may not be one. A small bright cyan
+   * mark riding on every pawn is exactly the thing this world spends its whole
+   * stylesheet insisting does not exist: down here, cyan means a desk is
+   * spending the budget, and nothing else is allowed to be it. So the fins are
+   * bone — the colour of a fin ray, which is what you actually see when the
+   * light comes through one — at 34.1deg, equidistant between honey at 25.9
+   * and amber at 41.2, and held at 0.25 saturation against their 0.58 and
+   * 0.76. It is also this world's ambient warmth on the cast, which is the
+   * other thing it had to be. */
+  --sp-skin: #d9e3e2;
+  --sp-shirt: #90aeb8;
+  --sp-accent: #e8cfae;
+  --sp-detail: #07161c;
+
+  /* Structure. The wall band is the water column and the trim is the hull
+   * plate that the domes, the doorway jambs and the two wall fixtures share. */
+  --wall: #1b4a60;
+  --wall-trim: #4a7382;
+  --rug: #223f49; /* the current channel the queue waits in */
+  --rug-edge-rgb: 140, 186, 196;
+  --chair: #4a6f7b; /* the moulded pod seat */
+  --glass: #2a5a6a; /* the far end of a porthole's water */
+
+  /* Shadows go black-blue rather than brown, and harder: a 0.22 shadow that
+   * reads on cream is invisible at forty metres down. */
+  --shadow-rgb: 0, 10, 16;
+  --shadow: rgba(var(--shadow-rgb), 0.5);
+  /* Deliberately a different blue from `--shadow`. Underwater the vignette is
+   * not a stylistic choice — visibility genuinely falls off with distance, and
+   * this is the only world where the darkening at the edge of the floor is
+   * describing something real. */
+  --vignette-rgb: 3, 16, 24;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a pale button with dark text here, so its hover settles
+   * *down* rather than lifting. */
+  --ink-hover: #cbe0e4;
+  --engage-flash: #14404f;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because a water column,
+   * a caustic net, a sand ripple, a deck plate, a mooring ring and a sealed
+   * capsule are objects the paper office does not have, and inventing a shared
+   * token for them would put Paper Office's stylesheet in the business of
+   * describing a world it is not.
+   */
+  --water-lit: #2e6d87; /* the column, high up and nearer the surface */
+  --water-deep: #0c2a39; /* and at its foot, where it meets the sand */
+  --water-rgb: 44, 110, 138; /* the haze standing in it */
+  --ridge: #10303e; /* the reef going on away from us, in silhouette */
+  --plate: #2b4a58; /* the hull plate the viewports are cut into */
+  /* Every ray of surface light in this world: the shafts in the column, the
+   * caustics on the sand, the pool the daylight fixture throws and the water
+   * beyond a porthole. Near-white on purpose — at 0.11 saturation against
+   * `--cool`'s 0.74, the one thing it can never be mistaken for is a state. */
+  --surface-rgb: 216, 236, 242;
+  --ripple-rgb: 132, 164, 172; /* the lit crest of a sand ripple */
+  --silt-rgb: 8, 24, 32; /* the trough behind it, and deep shade under things */
+  --seam-rgb: 10, 30, 39; /* the joint between two deck plates */
+  --hull-rgb: 74, 115, 130; /* the plate itself, for the light along its edge */
+  --hull-lit: #5d8a99;
+  --rivet: #78a0ad;
+  --porthole-rim: #6d939f;
+  --kelp-dark: #4c5a2a;
+  --kelp-rgb: 76, 90, 42; /* the same olive, for the fringe along the channel */
+  /* Coral, and it is MAUVE for a reason that has nothing to do with taste.
+   * The obvious coral is red-orange, and red-orange on this floor is
+   * `--alarm` — a soft over-budget-coloured shape sitting permanently in the
+   * corner of a board whose whole job is to tell you when you have gone over
+   * budget. Reef corals are purple about as often as they are red; this one
+   * has to be. 80.4deg from `--alarm`, at half its saturation. */
+  --coral: #9e7aa8;
+  --coral-pale: #c3a6cb;
+  --rock: #2f4249; /* holdfasts, and the rubble on the sand */
+  /* The station's own work lamps, inside each dome and over each doorway.
+   * Ambient, and they report nothing. */
+  --lamp: #ffcf94;
+  --lamp-dim: #c98f45;
+  --lamp-rgb: 255, 207, 148;
+  --bubble-rgb: 214, 244, 250;
+  --mooring: #7f9ea8; /* the plates set into the current channel */
+  --scope-ring: #3a6675; /* the range rings etched on a dark scope */
+  --capsule: #d3e4e6; /* the handoff, and see the note at the bottom */
+  --capsule-lit: #eaf3f4;
+  /* The dive slate on a pod and the chart's own sheet. `--paper` is the
+   * *panel* surface and has gone dark with the rest of the chrome, so anything
+   * that has to read as a pale sheet needs its own token — Phase 19's
+   * finding 3. */
+  --sheet: #d7e4e2;
+  --chalk-rgb: 200, 226, 232; /* the lines drawn on the chart */
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. The paper office's recipe is a wall band over two
+ * offset 45deg checkers; this is a water column over sand ripples with the
+ * station's deck plating settled underneath them.
+ *
+ * TWO TEXTURES, AND THEY FOLLOW OPPOSITE RULES — which is the clearest example
+ * so far of the distinction Phase 20 had to draw the hard way.
+ *
+ *   DECK PLATING MAY TILE, and should. It is a manufactured surface made of
+ *   discrete identical panels; regularity is the whole point of it, and a grid
+ *   here reads as engineering rather than as a rendering artefact. It is tied
+ *   to `--tile-size` so the plates grow with the room, exactly as the checker
+ *   field they replace did.
+ *
+ *   SAND RIPPLES ARE A PERIODIC STRUCTURE IN A CONTINUOUS SURFACE, which is a
+ *   case neither of the first three worlds had. Moss could not tile at all;
+ *   a star field and a crater field could. Ripples are both: the ripples
+ *   themselves are periodic — that is what makes them ripples — while the sand
+ *   they are cut into is a continuous variation that must not be. So the
+ *   ripples are two repeating fields at 4deg and 176deg with periods sharing
+ *   no useful factor, which beat against each other the way two swell
+ *   directions actually do, and the colour of the sand is four large
+ *   non-repeating drifts laid over them.
+ *
+ * The column's two layers are opaque and first in the list, so everything
+ * below them stops at the band — the same trick the base file uses, and the
+ * reason neither needs a mask.
+ */
+:root[data-world='underwater'] .floor {
+  background-image:
+    /* the haze line where the column meets the sand */
+    linear-gradient(transparent 0 calc(100% - 1px), var(--wall-trim) calc(100% - 1px) 100%),
+    /* the water column, brightest at the top where the surface is */
+      linear-gradient(var(--water-lit), var(--wall) 52%, var(--water-deep)),
+    /* ripple crests, and their troughs 8deg off them */
+      repeating-linear-gradient(
+        4deg,
+        rgba(var(--ripple-rgb), 0.085) 0 calc(var(--tile-size) * 0.09),
+        transparent calc(var(--tile-size) * 0.09) calc(var(--tile-size) * 0.39)
+      ),
+    repeating-linear-gradient(
+      176deg,
+      rgba(var(--silt-rgb), 0.18) 0 calc(var(--tile-size) * 0.11),
+      transparent calc(var(--tile-size) * 0.11) calc(var(--tile-size) * 0.545)
+    ),
+    /* Sand, as four large irregular drifts that DO NOT TILE. Sized off
+       `--tile-size` rather than as floor percentages, because the floor is
+       516x260 at the 540 framing and 515x622 at 960 — Phase 20's finding 2,
+       which every shaped thing on this floor obeys. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.1) calc(var(--tile-size) * 1.1) at 21% 36%,
+        rgba(var(--ripple-rgb), 0.1),
+        rgba(var(--ripple-rgb), 0) 72%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 1.7) at 71% 27%,
+      rgba(var(--ripple-rgb), 0.075),
+      rgba(var(--ripple-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.8) calc(var(--tile-size) * 0.95) at 39% 84%,
+      rgba(var(--silt-rgb), 0.3),
+      rgba(var(--silt-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.2) calc(var(--tile-size) * 1.4) at 88% 64%,
+      rgba(var(--silt-rgb), 0.26),
+      rgba(var(--silt-rgb), 0) 74%
+    ),
+    /* the plating, one joint per tile in each direction, each a dark seam with
+       a lit lip on its far side so a plate reads as laid rather than drawn */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--seam-rgb), 0.55) 0 1px,
+        rgba(var(--ripple-rgb), 0.06) 1px 2px,
+        transparent 2px var(--tile-size)
+      ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(var(--seam-rgb), 0.55) 0 1px,
+      rgba(var(--ripple-rgb), 0.06) 1px 2px,
+      transparent 2px var(--tile-size)
+    );
+  background-size:
+    100% var(--walk-top),
+    100% var(--walk-top),
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat: no-repeat;
+  background-color: var(--floor);
+  /* The deepest vignette of the four worlds, and the only one that is
+   * describing a real effect rather than composing a picture: underwater you
+   * genuinely cannot see to the edge of a room. */
+  box-shadow: inset 0 0 68px 18px rgba(var(--vignette-rgb), 0.62);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * The water column: four shafts of surface light coming down through it.
+ *
+ * Irregular in width, position and strength, because a regular set of beams is
+ * a lighting rig rather than the sea. Each takes its width in px and its
+ * height from `--walk-top`, which is what confines all four to the band
+ * without a mask.
+ *
+ * The widest and strongest sits at x 12%, directly above `.fixture--daylight`
+ * at (17%, 46%), so the pool of light on the sand reads as the foot of a shaft
+ * rather than as a puddle nobody lit.
+ */
+:root[data-world='underwater'] .worldlayer--sky {
+  background-image:
+    linear-gradient(
+      98deg,
+      rgba(var(--surface-rgb), 0) 0 24%,
+      rgba(var(--surface-rgb), 0.1) 50%,
+      rgba(var(--surface-rgb), 0) 76%
+    ),
+    linear-gradient(
+      94deg,
+      rgba(var(--surface-rgb), 0) 0 28%,
+      rgba(var(--surface-rgb), 0.06) 50%,
+      rgba(var(--surface-rgb), 0) 72%
+    ),
+    linear-gradient(
+      101deg,
+      rgba(var(--surface-rgb), 0) 0 26%,
+      rgba(var(--surface-rgb), 0.075) 50%,
+      rgba(var(--surface-rgb), 0) 74%
+    ),
+    linear-gradient(
+      96deg,
+      rgba(var(--surface-rgb), 0) 0 30%,
+      rgba(var(--surface-rgb), 0.05) 50%,
+      rgba(var(--surface-rgb), 0) 70%
+    );
+  background-size:
+    84px var(--walk-top),
+    46px var(--walk-top),
+    62px var(--walk-top),
+    38px var(--walk-top);
+  background-position:
+    left 12% top 0,
+    left 34% top 0,
+    left 63% top 0,
+    left 88% top 0;
+  background-repeat: no-repeat;
+}
+
+/* The reef going on away from us, in silhouette at the foot of the column,
+ * with the haze that always stands between you and it.
+ *
+ * Four humps at irregular widths and heights. This is the depth cue the band
+ * carries in every world — the paper office has a back wall, Night Watch a
+ * star field, the Forest a treeline — and it is what stops the floor reading
+ * as a card with furniture on it. */
+:root[data-world='underwater'] .worldlayer--sky::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: var(--walk-top);
+  background-image:
+    radial-gradient(ellipse 50% 100% at 50% 100%, var(--ridge) 0 74%, transparent 78%),
+    radial-gradient(ellipse 50% 100% at 50% 100%, var(--ridge) 0 72%, transparent 76%),
+    radial-gradient(ellipse 50% 100% at 50% 100%, var(--ridge) 0 76%, transparent 80%),
+    radial-gradient(ellipse 50% 100% at 50% 100%, var(--ridge) 0 70%, transparent 74%),
+    linear-gradient(to top, rgba(var(--water-rgb), 0.24), rgba(var(--water-rgb), 0));
+  background-size:
+    72px calc(var(--walk-top) * 0.46),
+    118px calc(var(--walk-top) * 0.3),
+    54px calc(var(--walk-top) * 0.6),
+    142px calc(var(--walk-top) * 0.24),
+    100% 56%;
+  background-position:
+    left 7% bottom 0,
+    left 33% bottom 0,
+    left 71% bottom 0,
+    left 95% bottom 0,
+    left 0 bottom 0;
+  background-repeat: no-repeat;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * Caustics: the shifting net of surface light on the sand, and the first
+ * continuous motion in any of the four worlds.
+ *
+ * TWO DRIFTING FIELDS, AND THE MOTION IS PART OF THE ANSWER TO THE LATTICE
+ * PROBLEM RATHER THAN A DECORATION ON TOP OF IT. Phase 19 and 22 fixed a
+ * visible grid by beating two tile sizes against each other; Phase 20 found
+ * that a continuous surface cannot be tiled at all. A caustic net is the third
+ * case and it has an option neither of them had: it moves. Two fields drifting
+ * at different speeds in different directions never present the same
+ * arrangement twice, so the periodicity that would give a static layer away
+ * has nothing to lock onto.
+ *
+ * It still has to survive being stopped, because `prefers-reduced-motion:
+ * reduce` takes exactly that away — so the two tile sizes are 43x33 and 61x47,
+ * which share no useful factor and hold up as a static pair. The motion makes
+ * it better; it is not what makes it work.
+ *
+ * SMALL CELLS, and a first attempt at 74x58 and 103x79 was wrong for a reason
+ * worth keeping: at the 960 framing the floor is only 515px wide, so a 74px
+ * cell put seven rings across it and the layer read as a row of large circles
+ * lying on the sand rather than as shimmer. A caustic net is legible as a net
+ * only when the cells are small enough that the eye takes the whole field at
+ * once instead of counting the rings in it.
+ *
+ * Rings rather than discs, because a caustic net is made of bright edges with
+ * dim middles, and overlapping rings are the cheapest thing that reads as one.
+ *
+ * Above the sand and below the domes, which is where surface light lands.
+ *
+ * AND ONLY ON THE SAND. The slot is `inset: 0` in the base stylesheet, which
+ * in Paper Office is right because nothing is painted into it; here it put a
+ * net of caustic rings across the water column, where there is no surface for
+ * light to land on and the rings read as a rendering artefact floating in
+ * mid-water. The top is pulled down to `--walk-top` — the same number the
+ * floor paints the column from and the walk math uses, taken and never set.
+ */
+:root[data-world='underwater'] .worldlayer--ground {
+  top: var(--walk-top);
+  overflow: hidden;
+  /* Rubble on the sand: six rocks, non-repeating.
+   *
+   * Positioned in THIS SLOT's coordinates, which since the inset above are no
+   * longer the floor's — the layer starts at `--walk-top`, so a y here is
+   * `(floor_y - 14) / 0.86`. They are placed so the floor positions land in
+   * the left margin, the right margin and the corridor, clear of both domes,
+   * both open desks, the current channel and both plants: nothing decorative
+   * may sit where a state is being reported. */
+  background-image:
+    /* corridor, high — floor (47, 18) */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.17) calc(var(--tile-size) * 0.11) at 47% 4.7%,
+      var(--rock) 0 62%,
+      transparent 68%
+    ),
+    /* corridor, level with the doors — floor (53, 45) */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.12) calc(var(--tile-size) * 0.09) at 53% 36%,
+        var(--rock) 0 60%,
+        transparent 66%
+      ),
+    /* left margin — floor (3, 32) and (2, 52) */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.14) calc(var(--tile-size) * 0.1) at 3% 20.9%,
+        var(--rock) 0 62%,
+        transparent 68%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.11) calc(var(--tile-size) * 0.08) at 2% 44.2%,
+      var(--rock) 0 60%,
+      transparent 66%
+    ),
+    /* right margin — floor (98, 20) and (97, 40) */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.2) calc(var(--tile-size) * 0.12) at 98% 7%,
+        var(--rock) 0 64%,
+        transparent 70%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.15) calc(var(--tile-size) * 0.1) at 97% 30.2%,
+      var(--rock) 0 62%,
+      transparent 68%
+    );
+  background-repeat: no-repeat;
+}
+
+:root[data-world='underwater'] .worldlayer--ground::before,
+:root[data-world='underwater'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  /* Wider and taller than the floor, so a diagonal drift never reaches an edge
+   * on either axis. */
+  inset: -70% -55%;
+}
+
+:root[data-world='underwater'] .worldlayer--ground::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--surface-rgb), 0) 0 32%,
+    rgba(var(--surface-rgb), 0.07) 42%,
+    rgba(var(--surface-rgb), 0) 54%
+  );
+  background-size: 43px 33px;
+}
+
+:root[data-world='underwater'] .worldlayer--ground::after {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--surface-rgb), 0) 0 36%,
+    rgba(var(--surface-rgb), 0.05) 46%,
+    rgba(var(--surface-rgb), 0) 58%
+  );
+  background-size: 61px 47px;
+  background-position: 19px 11px;
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Bubbles, rising. Faint by a wide margin: this layer sits above every pawn,
+ * and anything strong enough to notice would be strong enough to sit on
+ * somebody's name label.
+ *
+ * Hollow rather than solid, which is one extra colour stop and the difference
+ * between a bubble and a speck. Two fields at tile sizes sharing no useful
+ * factor, rising at different speeds, for the reason the Forest's spores and
+ * Night Watch's motes are two fields: one lattice over a textured floor looks
+ * like a bug.
+ *
+ * Straight up, where the Forest's spores drift diagonally and the colony's
+ * dust blows sideways. A bubble does exactly one thing.
+ */
+:root[data-world='underwater'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='underwater'] .worldlayer--air::before,
+:root[data-world='underwater'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Tall enough that a full tile of vertical travel never exposes an edge. */
+  inset: -90% -20%;
+}
+
+:root[data-world='underwater'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--bubble-rgb), 0) 0 0.5px,
+    rgba(var(--bubble-rgb), 0.16) 0.5px 1.1px,
+    rgba(var(--bubble-rgb), 0) 1.5px
+  );
+  background-size: 97px 83px;
+}
+
+:root[data-world='underwater'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--bubble-rgb), 0) 0 0.7px,
+    rgba(var(--bubble-rgb), 0.1) 0.7px 1.4px,
+    rgba(var(--bubble-rgb), 0) 1.9px
+  );
+  background-size: 61px 127px;
+  background-position: 19px 37px;
+}
+
+/* All four of this world's animations live here, and nowhere else. A reader
+ * who asked for less motion gets a still reef: the caustics stop as a static
+ * net, the bubbles stop as a field of specks, and the sonar sweep stops as a
+ * bearing line drawn on the scope. Every one of those is a legible resting
+ * state, which is the bar a world with continuous motion in it has to clear. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='underwater'] .worldlayer--ground::before {
+    animation: reef-caustic-far 48s linear infinite;
+  }
+
+  :root[data-world='underwater'] .worldlayer--ground::after {
+    animation: reef-caustic-near 31s linear infinite;
+  }
+
+  :root[data-world='underwater'] .worldlayer--air::before {
+    animation: reef-bubbles-far 47s linear infinite;
+  }
+
+  :root[data-world='underwater'] .worldlayer--air::after {
+    animation: reef-bubbles-near 22s linear infinite;
+  }
+
+  /* Each translate is exactly one tile of its own field, which is what makes
+   * the loop seamless. */
+  @keyframes reef-caustic-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(43px, 33px, 0);
+    }
+  }
+
+  @keyframes reef-caustic-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-61px, 47px, 0);
+    }
+  }
+
+  @keyframes reef-bubbles-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(0, -83px, 0);
+    }
+  }
+
+  @keyframes reef-bubbles-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(0, -127px, 0);
+    }
+  }
+
+  /* The sweep. See `.desk__monitor::after` below for why this is the one piece
+   * of motion in this world that is allowed to mean something. */
+  :root[data-world='underwater'] .desk--busy .desk__monitor::after {
+    animation: reef-sweep 2.6s linear infinite;
+  }
+
+  @keyframes reef-sweep {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/* --- Research domes --------------------------------------------------------
+ *
+ * The project rooms become pressurised domes standing on the plating, with the
+ * hull's meridian ribs running across them and the surface light caught along
+ * the top of the shell.
+ *
+ * Rounded where the office rooms are squared and the colony's modules are
+ * squarer still — a pressure vessel has no corners, because a corner is where
+ * it would fail. The radii are in PX rather than percentages: this box is
+ * 175x125 at the 540 framing and 175x299 at 960, so a percentage radius is a
+ * different shape at each, which is Phase 20's finding 2 applied to a room
+ * instead of to the floor.
+ *
+ * The border stays 2px and keeps the base geometry. Hull thickness comes from
+ * an inset ring instead, which costs nothing and keeps the room's padding box —
+ * and therefore where DESK_IN_ROOM puts the pod — identical to every other
+ * world.
+ */
+:root[data-world='underwater'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* the work lamp's pool on the deck — warm, ambient, and meaning nothing */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.95) calc(var(--tile-size) * 0.66) at 78% 16%,
+      rgba(var(--lamp-rgb), 0.08),
+      rgba(var(--lamp-rgb), 0) 74%
+    ),
+    /* surface light caught along the shoulder of the shell */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2) calc(var(--tile-size) * 0.7) at 50% 0%,
+        rgba(var(--surface-rgb), 0.07),
+        rgba(var(--surface-rgb), 0) 76%
+      ),
+    /* the hull's ribs */
+      repeating-linear-gradient(90deg, rgba(var(--seam-rgb), 0.3) 0 1px, transparent 1px 9px);
+  border-radius: 12px 12px 22px 22px;
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--hull-rgb), 0.5),
+    inset 0 0 22px 7px rgba(var(--vignette-rgb), 0.4);
+}
+
+/* The hatch: a gap in the hull with the plating running through it, so the way
+ * in and the way across the station are visibly the same deck. The jambs are
+ * the base rule's and stay `--wall-trim`, which is the hull colour here. */
+:root[data-world='underwater'] .room__door {
+  background: var(--tile);
+}
+
+/* The lamp over the hatch, throwing a little warm light into the corridor.
+ * Ambient; it is on whether anyone is working or not. `.room__door` has no
+ * pseudo-element in the base stylesheet, so this is free. */
+:root[data-world='underwater'] .room__door::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 1px;
+  transform: translateX(-50%);
+  width: calc(10px * var(--furn));
+  height: calc(4px * var(--furn));
+  border-radius: 0 0 50% 50%;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(var(--lamp-rgb), 0.3),
+    rgba(var(--lamp-rgb), 0) 72%
+  );
+}
+
+/* The porthole, and THIS IS THE STATE EXPRESSION WHOSE FORM THIS WORLD
+ * CHANGES.
+ *
+ * Paper Office announces a working room by tinting its floor. A bay lights its
+ * dome from the roof; a module lights its antenna array; a hollow glows from
+ * inside. A dome announces it by LIGHTING ITS PORTHOLE — one hard-edged bright
+ * disc on the shell facing the corridor, which is the single loudest thing
+ * this world can do at 540px because it is small, round and much brighter than
+ * anything else on the floor. Same `--cool` token, same label text.
+ *
+ * Low and to the left, below the pod and beside the hatch, so it is never
+ * behind the desk stack or the nameplate under it.
+ *
+ * Dark glass when idle, with one faint warm glint off the interior lamp — a
+ * porthole with nothing in it at all reads as a hole in the hull. */
+:root[data-world='underwater'] .room::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  top: 70%;
+  width: calc(10px * var(--furn));
+  height: calc(10px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 36%, rgba(var(--lamp-rgb), 0.22), var(--screen-off) 62%);
+  box-shadow:
+    inset 0 0 0 2px var(--porthole-rim),
+    0 1px 3px var(--shadow);
+}
+
+/* The work lamp itself, high on the other side of the dome. Deliberately NOT
+ * restated under `.room--busy` — a lamp that changed when the agent started
+ * working would be a second status light, and this world's whole argument is
+ * that there is exactly one. */
+:root[data-world='underwater'] .room::after {
+  content: '';
+  position: absolute;
+  right: 13%;
+  top: 11%;
+  width: calc(6px * var(--furn));
+  height: calc(6px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, var(--lamp) 0 44%, var(--lamp-dim) 80%);
+  box-shadow:
+    0 0 6px 2px rgba(var(--lamp-rgb), 0.18),
+    0 0 14px 6px rgba(var(--lamp-rgb), 0.07);
+}
+
+/* BUSY. The deck takes the porthole's wash and the hull's rim goes cool.
+ *
+ * Restated at this specificity on purpose: the `.room` rule above is (0,3,0)
+ * and the base `.room--busy` is (0,2,0), so without this the dome would keep
+ * its idle deck while BUSY and the whole beat would vanish.
+ *
+ * Note that the busy deck is the same VALUE as the idle one and half again its
+ * saturation. On a cream floor "lit" means "lighter"; forty metres down it
+ * means the colour gets stronger, and trying to make the deck brighter as well
+ * would have spent the brightness the porthole and the scope need. */
+:root[data-world='underwater'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.4) calc(var(--tile-size) * 1.1) at 12% 70%,
+      rgba(var(--cool-rgb), 0.26),
+      rgba(var(--cool-rgb), 0) 76%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.95) calc(var(--tile-size) * 0.66) at 78% 16%,
+      rgba(var(--lamp-rgb), 0.07),
+      rgba(var(--lamp-rgb), 0) 74%
+    ),
+    repeating-linear-gradient(90deg, rgba(var(--seam-rgb), 0.26) 0 1px, transparent 1px 9px);
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cool-rgb), 0.24),
+    inset 0 0 22px 7px rgba(var(--vignette-rgb), 0.22);
+}
+
+/* And the porthole lights. Same specificity as `.room::before` above, so this
+ * has to come after it in source order — which it does. */
+:root[data-world='underwater'] .room--busy::before {
+  background: radial-gradient(circle at 42% 36%, var(--screen-on) 0 44%, var(--cool) 78%);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--surface-rgb), 0.35),
+    0 0 10px 3px rgba(var(--cool-rgb), 0.5),
+    0 0 22px 9px rgba(var(--cool-rgb), 0.22);
+}
+
+/* --- Console pods ----------------------------------------------------------
+ *
+ * The desk becomes a sealed console pod and the monitor becomes a sonar scope:
+ * a round screen, dark and etched with range rings when nothing is running.
+ *
+ * The scope is round where every other world's screen is a rectangle, which
+ * costs it about a quarter of the monitor's footprint — paid for by the glow,
+ * which is stronger here than in any world so far, and by the sweep.
+ */
+:root[data-world='underwater'] .desk__surface {
+  border-radius: 4px 4px 13px 13px;
+  background-image:
+    /* the pod's panel seams */
+    repeating-linear-gradient(90deg, rgba(var(--seam-rgb), 0.28) 0 1px, transparent 1px 11px),
+    linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.1),
+    inset 0 -4px 0 0 var(--desk-edge),
+    0 4px 7px var(--shadow);
+}
+
+:root[data-world='underwater'] .desk__monitor {
+  position: relative;
+  width: calc(26px * var(--furn));
+  /* HEIGHT UNCHANGED AT 20px, and only the width moves. `.desk` is a centred
+   * flex column, so a scope one pixel taller than the base monitor shifts the
+   * whole stack — and therefore the nameplate under it — half that far up. It
+   * measured as a 1.5px drift against Paper Office at the wide framing, which
+   * is nothing to look at and still a layout difference between worlds that
+   * this file has no reason to introduce. */
+  height: calc(20px * var(--furn));
+  border-radius: 50%;
+  /* So the sweep below is clipped to the scope's own circle. Outer box-shadow
+   * is unaffected by this — the glow still spills onto the pod. */
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 2px 4px 0 rgba(var(--silt-rgb), 0.55);
+}
+
+/* The range rings and the bearing cross, etched on the glass. Present whether
+ * the scope is lit or not, because they are painted on it. */
+:root[data-world='underwater'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-image:
+    radial-gradient(circle at 50% 50%, transparent 0 29%, var(--scope-ring) 29% 32%, transparent 33%),
+    radial-gradient(circle at 50% 50%, transparent 0 58%, var(--scope-ring) 58% 61%, transparent 62%),
+    linear-gradient(90deg, transparent 0 49%, var(--scope-ring) 49% 51%, transparent 52%),
+    linear-gradient(0deg, transparent 0 49%, var(--scope-ring) 49% 51%, transparent 52%);
+}
+
+/* The sweep.
+ *
+ * Hidden entirely while the desk is idle, which is the point: this is the one
+ * moving thing on the whole floor, and the brief asks the busy state to earn
+ * its separation by brightness AND by motion in the world where hue cannot
+ * help. A rotating bearing line is not decoration here — it is the second half
+ * of the indicator, and it is the only motion in this file that is allowed to
+ * report anything.
+ *
+ * Under `prefers-reduced-motion: reduce` it stops at 0deg and reads as a
+ * bearing line drawn on a lit scope, which still says BUSY.
+ */
+:root[data-world='underwater'] .desk__monitor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0;
+  background: conic-gradient(
+    from 0deg,
+    rgba(var(--screen-on-rgb), 0.8),
+    rgba(var(--screen-on-rgb), 0) 44deg
+  );
+}
+
+/* The scope wakes. Restated at this specificity for the `.room--busy` reason,
+ * and re-tuned besides: the base alphas are deliberately strong because a glow
+ * has to fight a cream floor. Against a dark seabed a glow is additive and
+ * barely has to try — but it is held HIGHER here than in either of the other
+ * dark worlds, because this is the one where the floor is the same colour as
+ * the light. */
+:root[data-world='underwater'] .desk--busy .desk__monitor {
+  background: var(--screen-on);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    0 0 14px 3px rgba(var(--screen-on-rgb), 0.5),
+    0 9px 28px 9px rgba(var(--screen-on-rgb), 0.24);
+}
+
+/* The etched rings become dark lines on a lit face, which is what a sonar
+ * scope actually looks like when it is on. */
+:root[data-world='underwater'] .desk--busy .desk__monitor::before {
+  background-image:
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 29%,
+      rgba(var(--silt-rgb), 0.45) 29% 32%,
+      transparent 33%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 58%,
+      rgba(var(--silt-rgb), 0.45) 58% 61%,
+      transparent 62%
+    ),
+    linear-gradient(90deg, transparent 0 49%, rgba(var(--silt-rgb), 0.4) 49% 51%, transparent 52%),
+    linear-gradient(0deg, transparent 0 49%, rgba(var(--silt-rgb), 0.4) 49% 51%, transparent 52%);
+}
+
+:root[data-world='underwater'] .desk--busy .desk__monitor::after {
+  opacity: 1;
+}
+
+/* The sample canister, where the mug was. */
+:root[data-world='underwater'] .desk__surface::before {
+  border-radius: 50%;
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--silt-rgb), 0.35);
+}
+
+/* A dive slate, where the loose paper was. Its own pale token rather than
+ * `--paper`, which is the panel surface and has gone dark. */
+:root[data-world='underwater'] .desk__surface::after {
+  background: var(--sheet);
+  box-shadow: 0 0 0 1px rgba(var(--desk-edge-rgb), 0.55);
+}
+
+/* A sealed control panel with two keys on it, where the keyboard was. */
+:root[data-world='underwater'] .desk__keyboard {
+  height: calc(6px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--desk-edge);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 22%,
+    var(--mooring) 22% 30%,
+    transparent 30% 44%,
+    var(--mooring) 44% 52%,
+    transparent 52%
+  );
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.06);
+}
+
+/* The stool becomes a moulded pod seat: a round pan on a stem, seen from
+ * above.
+ *
+ * Height unchanged at 18px so the pod stack — and therefore where the
+ * nameplate lands under it — is exactly where every other world puts it.
+ *
+ * The base rule shades the near edge with `rgba(--ink-rgb, 0.32)`, which means
+ * "a dark line" and would come out pale here, because `--ink` is the palest
+ * thing in this world. Re-pointed at the page ground, which is what it
+ * actually wanted. Phase 19's finding 2, third of three. */
+:root[data-world='underwater'] .desk__chair {
+  width: calc(19px * var(--furn));
+  height: calc(18px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 48% 42%, var(--chair) 0 52%, var(--desk-edge) 100%);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--cream-rgb), 0.5),
+    0 3px 6px var(--shadow);
+}
+
+/* The pan's rim. */
+:root[data-world='underwater'] .desk__chair::before {
+  left: 50%;
+  top: 30%;
+  width: calc(9px * var(--furn));
+  height: calc(6px * var(--furn));
+  border-radius: 50%;
+  background: rgba(var(--sheen-rgb), 0.08);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> a chart riveted to hull plate: a dark plotting chart inside a
+ * plate frame, with a row of rivets along the top and the bottom. */
+:root[data-world='underwater'] .fixture--board {
+  border-radius: 2px;
+  background-color: var(--board-face);
+  background-image:
+    radial-gradient(circle at 50% 50%, var(--rivet) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 50% 50%, var(--rivet) 0 1px, transparent 1.7px),
+    linear-gradient(165deg, rgba(var(--sheen-rgb), 0.05), rgba(var(--sheen-rgb), 0) 55%);
+  background-size:
+    9px 4px,
+    9px 4px,
+    100% 100%;
+  background-position:
+    left 4px top 3px,
+    left 4px bottom 3px,
+    left 0 top 0;
+  background-repeat: repeat-x, repeat-x, no-repeat;
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 3px 6px var(--shadow);
+}
+
+/* The marks become depth contours rather than continuous strokes — a chart is
+ * broken lines and soundings, and a solid bar on a plotting sheet read as a
+ * sticker. */
+:root[data-world='underwater'] .board__scribble {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--chalk-rgb), 0.5) 0 6px,
+    transparent 6px 10px
+  );
+}
+
+/* Water cooler -> an air tank set. The bottle becomes two cylinders seen from
+ * directly above; the body becomes the cradle they stand in.
+ *
+ * Two rather than one, which is what makes it read. A single circle on a box
+ * from above is a dial; two circles side by side in a rack is a twinset, and a
+ * twinset is unmistakably diving gear. The Forest learned the same lesson the
+ * other way round — its well needed an apron WIDER than its mouth or it was a
+ * magnifying glass. From directly overhead, the thing under an object is what
+ * tells you what the object is. */
+:root[data-world='underwater'] .cooler__bottle {
+  /* Stacked over the cradle below it, which is a later flex sibling and would
+   * otherwise paint across the bottom of the tanks. */
+  position: relative;
+  z-index: 1;
+  width: calc(20px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 5px;
+  background-color: var(--bottle-base);
+  background-image:
+    radial-gradient(circle at 27% 50%, var(--bottle) 0 46%, var(--bottle-base) 52%),
+    radial-gradient(circle at 73% 50%, var(--bottle) 0 46%, var(--bottle-base) 52%);
+  background-size:
+    50% 100%,
+    50% 100%;
+  background-position:
+    left 0 top 0,
+    right 0 top 0;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--silt-rgb), 0.5),
+    0 2px 5px var(--shadow);
+}
+
+/* The cradle, with the strap across it. */
+:root[data-world='underwater'] .cooler__body {
+  width: calc(24px * var(--furn));
+  height: calc(7px * var(--furn));
+  margin-top: calc(-3px * var(--furn));
+  border-radius: 2px 2px 4px 4px;
+  background-color: var(--cooler-body);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 44%,
+    rgba(var(--silt-rgb), 0.4) 44% 56%,
+    transparent 56%
+  );
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--silt-rgb), 0.35),
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.07),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> portholes in the hull, and THREE OF THEM rather than one.
+ *
+ * The fixture is 70x28 — a wide, low box — and the Forest found that any wide
+ * low shape filled with a single pale colour reads as one object, whatever its
+ * border-radius. That world's answer was four chinks of sky through leaf mass;
+ * this one's is three round ports in a plate, which is what a habitat's
+ * viewport wall actually looks like and is unmistakably not a single window.
+ *
+ * The ports are sized in lengths off `--tile-size`, not in percentages, for the
+ * reason everything shaped in this file is.
+ *
+ * EVERY PORT ENDS IN `transparent`, AND THE FIRST VERSION DID NOT — which cost
+ * the whole fixture. A `radial-gradient` paints its LAST colour across the
+ * entire background positioning area, not just to the radius, so a port that
+ * finished on its rim colour filled all 77x31 px of the plate with pale metal
+ * and hid the two layers underneath it. It rendered as one pale slab with a
+ * single disc in it, which is exactly the "one wide low object" this fixture
+ * is not allowed to be. */
+:root[data-world='underwater'] .fixture--window {
+  border-radius: 3px;
+  background-color: var(--plate);
+  background-image:
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.19) at 21% 50%,
+      var(--glass-sky) 0 54%,
+      var(--glass) 54% 72%,
+      var(--porthole-rim) 72% 94%,
+      transparent 96%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.19) at 50% 50%,
+      var(--glass-sky) 0 54%,
+      var(--glass) 54% 72%,
+      var(--porthole-rim) 72% 94%,
+      transparent 96%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.19) at 79% 50%,
+      var(--glass-sky) 0 54%,
+      var(--glass) 54% 72%,
+      var(--porthole-rim) 72% 94%,
+      transparent 96%
+    ),
+    linear-gradient(175deg, rgba(var(--sheen-rgb), 0.07), rgba(var(--sheen-rgb), 0) 60%);
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 2px var(--hull-lit),
+    0 3px 6px var(--shadow);
+}
+
+/* The base rule's `::before` is a vertical glazing bar, which a plate of
+ * portholes must not have. */
+:root[data-world='underwater'] .fixture--window::before {
+  display: none;
+}
+
+/* The base rule's `::after` is the horizontal glazing bar; it becomes the rivet
+ * line along the bottom of the plate. */
+:root[data-world='underwater'] .fixture--window::after {
+  left: 4px;
+  right: 4px;
+  top: auto;
+  bottom: 3px;
+  height: 2px;
+  transform: none;
+  background: repeating-linear-gradient(90deg, var(--rivet) 0 2px, transparent 2px 9px);
+  opacity: 0.7;
+}
+
+/* Daylight -> the foot of a surface light shaft.
+ *
+ * The fixture keeps its role exactly: a pool of light in a fixed place at
+ * (17%, 46%), directly under the widest shaft in the water column at x 12%, so
+ * the light on the sand is the bottom of something rather than a puddle nobody
+ * lit. This is the case Phase 22's finding 2 explicitly allows — that finding
+ * is about worlds trying to put a celestial BODY on a mid-floor fixture, and a
+ * shaft of light is the opposite of that problem.
+ *
+ * Held at 0.11 alpha against the 0.5 a lit scope glows at, which is the widest
+ * margin any world has needed between an ambient light and a reported one —
+ * and it has to be, because this is the only world where they are the same
+ * colour. Near-white rather than cyan for the same reason: 0.11 saturation
+ * against `--cool`'s 0.74. */
+:root[data-world='underwater'] .fixture--daylight {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--surface-rgb), 0.11),
+    rgba(var(--surface-rgb), 0) 68%
+  );
+}
+
+/* Plants -> kelp, and one head of coral.
+ *
+ * The brief asks for both, and there are exactly two plants on this floor.
+ * They are adjacent siblings — PLANTS.map in components.jsx renders them back
+ * to back with nothing between — so `+` is what tells them apart.
+ * `:nth-of-type` would not: it counts divs, and these sit among a great many
+ * other divs.
+ *
+ * If that adjacency ever breaks the failure is that the reef has two stands of
+ * kelp on it, which is a fine thing for a reef to have. */
+:root[data-world='underwater'] .decor__leaves {
+  width: calc(4px * var(--furn));
+  height: calc(15px * var(--furn));
+  border-radius: 50% 50% 20% 20%;
+  background: var(--foliage);
+  box-shadow:
+    -6px 4px 0 -1px var(--kelp-dark),
+    6px 3px 0 -1px var(--kelp-dark),
+    -3px -2px 0 -1px var(--foliage),
+    4px -1px 0 -1px var(--foliage);
+}
+
+:root[data-world='underwater'] .decor__pot {
+  width: calc(11px * var(--furn));
+  height: calc(5px * var(--furn));
+  margin-top: calc(1px * var(--furn));
+  border-radius: 50% 50% 35% 35%;
+  background: var(--rock);
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--silt-rgb), 0.45),
+    0 3px 5px var(--shadow);
+}
+
+:root[data-world='underwater'] .decor--plant + .decor--plant .decor__leaves {
+  width: calc(10px * var(--furn));
+  height: calc(9px * var(--furn));
+  border-radius: 50% 50% 45% 45%;
+  background: var(--coral);
+  box-shadow:
+    -6px 3px 0 -2px var(--coral-pale),
+    6px 2px 0 -1px var(--coral),
+    0 -5px 0 -3px var(--coral-pale),
+    0 0 0 1px rgba(var(--silt-rgb), 0.35);
+}
+
+:root[data-world='underwater'] .decor--plant + .decor--plant .decor__pot {
+  width: calc(9px * var(--furn));
+  height: calc(5px * var(--furn));
+  margin-top: calc(1px * var(--furn));
+  border-radius: 40% 40% 30% 30%;
+  background: var(--rock);
+  box-shadow: 0 3px 5px var(--shadow);
+}
+
+/* --- The current channel ---------------------------------------------------
+ *
+ * The waiting area becomes a channel of moving water with kelp along both
+ * banks, and five mooring plates set into the sand where a queued member
+ * stands.
+ *
+ * The plates are placed against the queue's own constants in components.jsx:
+ * WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the first row land at
+ * floor x 38, 47, 56, 65 and 74. The channel runs from 21% to 79%, so those
+ * are 29%, 45%, 60%, 76% and 91% of its width. Standing *on* a plate rather
+ * than near one is the difference between a queue and a crowd — and the plates
+ * are there whether anyone is queued or not, so they report nothing.
+ *
+ * The kelp along the banks is two repeating fields at periods sharing no
+ * useful factor, which is the correct treatment because kelp blades are
+ * discrete objects; the flow in the middle is three long non-repeating
+ * streaks, which is the correct treatment because moving water is not. The
+ * same pair of rules the seabed itself follows, on one element.
+ *
+ * Still soft-edged and borderless for the reason the rug was — a bordered
+ * rectangle on the floor reads as another UI panel dropped onto the room — and
+ * the corner radii are in px, uneven, and kept modest so `.waiting__label`,
+ * pinned 10px from the top right, still sits inside the shape.
+ */
+:root[data-world='underwater'] .waiting {
+  border-radius: 26px 30px 24px 22px / 18px 16px 20px 22px;
+  background-color: var(--rug);
+  background-image:
+    /* the five mooring plates. Radii in LENGTHS, not percentages: this box is
+       298x83 at the 540 framing and 298x199 at 960, so a percentage radius is
+       a ring at one and a standing ellipse at the other — Phase 20's finding
+       2, which this element is the worst case of on the whole floor. */
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 29% 50%,
+      transparent 0 52%,
+      var(--mooring) 52% 72%,
+      rgba(var(--silt-rgb), 0.45) 72% 86%,
+      transparent 90%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 45% 50%,
+      transparent 0 52%,
+      var(--mooring) 52% 72%,
+      rgba(var(--silt-rgb), 0.45) 72% 86%,
+      transparent 90%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 60% 50%,
+      transparent 0 52%,
+      var(--mooring) 52% 72%,
+      rgba(var(--silt-rgb), 0.45) 72% 86%,
+      transparent 90%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 76% 50%,
+      transparent 0 52%,
+      var(--mooring) 52% 72%,
+      rgba(var(--silt-rgb), 0.45) 72% 86%,
+      transparent 90%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 91% 50%,
+      transparent 0 52%,
+      var(--mooring) 52% 72%,
+      rgba(var(--silt-rgb), 0.45) 72% 86%,
+      transparent 90%
+    ),
+    /* Kelp along the top bank, hanging down into the channel, and along the
+       bottom one at a period sharing no useful factor with it.
+       ROUNDED BLADES RATHER THAN FLAT DASHES, and that took a second pass:
+       a `repeating-linear-gradient` of hard-edged olive bars along both long
+       edges of a rounded box does not read as kelp at all, it reads as a
+       DASHED BORDER — which on a floor whose every other rounded box is a
+       piece of UI is the worst thing this element could look like. A blade
+       with a soft tip, at 0.7 alpha and two different heights, reads as
+       planting. */
+      radial-gradient(
+        ellipse 1.8px 100% at 50% 0%,
+        rgba(var(--kelp-rgb), 0.95) 0 58%,
+        rgba(var(--kelp-rgb), 0) 66%
+      ),
+    radial-gradient(
+      ellipse 1.8px 100% at 50% 100%,
+      rgba(var(--kelp-rgb), 0.8) 0 58%,
+      rgba(var(--kelp-rgb), 0) 66%
+    ),
+    /* the current itself: three long streaks, non-repeating */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.9) calc(var(--tile-size) * 0.22) at 30% 24%,
+        rgba(var(--ripple-rgb), 0.12),
+        rgba(var(--ripple-rgb), 0) 74%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 0.18) at 68% 76%,
+      rgba(var(--ripple-rgb), 0.1),
+      rgba(var(--ripple-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.2) calc(var(--tile-size) * 0.2) at 52% 44%,
+      rgba(var(--silt-rgb), 0.22),
+      rgba(var(--silt-rgb), 0) 74%
+    );
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    13px calc(var(--tile-size) * 0.3),
+    19px calc(var(--tile-size) * 0.24),
+    auto,
+    auto,
+    auto;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 0 top 0,
+    left 0 bottom 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat-x,
+    repeat-x,
+    no-repeat,
+    no-repeat,
+    no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--rug-edge-rgb), 0.22),
+    inset 0 0 28px 9px rgba(var(--vignette-rgb), 0.5);
+}
+
+/* --- The cast --------------------------------------------------------------
+ *
+ * The one-pixel rim around every sprite comes from `--ink-rgb`, which this
+ * world has inverted to the palest thing in the system — so what was a hard
+ * dark outline on cream becomes a lit edge underwater, which is both the right
+ * read for the world and the right physics for a body lit from above through
+ * water. Dropped to 0.28 because at the base 0.8 a pale rim is a halo, and a
+ * halo here would be a small bright thing on a pawn. */
+:root[data-world='underwater'] .sprite::before,
+:root[data-world='underwater'] .agentface::before {
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.28));
+}
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * A sealed sample capsule, crossing the station. The path is untouched, the
+ * 1100 ms timing is untouched and still comes from the base `.envelope`
+ * transition in step with `ENVELOPE_MS` in components.jsx, and the `aria-live`
+ * label is untouched because it lives in the markup and this file has no reach
+ * into it. Only the thing travelling changes.
+ *
+ * PALE AND ALMOST NEUTRAL, WHICH IS THE WHOLE DECISION, and this world makes
+ * the same choice the Forest did for the same reason and under more pressure.
+ * The obvious capsule for a reef station is a glowing cyan one; a saturated
+ * cyan object crossing the floor in the world whose busy state is cyan would
+ * be a state hue detaching from a desk and flying across the room, which is
+ * the single worst thing that could happen on this board. So the capsule is a
+ * near-white anodised body — saturation 0.09 — which reads as a bright object
+ * against dark water for exactly the reason the paper envelope reads against
+ * cream, and just as unmistakably is not a status light.
+ *
+ * NO ADDED MOTION, and that is deliberate rather than an omission. Alien
+ * Colony was the phase the plan assigned the handoff restyle to and it earned
+ * a pulsing ring by replacing the object entirely; this brief says the
+ * envelope *becomes* a capsule. There is also a reason specific to this world:
+ * the sonar sweep is the one thing on this floor that turns, and a second
+ * moving object in the air would take that away from it.
+ */
+:root[data-world='underwater'] .envelope {
+  width: calc(20px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 999px;
+  border: 1px solid var(--envelope-edge);
+  background: linear-gradient(170deg, var(--capsule-lit), var(--capsule) 62%);
+  box-shadow:
+    0 3px 6px var(--shadow),
+    0 1px 2px rgba(var(--envelope-contact-rgb), 0.45);
+}
+
+/* The pressure cap on the nose. On the capsule's own `::after`, which is free
+ * because `.envelope` has no pseudo-elements in the base stylesheet. It is
+ * what stops the shape reading as a generic pill at the size a 540px recording
+ * sees. */
+:root[data-world='underwater'] .envelope::after {
+  content: '';
+  position: absolute;
+  right: calc(2px * var(--furn));
+  top: 50%;
+  transform: translateY(-50%);
+  width: calc(3px * var(--furn));
+  height: calc(7px * var(--furn));
+  border-radius: 999px;
+  background: var(--envelope-edge);
+  opacity: 0.75;
+}
+
+/* The flap is clipped to the envelope's own box by the base rule; re-pointed at
+ * the capsule's outline so the seal band stops at its edge. */
+:root[data-world='underwater'] .envelope__flap {
+  border-radius: 999px;
+}
+
+/* The flap's own `::before` drew the paper flap's two creases as a rotated
+ * square. A capsule has no crease; it has a seal band round its middle. */
+:root[data-world='underwater'] .envelope__flap::before {
+  left: 38%;
+  top: 50%;
+  width: calc(2px * var(--furn));
+  height: 100%;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 0;
+  background: var(--envelope-edge);
+  opacity: 0.8;
+}
+
+/* --- Chrome ----------------------------------------------------------------
+ *
+ * The two scrims are the other place the base stylesheet uses `--ink-rgb` to
+ * mean "dark" rather than "maximum contrast against the page". Re-pointed at
+ * the page ground, so a dialog still darkens the board behind it instead of
+ * washing it out. Phase 19's finding 2, first and second of three. */
+:root[data-world='underwater'] .modal {
+  background: rgba(var(--cream-rgb), 0.74);
+}
+
+:root[data-world='underwater'] .drawer {
+  background: rgba(var(--cream-rgb), 0.6);
+}
