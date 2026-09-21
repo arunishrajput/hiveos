@@ -1,0 +1,1587 @@
+/* Cloud City — the office as a sky harbour.
+ *
+ * The same floor, the same rooms, the same scheduler, three thousand metres up.
+ * Stone platforms with gaps of open air between them, open pavilions with
+ * beacons on their roofs, a windsock, a departures board, a railed opening onto
+ * the sky, and the cloud line running along the back of the deck with a very
+ * small airship above it.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one is re-tuned for a bright world and
+ *    none is reassigned. The words — `working`, `idle`, `queued #N`, `HALT`,
+ *    `WAITING AREA` — are untouched; this file contains no `content` that
+ *    carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *
+ * ---
+ *
+ * THE RISK THIS WORLD IS NAMED FOR, AND IT IS THE INVERSE OF EVERY OTHER
+ * WORLD'S. The three dark worlds had to keep a mark legible against something
+ * nearly black, and all three had the same tool for it: a state is BRIGHT and
+ * the world is not. A lit dome, a glowing hollow, a woken scope — glow is
+ * additive, and against a dark ground it barely has to try.
+ *
+ * None of that is available here, and the reason is arithmetic rather than
+ * taste. THERE IS NO HEADROOM ABOVE WHITE. The platform stone is at value 0.98
+ * and the pavilion deck at 0.99, so a lamp that reports by getting brighter has
+ * nowhere to go, and a soft pale halo around it is invisible on the surface it
+ * is supposed to be lighting. Measured: the brightest cyan that still clears
+ * the 3:1 indicator bar against this world's own surfaces is 0.64 in value —
+ * DARKER than the floor it sits on, and darker than `--screen-on` is in any
+ * other world.
+ *
+ * So a bright world reports three other ways, and this file uses all three:
+ *
+ *    VALUE, DOWNWARDS.  Every one of the four state hues is deeper here than
+ *                       in any world so far — 0.42 to 0.65 against surfaces at
+ *                       0.94 to 0.99. `--cool` on this deck is the darkest
+ *                       `--cool` in the set. Nothing that reports is allowed
+ *                       to be pale.
+ *
+ *    SATURATION.        The world is washed: eight surfaces between 0.02 and
+ *                       0.16 saturation, the sky at 0.39, the scenery held
+ *                       under 0.43. The four state hues run 0.81 to 0.95. A
+ *                       pale blue thing up here is weather; a deep saturated
+ *                       one is a desk spending money.
+ *
+ *    SHADOW, NOT LIGHT. The single most useful thing in this file. You cannot
+ *                       add light to a white deck, so light is painted as the
+ *                       shadow it casts: the sun is read from cloud shadows
+ *                       crawling across the platforms, the beacon is read from
+ *                       a hard-edged saturated lens rather than from its halo,
+ *                       and the handoff is a DARK object where every other
+ *                       world's is pale.
+ *
+ * Measured rather than argued: `--cool` 5.77:1 · `--safe` 4.77:1 ·
+ * `--honey` 4.98:1 · `--alarm` 5.35:1, worst case each across all eight of
+ * this world's surfaces, and `--screen-on` 3.48:1 as an indicator.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="cloudcity"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every
+ * surface in the product including the chrome and the landing page; and the
+ * scoped rules, which re-dress the objects on the floor. A world that stopped
+ * at the first half would be a colour scheme, which is the one thing a world
+ * is not allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,3,0) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy`, `.room--busy::before` and `.desk--busy
+ * .desk__monitor` below exist for that reason as much as for the art.
+ */
+
+:root[data-world='cloudcity'] {
+  /* A light room, and the first world since Paper Office that is. The
+   * pre-paint script in index.html replays `hiveos.world.paint`, which is why
+   * the cold load lands on this world's own pale ground rather than on Paper
+   * Office's cream. Inherited from Phase 19 — this world adds nothing to
+   * index.html. */
+  color-scheme: light;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Three pale blues, close together, separated by hairlines rather than by
+   * contrast — Paper Office's construction with the warmth taken out of it and
+   * the altitude put in. `--sand` is the raised surface and is a shade DOWN
+   * from the page, exactly as it is on cream. */
+  --cream: #e9f2fb;
+  --paper: #fbfeff;
+  --sand: #dcebf9;
+
+  /* `--ink` is "the mark on the page", and here it means both of the things it
+   * means in Paper Office at once: maximum contrast AND a dark colour. That is
+   * why this world needs none of the three overrides Phase 19 found every dark
+   * world needs — the `.modal` scrim, the `.drawer` scrim and
+   * `.desk__chair`'s under-edge all want `--ink-rgb` to be dark, and here it
+   * is. The finding was always a *dark*-world finding; this is the world that
+   * shows where its edge is. */
+  --ink: #0e1822;
+  --rule: #c3d8ea;
+  --rule-soft: #d6e6f3;
+  --rule-strong: #a6c4dc;
+
+  --dim: #3e4c59;
+  /* Pulled two steps darker than Paper Office's. `--faint` carries
+   * `.pawn__state` when a person is idle, `.desk__role` under every nameplate
+   * and the `WAITING AREA` caption — three 8-9px mono labels sitting directly
+   * on the brightest surface in the product. This is the token the phase gate
+   * is really about, and at Paper Office's weight it does not survive here. */
+  --faint: #54626f;
+
+  /* Brand, still fills only. Lifted rather than deepened — the opposite of
+   * what the three dark worlds had to do — because on a pale sky-blue ground a
+   * warm yellow fill is the one thing that reads as unmistakably not weather,
+   * and the quota strip has to stay the loudest thing on the board. Its dark
+   * label clears at 9.98:1. */
+  --amber: #f2b53f;
+  --amber-deep: #d4952a;
+  --on-amber: #1a1408;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Deepened until each one carries a word on white. Measured against all
+   * eight of this world's surfaces, worst case 4.77:1 — the table is in
+   * PROGRESS.md.
+   *
+   * COOL vs THE WHOLE SKY. This world's own problem, and it is Reef Station's
+   * turned upside down. There the scenery was blue and the state had to be
+   * brighter than it; here the scenery is blue and the state has to be
+   * DARKER. The sky at its deepest is value 0.91 at 0.39 saturation and
+   * `--cool` is 0.46 at 0.91 — a 2.3x saturation gap and most of the value
+   * range between them. Hue cannot help and is not asked to: the two sit
+   * 13.6deg apart.
+   *
+   * COOL vs SAFE. 195.7deg against 149.1deg, a 46.6deg gap where Paper Office
+   * has 43deg. The busy cyan and the budget jade are the two saturated marks a
+   * reader has to tell apart at a glance, and this world has more blue in it
+   * than the office does.
+   *
+   * HONEY vs AMBER. Phase 19's finding 4 was that on a dark ground the two
+   * cannot separate by value, because a legible warn hue has to come up and
+   * that is where the brand amber already is — so the three dark worlds bought
+   * a 15-19deg hue gap instead. A BRIGHT WORLD GETS THE VALUE SEPARATION BACK,
+   * and more of it than cream did: honey goes down to 0.54 while amber goes up
+   * to 0.95, which is 3.61:1 apart where Paper Office manages 2.29:1. So the
+   * hue gap can stay small (7.0deg) and the guarantee underneath is the one
+   * that always held anyway — amber is only ever a filled rectangle with dark
+   * text on it, honey is only ever a word.
+   *
+   * ALARM is held 28.0deg from honey, the widest gap of the five worlds,
+   * because deepening both of them for a white ground pushed each toward the
+   * middle of its own range and there was room to take. */
+  --cool: #0b5a76;
+  --safe: #0d6e3c;
+  --honey: #8a4e07;
+  --alarm: #a52a20;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 14, 24, 34;
+  --cream-rgb: 233, 242, 251;
+  --paper-rgb: 251, 254, 255;
+  --amber-rgb: 242, 181, 63;
+  --cool-rgb: 11, 90, 118;
+  --alarm-rgb: 165, 42, 32;
+
+  /* The quota strip's empty track. */
+  --tick: #dbe9f5;
+
+  /* --- The harbour deck -------------------------------------------------- *
+   *
+   * Sun-bleached platform stone, with the gaps between the platforms showing
+   * the cloud sea a long way below.
+   *
+   * `--tile` is Phase 22's finding 4 for the third time, and the third
+   * different answer: the token means "the other ground colour", not "lighter
+   * than the floor". A crater is darker than its regolith and deck plating is
+   * greyer than its sand — and a gap in the floor of a sky harbour is not a
+   * surface at all, it is the sunlit top of the cloud layer a long way below,
+   * which is BRIGHTER than the stone standing over it.
+   *
+   * That was got wrong first time round. The gap was drawn a shade darker than
+   * the deck, on the reasonable-sounding grounds that a hole is dark, and the
+   * result read as grout: a pale tile field with dark lines ruled across it,
+   * which is a bathroom rather than a harbour. A bright slot with a shadow on
+   * its near lip reads instantly as light coming up through a hole, and it is
+   * also what is actually down there. The whole world got easier at the same
+   * time — `--tile` was the darkest of the eight surfaces and therefore the
+   * one every contrast number was worst against, and now it is the second
+   * lightest. */
+  --floor: #eef4fa;
+  --tile: #f4f9fd;
+  /* Inside a pavilion: shaded from the wind, a shade above the open deck. */
+  --room-floor: #f6fafd;
+  /* The wash a lit beacon throws down the pavilion deck. Note what it does:
+   * the busy deck is only 1.23:1 DARKER than the idle one and five times as
+   * saturated. On cream "lit" means lighter; on white there is nothing lighter
+   * to become, so it means the colour arrives. */
+  --room-floor-busy: #cfe6f4;
+
+  /* Harbour control desks. Galvanised rather than laminate, and deliberately
+   * the darkest large object on the floor: a desk is the one piece of
+   * furniture a person has to find at a glance, and on a white deck the way to
+   * be found is to be dark. */
+  --desk: #6d8193;
+  --desk-edge: #3c4b59;
+  --desk-edge-rgb: 60, 75, 89;
+  --desk-top: #8fa3b3;
+
+  /* The handoff is a courier bird in this world, so `--envelope-edge` stops
+   * being the hairline around a piece of paper and becomes the bird's wing
+   * edge. Same token, same rules in the base stylesheet, a different object —
+   * which is the whole reason these are named for the thing and not for the
+   * colour. */
+  --envelope-edge: #8a8377;
+  --envelope-contact-rgb: 60, 88, 112;
+
+  /* A dark signal lamp and a lit one. `--screen-on` is barely lighter than
+   * `--cool` and is still DARKER than the deck it sits on — see the note at
+   * the top of the file. They are 0.5deg apart in hue and 0.46 against 0.64 in
+   * value, which is the same "one hue, two weights" relationship every world
+   * has, compressed into the only range a bright world leaves for it. */
+  --screen-off: #3e4a56;
+  --screen-on: #0e7ea4;
+  --screen-on-rgb: 14, 126, 164;
+
+  /* The topiary. Held at 94.0deg where the budget jade is at 149.1deg — a
+   * 55.1deg gap, against the 25.4deg Paper Office's own ferns manage. Clipped
+   * box is a yellow-green, so this is the true colour as well as the safe one;
+   * a bluer, richer hedge green would have walked straight into `--safe`. */
+  --foliage: #5c7a45;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become a
+   * departures board and a water cooler become a windsock without the token
+   * names going wrong. */
+  --mug: #e8eef3; /* the enamel mug on the control desk */
+  --board-face: #2b3540; /* the departures board's dark face */
+  --board-frame: #7d93a6; /* its metal case */
+  --bottle: #f4f7fa; /* the windsock's pale band */
+  --bottle-base: #4e4d4a; /* and its dark one */
+  --cooler-body: #b3c2cd; /* the mast footing the sock streams from */
+  --glass-sky: #cfe8fa; /* open air, high in the opening */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The jacket colour is per-character and arrives inline from `lookFor`;
+   * these are the four layers every pilot and every drone shares. See PILOTS
+   * and SKY_DRONES in worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the flight jacket, and it is the one part of a character
+   * that has to hold its own silhouette against a white deck: 8.38:1 on the
+   * platform, which is more than any world before has asked of it. The office
+   * needed a dark torso on cream for the same reason and this is that argument
+   * taken further.
+   *
+   * `--sp-accent` is weathered goggle leather, and it is this world's ambient
+   * warmth on the cast — which is the job the reef's bone fins and the night
+   * watch's headlamps also did. Held at 0.26 saturation against `--honey`'s
+   * 0.95, a 3.6x gap, on the guarantee that has held in every world: honey is
+   * only ever a word and a goggle strap is never one. A brass fitting was
+   * drawn first and was wrong — at 0.49 saturation and 1.8deg from honey it
+   * was a small permanent ochre mark riding on every pawn, which is Phase 21's
+   * coral trap with a different prop. Every metal fitting in this world is
+   * galvanised steel instead, and there is no brass anywhere on the floor. */
+  --sp-skin: #d9a879;
+  --sp-shirt: #3d4857;
+  --sp-accent: #c9b294;
+  --sp-detail: #181f2b;
+
+  /* Structure. The wall band is the sky above the cloud line and the trim is
+   * the parapet, shared by the pavilion walls, the door jambs and the rail. */
+  --wall: #cfe6f7;
+  --wall-trim: #8fabc1;
+  /* The boarding platform the queue waits on. Measured rather than picked, and
+   * picked twice: a queued member's `queued #N` is `--honey` and stands on
+   * this, so it is a surface a word lands on — 5.00:1 for honey and 4.74:1 for
+   * the `WAITING AREA` caption in `--faint`. The first value was two steps
+   * paler and the slab simply did not read against the deck. */
+  --rug: #d3e2ee;
+  --rug-edge-rgb: 126, 158, 186;
+  --chair: #56697a; /* the control desk's stool */
+  --glass: #a8cfea; /* open air, low in the opening */
+
+  /* Shadows go blue rather than brown, and they do more work here than in any
+   * world so far — on a white deck a shadow is the only way to say that
+   * something is above the surface, and the only way to say that the sun is
+   * out at all. */
+  --shadow-rgb: 72, 104, 134;
+  --shadow: rgba(var(--shadow-rgb), 0.24);
+  /* Deliberately a different blue from `--shadow`: the darkening at the edge
+   * of this floor is haze thickening with distance, not an object blocking
+   * light. Very gentle, because a heavy vignette on a bright world reads as a
+   * dirty lens. */
+  --vignette-rgb: 96, 130, 160;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a dark button with pale text here, as in Paper Office, so
+   * its hover lifts rather than settling down. */
+  --ink-hover: #1d2b38;
+  --engage-flash: #cfe6f2;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because a cloud line, a
+   * platform gap, a deck plank, a beacon lens, a windsock and a courier bird
+   * are objects the paper office does not have, and inventing a shared token
+   * for them would put Paper Office's stylesheet in the business of describing
+   * a world it is not.
+   */
+  /* The band at its top, where the sky is deepest, and at its foot where it
+   * hazes out into the cloud line. `--sky-high` is the most saturated thing in
+   * this world and is deliberately NOT one of the eight surfaces: it is a
+   * gradient stop inside the back band, which is not walkable and carries no
+   * word — the same standing Reef Station's `--water-lit` has. Held at 0.47
+   * saturation and value 0.91 against `--cool`'s 0.91 and 0.46, which is this
+   * world's whole separation argument in one pair of numbers. */
+  --sky-high: #7ab0e8;
+  --sky-low: #d9ecfb;
+  --cloud-rgb: 255, 255, 255; /* every cloud, wisp and sunlit edge */
+  --cloud-shade-rgb: 150, 180, 206; /* the underside of one, and its shadow */
+  /* The dark lip where a platform ends and the air begins. A LINE rather than
+   * a surface — it is one or two pixels wide and nothing is ever written on
+   * it, which is why it is a channel token here instead of a ninth surface in
+   * the contrast table. */
+  --chasm-rgb: 88, 122, 148;
+  --plank-rgb: 176, 200, 220; /* the joint between two deck planks */
+  --stone-warm-rgb: 255, 240, 214; /* sun on the stone */
+  --stone-cool-rgb: 158, 186, 210; /* and the parts of it that are not */
+  --rail: #8fabc1; /* the parapet rail and its balusters */
+  --rail-lit: #c2d2dd;
+  --fitting: #8b9dab; /* galvanised steel: lamp housings, cleats, mast bands */
+  --fitting-lit: #c2d2dd;
+  --sun-rgb: 255, 214, 130; /* the disc in the band, and the pool it throws */
+  --airship: #e4ecf3;
+  --airship-shade: #b8c9d8;
+  --flap-rgb: 226, 236, 244; /* the pale characters on the departures board */
+  --topiary-dark: #455c34; /* the shaded side of a clipped box */
+  --planter: #c3ccd4; /* the stone planters they stand in */
+  --lantern: #ffd79a; /* the pavilion's own lamp. Ambient; reports nothing. */
+  --lantern-rgb: 255, 215, 154;
+  --deck-mark-rgb: 126, 158, 186; /* paint on the boarding platform */
+  /* The courier, and see the note at the bottom of the file. Near-neutral at
+   * 0.12 saturation and DARK at 0.27 value, which is the whole decision. */
+  --bird: #443f3c;
+  --bird-pale: #e8e2d8;
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. Paper Office's recipe is a wall band over two offset
+ * 45deg checkers; this is the sky over a deck of stone platforms with open air
+ * between them.
+ *
+ * TWO TEXTURES, FOLLOWING THE TWO RULES THE PREVIOUS WORLDS HAD TO SEPARATE.
+ *
+ *   THE PLATFORMS AND THEIR PLANKS MAY TILE, and should. They are a
+ *   manufactured surface made of discrete identical pieces, and regularity
+ *   here reads as engineering rather than as a rendering artefact — the same
+ *   call Reef Station made for its deck plating. Tied to `--tile-size` so they
+ *   grow with the room, exactly as the checker field they replace did. The
+ *   gaps run at 3x the tile one way and 2x the other, so a platform is three
+ *   planks wide and two deep and the two periods land on each other rather
+ *   than beating, which is what a laid deck does.
+ *
+ *   THE STONE ITSELF MAY NOT. Weathering is a continuous variation, and Phase
+ *   20's finding is that any periodicity in one of those reads as a bug. So
+ *   the sun-bleach and the shade are four large drifts at hand-picked
+ *   positions with `background-repeat: no-repeat`.
+ *
+ * The band's two layers are opaque and first in the list, so everything below
+ * them stops at the cloud line — the same trick the base file uses, and the
+ * reason neither needs a mask.
+ */
+:root[data-world='cloudcity'] .floor {
+  background-image:
+    /* the parapet along the back edge of the deck */
+    linear-gradient(transparent 0 calc(100% - 2px), var(--wall-trim) calc(100% - 2px) 100%),
+    /* the sky, deepest at the top and hazing into the cloud line */
+      linear-gradient(var(--sky-high), var(--wall) 64%, var(--sky-low)),
+    /* The gaps between platforms, across: the near platform's edge falling
+       into shade, the cloud sea a long way below, then the far platform's
+       edge catching the light.
+
+       THE ASYMMETRY IS THE WHOLE EFFECT, and the first version did not have
+       it: both lips were 1px at 0.45, which is the same weight as the plank
+       joints inside a platform, so the grid read as a striped texture rather
+       than as holes in a deck. A gap whose edges weigh the same as the lines
+       around it is not a gap, it is another line. The near lip is now twice
+       as wide and nearly four times as dark as the far one, which is what an
+       edge you are looking over the top of actually does. */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--chasm-rgb), 0.85) 0 2px,
+        rgba(var(--chasm-rgb), 0.3) 2px 3px,
+        var(--tile) 3px 8px,
+        rgba(var(--chasm-rgb), 0.22) 8px 9px,
+        transparent 9px calc(var(--tile-size) * 3)
+      ),
+    /* and down */
+      repeating-linear-gradient(
+        180deg,
+        rgba(var(--chasm-rgb), 0.85) 0 2px,
+        rgba(var(--chasm-rgb), 0.3) 2px 3px,
+        var(--tile) 3px 8px,
+        rgba(var(--chasm-rgb), 0.22) 8px 9px,
+        transparent 9px calc(var(--tile-size) * 2)
+      ),
+    /* The plank joints inside a platform, three to a plate, and deliberately
+       much fainter than the gaps above — a hierarchy rather than two grids of
+       the same weight. */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--plank-rgb), 0.5) 0 1px,
+        transparent 1px var(--tile-size)
+      ),
+    /* Sun and shade on the stone, as four large drifts that DO NOT TILE.
+       Sized off `--tile-size` rather than as floor percentages, because the
+       floor is 516x260 at the 540 framing and 515x622 at 960 — Phase 20's
+       finding 2, which every shaped thing on this floor obeys. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.3) calc(var(--tile-size) * 1.2) at 24% 33%,
+        rgba(var(--stone-warm-rgb), 0.55),
+        rgba(var(--stone-warm-rgb), 0) 72%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.6) calc(var(--tile-size) * 1.8) at 73% 24%,
+      rgba(var(--stone-warm-rgb), 0.4),
+      rgba(var(--stone-warm-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.9) calc(var(--tile-size) * 1) at 41% 86%,
+      rgba(var(--stone-cool-rgb), 0.3),
+      rgba(var(--stone-cool-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.3) calc(var(--tile-size) * 1.5) at 89% 66%,
+      rgba(var(--stone-cool-rgb), 0.26),
+      rgba(var(--stone-cool-rgb), 0) 74%
+    );
+  background-size:
+    100% var(--walk-top),
+    100% var(--walk-top),
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  /* The two tiled grids are offset by most of a tile so a gap never lands on
+     the floor's own border, where it would read as a missing edge rather than
+     as a hole in the middle of a deck. */
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    calc(var(--tile-size) * 0.45) 0,
+    0 calc(var(--tile-size) * 0.45),
+    calc(var(--tile-size) * 0.45) 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat,
+    repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat;
+  background-color: var(--floor);
+  /* The gentlest vignette of the five worlds. It is haze thickening toward the
+   * edge of a very bright scene, and anything stronger looks like dirt on the
+   * lens rather than like distance. */
+  box-shadow: inset 0 0 44px 10px rgba(var(--vignette-rgb), 0.15);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * The band above the cloud line: the sun, two banks of cloud drifting along the
+ * horizon, and one small airship.
+ *
+ * Everything here is confined to the band by `overflow: hidden` on the slot
+ * plus `height: var(--walk-top)` on the two pseudo-elements — taking the number
+ * the registry owns and never setting it.
+ *
+ * THE SUN IS HERE AND NOT ON `.fixture--daylight`, which is Phase 22's finding
+ * 2 and which this brief walks straight into: it asks for "high sun" on a
+ * fixture that sits at (17%, 46%), the middle of the deck. A sun rendered there
+ * is a sun lying on the ground. So the disc is in the sky where the brief's own
+ * decoration-slot line also puts it, and the fixture carries the pool of light
+ * it throws — which keeps the fixture's actual role, a patch of illumination in
+ * a fixed place.
+ *
+ * It sits at x 28%, which is not directly above the pool at 17% and is not
+ * meant to be. The offset IS the direction of the light: a high sun a little to
+ * the right of the pool is what puts the pool where it is, and it is also the
+ * only place in the band clear of both wall fixtures — the railed opening spans
+ * roughly 9-23% and the departures board 43-57%.
+ */
+:root[data-world='cloudcity'] .worldlayer--sky {
+  overflow: hidden;
+  background-image:
+    /* the disc */
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.2) at 28% 32%,
+      rgba(var(--cloud-rgb), 1) 0 52%,
+      rgba(var(--sun-rgb), 0.95) 52% 84%,
+      transparent 90%
+    ),
+    /* and the glare around it. Ends in `transparent` like every shaped layer
+       in this file — Phase 21's finding 1, which is a silent failure and has
+       to be written rather than remembered. */
+      radial-gradient(
+        circle calc(var(--tile-size) * 0.62) at 28% 32%,
+        rgba(var(--sun-rgb), 0.45),
+        rgba(var(--sun-rgb), 0) 76%
+      );
+  background-size:
+    100% var(--walk-top),
+    100% var(--walk-top);
+  background-position: left 0 top 0;
+  background-repeat: no-repeat;
+}
+
+/* The cloud line: two banks along the foot of the band, drifting.
+ *
+ * A field of discrete objects, so it may tile — Phase 19's rule, which holds
+ * for clouds as it did for stars. Two periods sharing no useful factor, moving
+ * at different speeds, so the lattice never presents the same arrangement
+ * twice; and the pair still has to hold still, because
+ * `prefers-reduced-motion: reduce` takes the motion away. */
+:root[data-world='cloudcity'] .worldlayer--sky::before,
+:root[data-world='cloudcity'] .worldlayer--sky::after {
+  content: '';
+  position: absolute;
+  left: -40%;
+  right: -40%;
+  top: 0;
+  height: var(--walk-top);
+}
+
+/* The band is only 36px tall at the 540 framing, which is the constraint this
+ * layer is really working against: a cloud drawn at any generous size simply
+ * fills it and the sky stops existing. Both banks are held to the bottom
+ * third, and each carries a shaded underside — a white blob in a pale band is
+ * fog, and what makes it a cloud is that it has a bottom. */
+:root[data-world='cloudcity'] .worldlayer--sky::before {
+  background-image:
+    radial-gradient(
+      ellipse 40% 22% at 30% 104%,
+      rgba(var(--cloud-rgb), 1) 0 62%,
+      rgba(var(--cloud-rgb), 0) 82%
+    ),
+    radial-gradient(
+      ellipse 42% 15% at 30% 112%,
+      rgba(var(--cloud-shade-rgb), 0.55) 0 64%,
+      rgba(var(--cloud-shade-rgb), 0) 84%
+    ),
+    radial-gradient(
+      ellipse 26% 16% at 66% 106%,
+      rgba(var(--cloud-rgb), 0.92) 0 62%,
+      rgba(var(--cloud-rgb), 0) 84%
+    );
+  background-size: 137px 100%;
+  background-position: left 0 bottom 0;
+  background-repeat: repeat-x;
+}
+
+/* The far bank, plus the airship.
+ *
+ * The airship is a single object rather than a field, so it is the third
+ * background layer here and is `no-repeat`: one hull with a shaded underside
+ * and a gondola under it. It sways rather than traverses, so that under
+ * `reduce` it is parked somewhere visible instead of somewhere off the edge. */
+:root[data-world='cloudcity'] .worldlayer--sky::after {
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.34) calc(var(--tile-size) * 0.1) at 68% 34%,
+      var(--airship) 0 62%,
+      var(--airship-shade) 62% 88%,
+      transparent 92%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.07) calc(var(--tile-size) * 0.04) at 68% 50%,
+      var(--airship-shade) 0 70%,
+      transparent 78%
+    ),
+    radial-gradient(
+      ellipse 30% 14% at 18% 106%,
+      rgba(var(--cloud-rgb), 0.7) 0 62%,
+      rgba(var(--cloud-rgb), 0) 84%
+    );
+  background-size:
+    100% 100%,
+    100% 100%,
+    211px 100%;
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    left 0 bottom 0;
+  background-repeat: no-repeat, no-repeat, repeat-x;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * Cloud shadows, crawling across the deck. THIS IS THE MOST IMPORTANT LAYER IN
+ * THE FILE and the clearest statement of what a bright world is: there is no
+ * way to paint sunlight onto a surface that is already at value 0.98, so the
+ * sun is painted as the shadow it is interrupted by. A deck with a cloud
+ * shadow crossing it is unmistakably a deck in full sun; the same deck with a
+ * pale wash on it is just a lighter deck.
+ *
+ * ON THE DECK AND NOT ON THE SKY. The slot is `inset: 0` in the base
+ * stylesheet, which includes the band — and a cloud shadow up there would be
+ * a shadow cast on thin air. The top is pulled down to `--walk-top`, the same
+ * number the floor paints the sky from and the walk math uses, taken and never
+ * set. Phase 21's finding 2.
+ *
+ * Two fields, tiled — cloud shadows are discrete objects, which is the case
+ * Phase 19's rule was written for — at periods sharing no useful factor and
+ * drifting at different speeds. Big on purpose: a cloud shadow you can take in
+ * at a glance is a stain, and the reef's lesson about cell count does not
+ * transfer, because here you ARE supposed to see the individual objects.
+ */
+:root[data-world='cloudcity'] .worldlayer--ground {
+  top: var(--walk-top);
+  overflow: hidden;
+}
+
+:root[data-world='cloudcity'] .worldlayer--ground::before,
+:root[data-world='cloudcity'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  /* Wider and taller than the deck, so a drifting field never reaches an edge
+   * on either axis. */
+  inset: -60% -70%;
+}
+
+:root[data-world='cloudcity'] .worldlayer--ground::before {
+  background-image: radial-gradient(
+    ellipse 34% 30% at 40% 44%,
+    rgba(var(--cloud-shade-rgb), 0.3) 0 46%,
+    rgba(var(--cloud-shade-rgb), 0) 78%
+  );
+  background-size: 163px 127px;
+}
+
+:root[data-world='cloudcity'] .worldlayer--ground::after {
+  background-image: radial-gradient(
+    ellipse 30% 26% at 62% 58%,
+    rgba(var(--cloud-shade-rgb), 0.22) 0 48%,
+    rgba(var(--cloud-shade-rgb), 0) 80%
+  );
+  background-size: 211px 173px;
+  background-position: 37px 23px;
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Wisps of cloud passing in front of the harbour. Faint by a wide margin: this
+ * layer sits above every pawn, and anything strong enough to notice would be
+ * strong enough to sit on somebody's name label.
+ *
+ * Sideways, and only sideways — the Forest's spores drift diagonally and the
+ * reef's bubbles rise, and both of those are objects moving through still air.
+ * A wisp is the air.
+ */
+:root[data-world='cloudcity'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='cloudcity'] .worldlayer--air::before,
+:root[data-world='cloudcity'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Wide enough that a full tile of horizontal travel never exposes an edge. */
+  inset: -20% -90%;
+}
+
+:root[data-world='cloudcity'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    ellipse 26% 5% at 40% 30%,
+    rgba(var(--cloud-rgb), 0.5) 0 44%,
+    rgba(var(--cloud-rgb), 0) 82%
+  );
+  background-size: 139px 97px;
+}
+
+:root[data-world='cloudcity'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    ellipse 20% 4% at 66% 72%,
+    rgba(var(--cloud-rgb), 0.38) 0 46%,
+    rgba(var(--cloud-rgb), 0) 84%
+  );
+  background-size: 181px 113px;
+}
+
+/* All five of this world's animations live here, and nowhere else. A reader who
+ * asked for less motion gets a still harbour: the cloud banks stop along the
+ * horizon, the airship stops in the band where it can be seen, the cloud
+ * shadows stop as patches on the deck, the wisps stop as haze, and the beacon
+ * stops lit. Every one of those is a legible resting state, which is the bar a
+ * world with continuous motion in it has to clear — and the last one is the
+ * only one that matters, because it is the only one that reports anything. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='cloudcity'] .worldlayer--sky::before {
+    animation: cloud-bank-near 96s linear infinite;
+  }
+
+  :root[data-world='cloudcity'] .worldlayer--sky::after {
+    animation: cloud-airship 74s ease-in-out infinite alternate;
+  }
+
+  :root[data-world='cloudcity'] .worldlayer--ground::before {
+    animation: cloud-shadow-far 118s linear infinite;
+  }
+
+  :root[data-world='cloudcity'] .worldlayer--ground::after {
+    animation: cloud-shadow-near 79s linear infinite;
+  }
+
+  :root[data-world='cloudcity'] .worldlayer--air::before {
+    animation: cloud-wisp-far 61s linear infinite;
+  }
+
+  :root[data-world='cloudcity'] .worldlayer--air::after {
+    animation: cloud-wisp-near 38s linear infinite;
+  }
+
+  /* Each translate is exactly one tile of its own field, which is what makes
+   * the loop seamless. */
+  @keyframes cloud-bank-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-137px, 0, 0);
+    }
+  }
+
+  @keyframes cloud-shadow-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(163px, 0, 0);
+    }
+  }
+
+  @keyframes cloud-shadow-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(211px, 0, 0);
+    }
+  }
+
+  @keyframes cloud-wisp-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-139px, 0, 0);
+    }
+  }
+
+  @keyframes cloud-wisp-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-181px, 0, 0);
+    }
+  }
+
+  /* The airship sways rather than crossing, so `reduce` parks it somewhere a
+   * viewer can actually see. A traverse would have left it off the edge of the
+   * band for most of its cycle and off it entirely when stopped. */
+  @keyframes cloud-airship {
+    from {
+      transform: translate3d(-4%, 0, 0);
+    }
+    to {
+      transform: translate3d(4%, 0, 0);
+    }
+  }
+
+  /* The beacon turning over. See `.room--busy::before` for why this is the one
+   * piece of motion in this world that is allowed to mean something. */
+  :root[data-world='cloudcity'] .room--busy::before {
+    animation: cloud-beacon 2.4s ease-in-out infinite alternate;
+  }
+
+  @keyframes cloud-beacon {
+    from {
+      opacity: 0.82;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* --- Pavilions -------------------------------------------------------------
+ *
+ * The project rooms become open pavilions: a stone deck under a slatted roof,
+ * a parapet round the edge, an arch where the door was and a beacon on the
+ * ridge.
+ *
+ * The roof is drawn as the SHADOW OF ITS BEAMS falling across the deck, for the
+ * reason the whole file keeps coming back to — you are looking down at a floor,
+ * and on a bright world a shadow is the only thing that says there is anything
+ * above it. A beam field is a manufactured run of discrete objects, so it may
+ * tile.
+ *
+ * The radii are in PX rather than percentages: this box is 175x125 at the 540
+ * framing and 175x299 at 960, so a percentage radius is a different shape at
+ * each — Phase 20's finding 2 applied to a room instead of to the floor. The
+ * top corners round where Paper Office's are square, because a pavilion has a
+ * ridge and an office has a back wall.
+ *
+ * The border stays 2px and keeps the base geometry, so the room's padding box —
+ * and therefore where DESK_IN_ROOM puts the desk — is identical to every other
+ * world.
+ */
+:root[data-world='cloudcity'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* the pavilion's own lamp, pooling on the deck — warm, ambient, and
+       meaning nothing */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 0.62) at 80% 15%,
+      rgba(var(--lantern-rgb), 0.5),
+      rgba(var(--lantern-rgb), 0) 74%
+    ),
+    /* sun coming in under the eaves along the open side */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2) calc(var(--tile-size) * 0.66) at 50% 100%,
+        rgba(var(--stone-warm-rgb), 0.5),
+        rgba(var(--stone-warm-rgb), 0) 78%
+      ),
+    /* the roof beams */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--shadow-rgb), 0.2) 0 3px,
+        transparent 3px 13px
+      );
+  border-radius: 13px 13px 6px 6px;
+  /* THE OUTER SHADOW IS LOAD-BEARING AND WAS MISSING FROM THE FIRST VERSION.
+   * Paper Office's rooms separate from its corridor by being a shade lighter
+   * than it; up here the pavilion deck is at value 0.99 and the corridor at
+   * 0.98, so that gap has nowhere left to go and the room read as a faint
+   * rectangle drawn on the deck. What says "this is a building standing on
+   * that floor" is the shadow it throws, which is the same answer the ground
+   * slot gives for the sun. */
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cloud-rgb), 0.7),
+    inset 0 0 20px 6px rgba(var(--vignette-rgb), 0.08),
+    0 6px 14px var(--shadow);
+}
+
+/* The arch. The base rule paints a gap in the wall in the corridor's own floor
+ * colour; here the gap stays and an arch is drawn over it. */
+:root[data-world='cloudcity'] .room__door {
+  background: var(--floor);
+}
+
+/* `.room__door` has no pseudo-element in the base stylesheet, so this is free.
+ * Bottom-open on purpose: an arch is a hole, and a ring all the way round would
+ * be a window. */
+:root[data-world='cloudcity'] .room__door::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: calc(21px * var(--furn));
+  height: calc(10px * var(--furn));
+  border: 2px solid var(--wall-trim);
+  border-bottom: 0;
+  border-radius: 999px 999px 0 0;
+}
+
+/* The beacon, and THIS IS THE STATE EXPRESSION WHOSE FORM THIS WORLD CHANGES.
+ *
+ * Paper Office announces a working room by tinting its floor. A bay lights its
+ * dome from the roof; a hollow glows from inside; a module lights its antenna
+ * array; a dome lights its porthole. A PAVILION LIGHTS THE BEACON ON ITS ROOF
+ * — the one object on this floor whose entire purpose is to be seen from a
+ * distance, which is why a harbour has one. Same `--cool` token, same label
+ * text.
+ *
+ * ON THE FRONT-LEFT CORNER, NOT ON THE RIDGE, AND THAT IS A CORRECTION. The
+ * ridge is the obvious place and it is occupied: `.desk` is centred in the room
+ * and its two-line nameplate rides above the desk stack, so a beacon at
+ * `left: 50%` sits directly behind the `ENGINEER` caption — measured, not
+ * guessed. The corner is free in every world and at every framing.
+ *
+ * It matters more here than the equivalent does anywhere else, because THE
+ * OTHER HALF OF THIS WORLD'S BUSY STATE IS ROUTINELY HIDDEN: the base
+ * stylesheet's speech bubble sits over the monitor whenever an agent has
+ * anything to say, in every world, so the signal lamp cannot be relied on as
+ * the thing a viewer sees. The beacon is what is always visible, and it has to
+ * be somewhere nothing else ever is.
+ *
+ * Idle it is a dark lens in a steel housing. That is a real change of method
+ * from the three dark worlds, where an idle instrument is dark because
+ * everything is: here the lens is the darkest small object in the pavilion and
+ * it is dark on purpose, so that when it lights the change is from one strong
+ * value to another rather than from nothing to a glow that a white deck would
+ * swallow.
+ */
+:root[data-world='cloudcity'] .room::before {
+  content: '';
+  position: absolute;
+  left: 15%;
+  top: 6%;
+  transform: translateX(-50%);
+  width: calc(11px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 44% 36%, rgba(var(--sheen-rgb), 0.3), var(--screen-off) 58%);
+  box-shadow:
+    inset 0 0 0 2px var(--fitting),
+    0 2px 4px var(--shadow);
+}
+
+/* The pavilion's lamp, on the other front corner. Deliberately NOT restated
+ * under `.room--busy` — a lamp that changed when the agent started working
+ * would be a second status light, and this board has exactly one.
+ *
+ * Half the beacon's size and with no rim, so the pair does not read as two of
+ * the same fitting. One is an instrument and one is a light to see by, and at
+ * 540px the difference has to be carried by shape as well as by hue. */
+:root[data-world='cloudcity'] .room::after {
+  content: '';
+  position: absolute;
+  right: 12%;
+  top: 8%;
+  width: calc(6px * var(--furn));
+  height: calc(6px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, var(--lantern) 0 46%, var(--amber-deep) 82%);
+  box-shadow: 0 2px 5px var(--shadow);
+}
+
+/* BUSY. The deck takes the beacon's wash and the parapet goes cool.
+ *
+ * Restated at this specificity on purpose: the `.room` rule above is (0,3,0)
+ * and the base `.room--busy` is (0,2,0), so without this the pavilion would
+ * keep its idle deck while BUSY and the whole beat would vanish.
+ *
+ * The wash falls from the beacon's own corner, and it is a SATURATION change
+ * far more than a value one — 0.03 to 0.15, against a brightness change of
+ * 1.23:1. On cream "lit" means lighter; three thousand metres up in full sun
+ * there is nothing lighter to become.
+ */
+:root[data-world='cloudcity'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.6) calc(var(--tile-size) * 1.3) at 15% 6%,
+      rgba(var(--cool-rgb), 0.32),
+      rgba(var(--cool-rgb), 0) 78%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 0.62) at 80% 15%,
+      rgba(var(--lantern-rgb), 0.4),
+      rgba(var(--lantern-rgb), 0) 74%
+    ),
+    repeating-linear-gradient(90deg, rgba(var(--shadow-rgb), 0.2) 0 3px, transparent 3px 13px);
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cool-rgb), 0.22),
+    inset 0 0 20px 6px rgba(var(--vignette-rgb), 0.06),
+    0 6px 14px var(--shadow);
+}
+
+/* And the beacon lights. Same specificity as `.room::before` above, so this has
+ * to come after it in source order — which it does.
+ *
+ * A hard-edged saturated lens with a cyan ring round it, rather than a soft
+ * bright halo. The halo is the part that does not work on a white deck, and it
+ * is what every dark world leaned on. What is left is an object that changes
+ * colour decisively, which survives compression better anyway.
+ *
+ * It turns over: a slow 2.4s breath in opacity while BUSY and nothing at all
+ * when idle. Under `prefers-reduced-motion: reduce` it stops lit, which still
+ * says BUSY — the static pair is the one that has to hold. */
+:root[data-world='cloudcity'] .room--busy::before {
+  background: radial-gradient(circle at 44% 36%, var(--screen-on) 0 46%, var(--cool) 80%);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cloud-rgb), 0.55),
+    0 0 0 2px rgba(var(--cool-rgb), 0.4),
+    0 0 12px 4px rgba(var(--cool-rgb), 0.28);
+}
+
+/* --- Harbour control desks -------------------------------------------------
+ *
+ * The desk becomes a galvanised control desk and the monitor becomes a signal
+ * lamp housing: a shuttered lantern facing out over the deck.
+ */
+:root[data-world='cloudcity'] .desk__surface {
+  border-radius: 3px 3px 5px 5px;
+  background-image:
+    /* the panel seams down the face of it */
+    repeating-linear-gradient(90deg, rgba(var(--desk-edge-rgb), 0.3) 0 1px, transparent 1px 12px),
+    linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.3),
+    inset 0 -4px 0 0 var(--desk-edge),
+    0 4px 7px var(--shadow);
+}
+
+/* The enamel mug, where the office's mug was. Some things survive a change of
+ * altitude. */
+:root[data-world='cloudcity'] .desk__surface::before {
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--chasm-rgb), 0.3);
+}
+
+/* A flight plan, where the loose paper was. `--paper` is the panel surface and
+ * is pale in this world, so unlike the three dark worlds this one needs no
+ * separate sheet token — Phase 19's finding 3 is the other half of finding 2,
+ * and neither bites on a light ground. */
+:root[data-world='cloudcity'] .desk__surface::after {
+  background: var(--paper);
+  box-shadow: 0 0 0 1px rgba(var(--desk-edge-rgb), 0.45);
+}
+
+/* The signal key, where the keyboard was: a flat plate with two levers. */
+:root[data-world='cloudcity'] .desk__keyboard {
+  border-radius: 2px;
+  background-color: var(--desk-edge);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 24%,
+    var(--fitting) 24% 32%,
+    transparent 32% 46%,
+    var(--fitting) 46% 54%,
+    transparent 54%
+  );
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.16);
+}
+
+/* The lamp housing.
+ *
+ * HEIGHT UNCHANGED AT 20px, and only the width moves. `.desk` is a centred flex
+ * column, so a housing one pixel taller than the base monitor shifts the whole
+ * stack — and therefore the nameplate under it — half that far up, which is a
+ * layout difference between worlds that this file has no reason to introduce.
+ * Reef Station measured it at 1.5px and the number has not changed. */
+:root[data-world='cloudcity'] .desk__monitor {
+  position: relative;
+  width: calc(24px * var(--furn));
+  height: calc(20px * var(--furn));
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--screen-off);
+  box-shadow:
+    inset 0 0 0 2px var(--fitting),
+    inset 0 2px 4px 0 rgba(var(--chasm-rgb), 0.45),
+    0 2px 4px var(--shadow);
+}
+
+/* The shutter slats across the lens. Present whether the lamp is lit or not,
+ * because they are part of the housing. */
+:root[data-world='cloudcity'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(var(--ink-rgb), 0.38) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+/* The lit lens itself, hidden while the desk is idle. */
+:root[data-world='cloudcity'] .desk__monitor::after {
+  content: '';
+  position: absolute;
+  inset: calc(2px * var(--furn));
+  border-radius: 2px;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 42%, var(--screen-on) 0 44%, var(--cool) 88%);
+}
+
+/* The lamp comes up. Restated at this specificity for the `.room--busy` reason.
+ *
+ * The two spills are much tighter and much more saturated than the base
+ * stylesheet's, and that is the bright-world correction rather than a taste
+ * one: a wide soft glow at 0.34 alpha over a white deck raises nothing — the
+ * deck is already brighter than the glow — so it goes unseen while costing the
+ * same paint. What does read is a small ring of strongly coloured light right
+ * at the source, because a hue change on a near-white surface is visible where
+ * a brightness change is not. */
+:root[data-world='cloudcity'] .desk--busy .desk__monitor {
+  background: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px var(--cool),
+    0 0 6px 1px rgba(var(--cool-rgb), 0.55),
+    0 4px 12px 3px rgba(var(--cool-rgb), 0.3);
+}
+
+:root[data-world='cloudcity'] .desk--busy .desk__monitor::after {
+  opacity: 1;
+}
+
+/* The stool. Height unchanged at 18px so the desk stack — and therefore where
+ * the nameplate lands under it — is exactly where every other world puts it. */
+:root[data-world='cloudcity'] .desk__chair {
+  width: calc(19px * var(--furn));
+  height: calc(18px * var(--furn));
+  border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(circle at 48% 40%, var(--chair) 0 54%, var(--desk-edge) 100%);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--ink-rgb), 0.3),
+    0 3px 6px var(--shadow);
+}
+
+:root[data-world='cloudcity'] .desk__chair::before {
+  left: 50%;
+  top: 28%;
+  width: calc(9px * var(--furn));
+  height: calc(6px * var(--furn));
+  border-radius: 50%;
+  background: rgba(var(--sheen-rgb), 0.24);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> the departures board: a dark split-flap board in a steel case,
+ * standing at the back of the deck.
+ *
+ * DARK, WHICH IS THE ONE THING IT HAD TO BE. Paper Office's board is white
+ * because a dark rectangle hung on a white wall reads as a hole in it; up here
+ * the "wall" is open sky, so a pale board floats in it and disappears, and the
+ * only object that reads against a bright band is a dark one. It is also what a
+ * departures board actually is. */
+:root[data-world='cloudcity'] .fixture--board {
+  border-radius: 2px;
+  background-color: var(--board-face);
+  background-image:
+    /* the header strip along the top */
+    linear-gradient(
+      180deg,
+      rgba(var(--flap-rgb), 0.16) 0 calc(4px * var(--furn)),
+      transparent calc(4px * var(--furn))
+    ),
+    linear-gradient(170deg, rgba(var(--sheen-rgb), 0.08), rgba(var(--sheen-rgb), 0) 55%);
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 3px 6px var(--shadow);
+}
+
+/* The post it stands on. `.fixture--board` has no pseudo-element in the base
+ * stylesheet, so this is free — and it is needed, because an unsupported board
+ * in a band of open sky is a board hovering in mid-air. */
+:root[data-world='cloudcity'] .fixture--board::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: calc(5px * var(--furn));
+  height: calc(9px * var(--furn));
+  border-radius: 0 0 2px 2px;
+  background: var(--board-frame);
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+/* The marks become rows of split-flap characters rather than continuous
+ * strokes — a departures board is a grid of little panels, and a solid bar on
+ * one read as a sticker. */
+:root[data-world='cloudcity'] .board__scribble {
+  height: calc(3px * var(--furn));
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--flap-rgb), 0.82) 0 4px,
+    transparent 4px 6px
+  );
+}
+
+/* Water cooler -> the windsock. The bottle becomes the sock and the body
+ * becomes the mast footing it streams from.
+ *
+ * NOT ORANGE, and that is the single most deliberate colour in this file after
+ * the state hues. Every windsock anyone has ever seen is orange and white, and
+ * an orange object sitting permanently in the corridor of a board whose
+ * `--honey` means "queued" and whose `--alarm` means "over budget" is exactly
+ * the defect Phase 21 caught in its coral: the state hue a world's scenery
+ * collides with is not always the one the brief names. This one is charcoal and
+ * white — which real airfields also use — at 0.05 saturation against `--honey`'s
+ * 0.95, an 18.5x gap.
+ *
+ * The sock is offset from the footing rather than stacked on it, so the pair
+ * reads as a sock streaming away from its mast rather than as a lid on a box.
+ * From directly overhead the thing UNDER an object is what tells you what the
+ * object is — the Forest's well and the reef's twinset both turned on this. */
+:root[data-world='cloudcity'] .cooler__bottle {
+  position: relative;
+  z-index: 1;
+  margin-left: calc(13px * var(--furn));
+  width: calc(21px * var(--furn));
+  height: calc(8px * var(--furn));
+  border-radius: 2px 60% 60% 2px / 2px 50% 50% 2px;
+  background-color: var(--bottle);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--bottle-base) 0 4px,
+    transparent 4px 9px
+  );
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--chasm-rgb), 0.28),
+    0 2px 5px var(--shadow);
+}
+
+/* The footing, with its guy wires. */
+:root[data-world='cloudcity'] .cooler__body {
+  width: calc(13px * var(--furn));
+  height: calc(7px * var(--furn));
+  margin-top: calc(-2px * var(--furn));
+  border-radius: 50%;
+  background-color: var(--cooler-body);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 42%,
+    var(--fitting) 42% 58%,
+    transparent 58%
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--fitting),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> a railed opening onto open air.
+ *
+ * The fixture is 70x28 — a wide, low box — and the Forest found that any wide
+ * low shape filled with a single pale colour reads as one object whatever its
+ * border-radius, which for a pale blue box in a pale blue band would have been
+ * worse still: it would not have read as anything. Three things instead: sky
+ * behind, a bank of cloud across the middle of it, and a rail with balusters in
+ * front. The rail is what makes it an opening rather than a hole.
+ *
+ * Every shaped layer ends in `transparent` — Phase 21's finding 1. */
+:root[data-world='cloudcity'] .fixture--window {
+  border-radius: 2px;
+  background-color: var(--glass);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.5) calc(var(--tile-size) * 0.16) at 26% 62%,
+      rgba(var(--cloud-rgb), 0.9) 0 52%,
+      rgba(var(--cloud-rgb), 0) 78%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.34) calc(var(--tile-size) * 0.12) at 72% 72%,
+      rgba(var(--cloud-rgb), 0.75) 0 54%,
+      rgba(var(--cloud-rgb), 0) 80%
+    ),
+    linear-gradient(180deg, var(--glass-sky), var(--glass) 72%);
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 2px var(--wall-trim),
+    0 3px 6px var(--shadow);
+}
+
+/* The base rule's `::before` is a vertical glazing bar. It becomes the
+ * balusters, which is the same element doing the same job in a different
+ * building. */
+:root[data-world='cloudcity'] .fixture--window::before {
+  left: 4px;
+  right: 4px;
+  top: auto;
+  bottom: 4px;
+  width: auto;
+  height: calc(9px * var(--furn));
+  transform: none;
+  background: repeating-linear-gradient(90deg, var(--rail) 0 2px, transparent 2px 9px);
+}
+
+/* And the base rule's `::after`, the horizontal bar, becomes the top rail. */
+:root[data-world='cloudcity'] .fixture--window::after {
+  left: 3px;
+  right: 3px;
+  top: auto;
+  bottom: calc(11px * var(--furn));
+  height: 3px;
+  transform: none;
+  border-radius: 2px;
+  background: var(--rail-lit);
+  box-shadow: 0 1px 0 0 rgba(var(--chasm-rgb), 0.35);
+}
+
+/* Daylight -> the pool the high sun throws on the deck.
+ *
+ * The fixture keeps its role exactly: a patch of illumination in a fixed place
+ * at (17%, 46%). The disc that makes it is in the sky slot — see the note
+ * there, and Phase 22's finding 2.
+ *
+ * Brand amber, and this is the one place in the product where that is not a
+ * contradiction: the rule is that amber never *carries meaning*, and sunlight
+ * on a floor is the purest possible case of a colour that reports nothing.
+ * Paper Office's own daylight makes the same argument on the same fixture.
+ *
+ * Held at 0.32 alpha against the 0.55 a lit lamp spills at, and warm against
+ * that lamp's deep cyan — which is more separation than this needs, and it
+ * needs to be, because on a white deck the pool is a hue rather than a
+ * brightness and a hue is what the state uses too. */
+:root[data-world='cloudcity'] .fixture--daylight {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--sun-rgb), 0.32),
+    rgba(var(--sun-rgb), 0) 68%
+  );
+}
+
+/* Plants -> topiary in sky-planters. Clipped box: geometric rather than loose,
+ * because a harbour deck is a built place and a wild shrub on it would read as
+ * neglect.
+ *
+ * The two plants are adjacent siblings — PLANTS.map in components.jsx renders
+ * them back to back with nothing between — so `+` is what tells them apart.
+ * `:nth-of-type` would not: it counts divs, and these sit among a great many
+ * other divs. If that adjacency ever breaks, the failure is that the harbour
+ * has two clipped spheres on it instead of a sphere and a cone. */
+:root[data-world='cloudcity'] .decor__leaves {
+  width: calc(11px * var(--furn));
+  height: calc(11px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, var(--foliage) 0 52%, var(--topiary-dark) 92%);
+  box-shadow:
+    0 0 0 1px rgba(var(--chasm-rgb), 0.2),
+    0 4px 6px var(--shadow);
+}
+
+:root[data-world='cloudcity'] .decor__pot {
+  width: calc(12px * var(--furn));
+  height: calc(7px * var(--furn));
+  margin-top: calc(2px * var(--furn));
+  border-radius: 2px 2px 4px 4px;
+  background: var(--planter);
+  box-shadow:
+    inset 0 2px 0 0 rgba(var(--chasm-rgb), 0.3),
+    inset 0 -2px 0 0 rgba(var(--chasm-rgb), 0.2),
+    0 3px 5px var(--shadow);
+}
+
+/* The second one is clipped to a cone rather than a sphere. */
+:root[data-world='cloudcity'] .decor--plant + .decor--plant .decor__leaves {
+  width: calc(10px * var(--furn));
+  height: calc(13px * var(--furn));
+  border-radius: 50% 50% 34% 34% / 62% 62% 26% 26%;
+  background: linear-gradient(160deg, var(--foliage), var(--topiary-dark));
+  box-shadow:
+    0 0 0 1px rgba(var(--chasm-rgb), 0.2),
+    0 4px 6px var(--shadow);
+}
+
+:root[data-world='cloudcity'] .decor--plant + .decor--plant .decor__pot {
+  width: calc(10px * var(--furn));
+  height: calc(6px * var(--furn));
+  border-radius: 50%;
+}
+
+/* --- The boarding platform -------------------------------------------------
+ *
+ * The waiting area becomes the edge of the deck where passengers board: a
+ * paler slab of stone with five painted bay marks on it and a hatched safety
+ * line along the outer edge.
+ *
+ * The marks are placed against the queue's own constants in components.jsx:
+ * WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the first row land at
+ * floor x 38/47/56/65/74, and this box runs from 21% to 79% — which puts them
+ * at 29/45/60/76/91% of its own width. Somebody queued stands on a mark rather
+ * than near one.
+ *
+ * Radii in LENGTHS, not percentages: this box is 298x83 at the 540 framing and
+ * 298x199 at 960, so a percentage radius is a ring at one and a standing
+ * ellipse at the other — Phase 20's finding 2, which this element is the worst
+ * case of on the whole floor.
+ *
+ * The hatching may tile and the stone may not, which is the same pair of rules
+ * the deck itself follows, on one element.
+ */
+:root[data-world='cloudcity'] .waiting {
+  border-radius: 6px;
+  background-color: var(--rug);
+  background-image:
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 29% 46%,
+      transparent 0 54%,
+      rgba(var(--deck-mark-rgb), 0.55) 54% 74%,
+      transparent 80%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 45% 46%,
+      transparent 0 54%,
+      rgba(var(--deck-mark-rgb), 0.55) 54% 74%,
+      transparent 80%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 60% 46%,
+      transparent 0 54%,
+      rgba(var(--deck-mark-rgb), 0.55) 54% 74%,
+      transparent 80%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 76% 46%,
+      transparent 0 54%,
+      rgba(var(--deck-mark-rgb), 0.55) 54% 74%,
+      transparent 80%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.15) at 91% 46%,
+      transparent 0 54%,
+      rgba(var(--deck-mark-rgb), 0.55) 54% 74%,
+      transparent 80%
+    ),
+    /* the hatched safety line along the outer edge */
+      repeating-linear-gradient(
+        56deg,
+        rgba(var(--deck-mark-rgb), 0.5) 0 3px,
+        transparent 3px 8px
+      ),
+    /* and the sun lying across the slab, which does not repeat */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.8) calc(var(--tile-size) * 0.3) at 34% 22%,
+        rgba(var(--stone-warm-rgb), 0.5),
+        rgba(var(--stone-warm-rgb), 0) 76%
+      );
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    100% calc(4px * var(--furn)),
+    auto;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 0 bottom 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat-x,
+    no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--cloud-rgb), 0.7),
+    inset 0 0 0 2px rgba(var(--rug-edge-rgb), 0.3),
+    inset 0 0 18px 6px rgba(var(--vignette-rgb), 0.07);
+}
+
+/* --- The cast --------------------------------------------------------------
+ *
+ * Nothing to do. The one-pixel rim round every sprite comes from `--ink-rgb`,
+ * which in this world is still the darkest thing in the system — so the base
+ * stylesheet's hard dark outline is exactly right and needs no override. Reef
+ * Station had to drop its to 0.28 because an inverted `--ink` turned the rim
+ * into a halo; that was a dark-world correction and it does not reach here.
+ * Recorded rather than left silent, because the absence of these three rules is
+ * the difference between a light world and a dark one in this file. */
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * A courier bird, crossing the harbour. The path is untouched, the 1100 ms
+ * timing is untouched and still comes from the base `.envelope` transition in
+ * step with `ENVELOPE_MS` in components.jsx, and the `aria-live` label is
+ * untouched because it lives in the markup and this file has no reach into it.
+ * Only the thing travelling changes.
+ *
+ * DARK, AND THAT IS THE WHOLE DECISION. Every handoff object in the product so
+ * far has been pale: a paper envelope on cream, a pale envelope on navy, a pale
+ * leaf on moss, a near-white capsule in dark water, a near-white pulse on
+ * regolith. Four of those five are pale because the floor is dark and one
+ * because the object is literally paper. Here the floor is the brightest
+ * surface in the product, so the same reasoning gives the opposite answer: the
+ * object separates from the ground by being on the other side of it, and the
+ * other side of white is dark. A pale bird over this deck would be a seagull in
+ * fog.
+ *
+ * Near-neutral besides — 0.12 saturation — for the reason the reef's capsule
+ * was not cyan and the Forest's leaf was not green: a coloured object detaching
+ * from a desk and flying across the room is a state hue on the loose.
+ *
+ * It is a bird rather than the drone the brief also offers, and that is
+ * deliberate: the AGENTS are drones in this world, so a drone crossing the
+ * floor would be a third thing that looks like a fourth. The bird is the only
+ * bird on the board.
+ *
+ * ONE SILHOUETTE, NOT THREE STACKED BOXES, AND THAT IS THE SECOND ATTEMPT.
+ * The first was built the way every other object in this file is — a rounded
+ * body, a wing bar on `::after`, a head on the flap — and at 22x10 real pixels
+ * it read as a dark blob with a pale blob on top of it. A fried egg, crossing
+ * the harbour.
+ *
+ * The reason generalises, and it is the reef's "drawn twice" lesson in another
+ * key: below a certain size a shape assembled from overlapping boxes stops
+ * being a shape and becomes the average of its parts. What survives is a
+ * single OUTLINE. So the courier is one `clip-path` polygon — a gull seen from
+ * above with its wings swept back, which is the glyph everybody already reads
+ * as "bird, some way off" — and the two spare elements are stood down. The
+ * polygon is also the one construction in this file that is exact at every
+ * framing without arithmetic, because its points are percentages of a box
+ * whose sides both scale with `--furn`.
+ */
+:root[data-world='cloudcity'] .envelope {
+  width: calc(26px * var(--furn));
+  height: calc(13px * var(--furn));
+  border: 0;
+  border-radius: 0;
+  background: var(--bird);
+  clip-path: polygon(
+    100% 50%,
+    78% 32%,
+    40% 0%,
+    14% 8%,
+    54% 40%,
+    0% 24%,
+    0% 76%,
+    54% 60%,
+    14% 92%,
+    40% 100%,
+    78% 68%
+  );
+  /* `box-shadow` is painted on the border box, so under a clipped element it
+   * would draw the shadow of a rectangle that is not there. `drop-shadow`
+   * follows the polygon. It is doing more work here than in any other world:
+   * on a surface at value 0.98 a shadow is the only mark available to say the
+   * courier is ABOVE the deck rather than painted on it. */
+  box-shadow: none;
+  filter:
+    drop-shadow(0 3px 3px var(--shadow))
+    drop-shadow(0 1px 0 rgba(var(--envelope-contact-rgb), 0.4));
+}
+
+/* The sunlit edge along the leading half of each wing, clipped to the outline
+ * by the parent. One pale mark, and it is what keeps the bird from going flat
+ * when it crosses a pavilion's shadow. */
+:root[data-world='cloudcity'] .envelope::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--cloud-rgb), 0.5) 0 16%,
+    transparent 16% 84%,
+    rgba(var(--cloud-rgb), 0.24) 84%
+  );
+}
+
+/* The flap and its crease are the paper envelope's two parts, and a bird has
+ * neither. Stood down rather than repurposed — see the note above about what
+ * happens when small shapes are stacked. */
+:root[data-world='cloudcity'] .envelope__flap {
+  display: none;
+}

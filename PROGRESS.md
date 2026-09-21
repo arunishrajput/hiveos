@@ -15,10 +15,10 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **▶ Current phase** | **Phase 23 — Cloud City. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 23.** Queue after it: **24 → 25 → 26 → 27** (27 last — it depends on every world that shipped) |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 21 `COMPLETE` — deployed and verified 2026-09-21. **Five looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony — and the board wears any of them. **Four of the eight world phases have shipped; four remain and are queued.** Gates after Phase 21: `pytest` **42/42**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding the single live connection belonged to a stranger (`dana`) on the public URL — the whole flow walked in Reef Station on the deployed board across **five identities** (4/4 desks lit at once, a real `queued #1`, a real handoff at **1,934 tokens**), and Paper Office proven unchanged by a **73/73 custom-property, 5,580-property** computed-style diff against a HEAD build whose only five deltas were the live coordinates of a pawn and one animation frame. |
+| **▶ Current phase** | **Phase 24 — Arctic Base. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 24.** Queue after it: **25 → 26 → 27** (27 last — it depends on every world that shipped) |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 23 `COMPLETE` — deployed and verified 2026-09-21. **Six looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City — and the board wears any of them. **Five of the eight world phases have shipped; three remain and are queued.** Gates after Phase 23: `pytest` **42/42**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding the only two live connections belonged to a stranger (`dana`) on `TEAM#alpha` while `TEAM#p23cloud` had none — the whole flow walked in Cloud City on the deployed board across **five identities** (4/4 desks lit at once, a settled `queued #1` in `--honey`, and two real handoffs at 540 and 960), and Paper Office proven unchanged by a **73/73 custom-property, 4,752-computed-field** diff against a HEAD build whose only four deltas were the live coordinates of one pawn. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 34, the Phase 21 build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 21 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 35, the Phase 23 build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 23 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -58,18 +58,18 @@
 | 20 | Enchanted Forest | `COMPLETE` — deployed and verified 2026-09-21. Four worlds in the picker; the first non-human cast |
 | 21 | Reef Station | `COMPLETE` — deployed and verified 2026-09-21. Five worlds in the picker; the hardest contrast case in the set, and it holds |
 | 22 | Alien Colony | `COMPLETE` — deployed and verified 2026-09-20. Built out of order on the user's instruction; it was the third look in the picker at the time |
-| 23 | Cloud City | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 23 |
-| 24 | Arctic Base | `QUEUED` — position 2 |
-| 25 | Desert Outpost | `QUEUED` — position 3 |
-| 26 | Ancient Ruins | `QUEUED` — position 4 |
-| 27 | World polish and Random World | `QUEUED` — **position 5, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
+| 23 | Cloud City | `COMPLETE` — deployed and verified 2026-09-21. Six worlds in the picker; the only world brighter than Paper Office, and the one where every dark world's lighting trick stops working |
+| 24 | Arctic Base | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 24 |
+| 25 | Desert Outpost | `QUEUED` — position 2 |
+| 26 | Ancient Ruins | `QUEUED` — position 3 |
+| 27 | World polish and Random World | `QUEUED` — **position 4, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
 | 6 | Demo readiness | `COMPLETE` — **all nine tasks.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch. **Task 9 — submit — was done by the user and confirmed 2026-09-21** |
 
 **Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
 Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
 **19–26 depend on 18 and on nothing else**, so their order can be reshuffled — or any of them
 dropped — without touching the rest. 27 depends on whichever worlds actually shipped.
-**A world should now read the four findings under each of Phases 19, 20, 21 and 22 in
+**A world should now read the four findings under each of Phases 19, 20, 21, 22 and 23 in
 `BUILD_PLAN.md` before starting** — they are the shared-code traps a costume change walks into, and
 most of them have a fix already in `worlds/nightsky.css`, `worlds/forest.css`,
 `worlds/underwater.css` or `worlds/alien.css` to copy rather than rediscover. Between them: the
@@ -81,17 +81,21 @@ must be a length and never a floor percentage**, **why every shaped gradient lay
 `transparent` or it fills its whole box**, **that `.worldlayer--ground` has to be pulled below
 `--walk-top` before anything is painted on the ground**, **how to solve a `background-position`
 onto a layout constant**, **that a world has to check its cast, its handoff *and its scenery*
-against the four state meanings before drawing any of them**, and **that a 9x10 sprite carries its
-identity in rows 0 and 1 and nowhere else.**
+against the four state meanings before drawing any of them**, **that a 9x10 sprite carries its
+identity in rows 0 and 1 and nowhere else**, and — new at Phase 23 and the one that matters most
+for Arctic Base — **that on a world brighter than Paper Office every lighting technique the three
+dark worlds established stops working, because there is no headroom above white: a bright world
+reports by going DOWN in value, by going up in saturation, and by painting the shadow instead of
+the light.**
 
 > **▶ Resumed 2026-09-21, on user decision. These phases are the active work.** They were
 > deferred — never cut — when the 2026-09-20 deadline forced the user to take **Phase 22 only**
 > and close the project out for the recording. Two world phases shipped during the hackathon (19
-> and 22) and **Phases 20 and 21 shipped on 2026-09-21**, so four of eight are done. The
+> and 22) and **Phases 20, 21 and 23 shipped on 2026-09-21**, so five of eight are done. The
 > submission is in, so the user is finishing the rest.
 >
 > **A session told "Start the next phase" builds the first phase in the board above that is not
-> `COMPLETE` — right now that is Phase 23, Cloud City.** Then 24 → 25 → 26, and
+> `COMPLETE` — right now that is Phase 24, Arctic Base.** Then 25 → 26, and
 > **27 last**, because it depends on whichever worlds actually shipped. 19–26 depend only on 18,
 > so that order is a convention the user may reorder or cut from; 27's position is not.
 >
@@ -124,6 +128,124 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**Phase 23 — Cloud City — 2026-09-21 — deployed and verified**
+
+The sixth look, and the only one of the nine brighter than the paper office. The workspace floats:
+stone platforms with gaps of open air between them, open pavilions with beacons on their roofs, a
+windsock, a departures board, a railed opening onto the sky, and the cloud line running along the
+back of the deck with a very small airship above it.
+
+**What landed.** `frontend/src/worlds/cloudcity.css` (new, 50 scoped rules), a registry entry plus
+a five-pilot cast, a four-drone agent cast and an eight-colour palette in `worlds.js`, one import
+line in `main.jsx`. **Three files and nothing else.**
+
+**The problem this world exists to solve, and it is the inverse of every world before it.** The
+three dark worlds all report state the same way — a state is bright and the world is not — and
+none of that is available here, for reasons that are arithmetic rather than aesthetic:
+
+| | the harbour | the state |
+|---|---|---|
+| **value** | eight surfaces 0.94–0.99, sky 0.91 | `--cool` **0.46**, `--screen-on` **0.64** |
+| **saturation** | surfaces 0.02–0.16, sky 0.47, scenery ≤0.43 | `--cool` **0.91**, all four 0.81–0.95 |
+| **light** | there is no headroom above white | the sun is painted as the **shadow** it is interrupted by |
+
+The brightest cyan that still clears the 3:1 indicator bar against this world's own surfaces is
+value **0.64 — darker than the floor it sits on**, and darker than `--screen-on` is in any other
+world. So a bright thing up here is weather and a deep saturated one is a desk spending money,
+which is Reef Station's argument turned exactly upside down.
+
+**The state expression whose form changed.** Paper Office tints a working room's floor; a bay
+lights its dome; a module lights its antenna array; a hollow glows from inside; a dome lights its
+porthole. **A pavilion lights the beacon on its roof** — the one object on this floor whose entire
+purpose is to be seen from a distance, which is why a harbour has one. It sits on the front-LEFT
+corner rather than on the ridge, and that is measured rather than stylistic: `.desk` is centred in
+the room and its two-line nameplate rides above the desk stack, so a beacon at `left: 50%` is
+directly behind the `ENGINEER` caption. It matters more here than the equivalent would anywhere
+else, because the base stylesheet's speech bubble covers the monitor whenever an agent has
+anything to say — in every world — so the signal lamp cannot be the thing a viewer is relied on to
+see.
+
+**The handoff.** A courier bird, and **the first handoff object in the product that is dark**.
+Every one before it is pale — a paper envelope on cream, a pale envelope on navy, a pale leaf on
+moss, a near-white capsule in dark water, a near-white pulse on regolith — four of them because the
+floor is dark and one because it is literally paper. Here the floor is the brightest surface in
+the product, so the same reasoning gives the opposite answer. Near-neutral at 0.12 saturation
+besides, for the reason the reef's capsule was not cyan.
+
+**Verified, not assumed:**
+
+| Check | Result |
+|---|---|
+| `npm run build` | clean; `./scripts/deploy-frontend.sh` job **35 → SUCCEED** |
+| **The gate this phase is named for** | every small mono label read at 540: `--faint` pulled two steps darker than Paper Office's to carry `.pawn__state`, `.desk__role` and `WAITING AREA` on the brightest surface in the product — **4.74:1**, where Paper Office's weight does not survive here |
+| Real task in Cloud City on the **deployed** board | **679 tokens**; pavilion entered `--cool` at **458 ms**, border `rgb(11,90,118)`, beacon lit to `--screen-on` and pulsing `cloud-beacon 2.4s`, lens opacity 1, label `Ada`, role `Engineer`, pawn `working` — all unchanged |
+| Busy artwork, computed, after the base 220 ms transition settles | `.desk--busy .desk__monitor` resolves to `rgb(11,90,118)` = `--cool`; the world's (0,4,0) rules beat the base state rules correctly |
+| **Whole flow walked in this world, deployed** | hired Zed and Nox, then drove **five identities across five browser contexts**: **4/4 desks lit at once** (both pavilions *and* both open desks, `for alice`/`for bob`/`for carol`/`for eve`), and a real queue with a **settled** `queued #1` in `--honey` `rgb(138,78,7)`, eve standing on a painted bay mark on the boarding platform |
+| **Real agent-to-agent handoff, deployed, at 960 and 540** | two of them, Ada → Iris; label `"Ada passed this task to Iris."`, `role="status"`, `aria-live="polite"` — untouched. The courier legible as a dark silhouette against the bright deck at both viewports |
+| **`ENVELOPE_MS` contract** | computed `transition-duration` **1.1s, 1.1s** at both viewports — inherited from the base stylesheet, untouched; this world declares **zero** transitions of its own |
+| **Paper Office unchanged** | **73/73 custom properties identical** and **4,752 computed fields compared across 54 elements — 4 differences, all four the bounding box of one live pawn and its two labels**, i.e. where a person was standing between the two page loads. **Zero style diffs**, and document `scrollWidth`/`scrollHeight` **540×1164** identical |
+| Layout parity between worlds | floor box, both rooms, the waiting area and `--walk-top` byte-identical, switching live with no reload |
+| Switch to Paper Office and back, no reload | returns identical on every sampled measure |
+| **Contrast, measured live from the deployed board's computed values** | `--cool` **5.80** · `--safe` **4.79** · `--honey` **5.00** · `--alarm` **5.38** — worst case each, across **nine** surfaces rather than eight, because a queued member's `--honey` label stands on `--rug` and that is where all four worst cases land; `--screen-on` **3.50** as an indicator; `--dim` 6.67, `--faint` 4.74, `--ink` 13.55; `--on-amber` on `--amber` **9.98**. All clear their bar |
+| All three budget bands, on the deployed board | healthy at 3.4%, `--honey` warn at **78.0%** (both the figure and the strip fill in `rgb(138,78,7)`, unmistakably not the brand amber), `--alarm` at **81.2%** in `rgb(165,42,32)` |
+| Hue separation | cool↔safe **46.6°**, honey↔alarm **28.0°** (the widest of the six worlds), cool↔screen-on 0.5° — one hue at two weights, 0.46 → 0.64 in value. honey↔amber is only 7.0° **and separates by luminance at 3.61:1**, where Paper Office manages 2.29 and no dark world can do it at all |
+| Identity palette | all eight clear **4.0:1** on the platform, a pavilion deck, a busy pavilion deck and a gap (worst 4.05), at saturation 0.15–0.61 against the state hues' 0.81–0.95 |
+| Every world rule scoped | **50/50** carry `:root[data-world='cloudcity']`; 0 unscoped, and 0 unscoped inside the reduced-motion block |
+| Colour literals outside the token block | **zero** — 59 hexes, all inside `:root[data-world='cloudcity']`; zero raw `rgb()` anywhere |
+| `--walk-top` never set by the world | confirmed — the registry owns it; read 7 times, including the ground slot's `top` |
+| `!important`, or `content:` carrying a word | **none of either** |
+| `prefers-reduced-motion` | verified **at runtime** with `emulateMedia`, not structurally: under `reduce` all six of this world's animations resolve to `none`, the base `screen-flicker` too, the pawn to `none` and the envelope transition to `0s`. **The beacon stops LIT and the lens stays at opacity 1**, so BUSY survives as a static state |
+| Pre-paint / cold load | stored paint `{"scheme":"light","themeColor":"#e9f2fb"}`, and **the registry's `themeColor` literal matches the world's own `--cream` token exactly — asserted for all six worlds**, dark and light |
+| Responsive sweep | 1440 / 1100 / 960 / 900 / 540 / 390 — **zero horizontal page overflow at every width**, workspace and landing page |
+| Console, deployed | **zero errors, zero warnings** — workspace and landing page |
+| Landing page in this world | repaints; preview floor shows two lit pavilions, `for alice` / `for bob`, `working` and a `queued #1` |
+| Phase 22's world-card hover fix, in this world | holds — the selected card reads **9.98:1 at rest and 7.09:1 hovered**; an unselected card reads 17.67:1 at rest and 15.83:1 hovered |
+| Picker, deployed | **six looks**, Cloud City selected and persisted |
+| `pytest` | **42/42** |
+| `ws_smoke.py` | **109/113** — the four documented CONN# false positives; a scan immediately after found exactly **two** `CONN#` rows, both belonging to the stranger `dana` on `TEAM#alpha`. **`TEAM#p23cloud` had none** — every connection this session opened, across five browser contexts, was gone |
+
+**Four findings recorded in `BUILD_PLAN.md` under Phase 23**, all four of which belong to worlds
+24–26 and the first of which is the largest in the set so far: **every lighting technique the three
+dark worlds established stops working on a world brighter than Paper Office**, because there is no
+headroom above white — so a bright world reports by going *down* in value, by going *up* in
+saturation, and by painting the shadow instead of the light. Also: **Phase 19's findings 2 and 3
+are dark-world findings and lapse entirely here** (no scrim overrides, no chair re-point, no
+`--sheet`), while finding 4 *inverts* and gives the value separation back; **`--tile` was wrong a
+third time in a third direction** — a gap in a sky harbour shows the sunlit cloud below and is
+therefore *brighter* than the deck, and correcting it moved every contrast number in the world;
+and **a gap needs an asymmetric pair of lips or it is a line rather than a hole.**
+
+**Three notes that are not corrections.** The beacon moved off the ridge because the nameplate is
+there — see above, and every remaining world should place its room-level state expression where
+neither the nameplate nor the speech bubble reaches. The **courier bird is one `clip-path` polygon
+rather than three stacked boxes**, and the first attempt was the other way round: at 22×10 real
+pixels a body, a wing bar and a head rendered as a dark blob with a pale blob on it — which is
+Phase 21's "drawn twice" lesson in another key, that below a certain size a shape assembled from
+overlapping boxes becomes the average of its parts and only an outline survives. And **the windsock
+is charcoal and white rather than orange**, which is the Phase 21 coral trap for the second world
+running; the same check caught brass fittings sitting 1.8° from `--honey` at 0.49 saturation and
+riding on every pawn through `--sp-accent`, so every metal fitting in this world is galvanised
+steel and the goggle leather is held at 0.26 against honey's 0.95.
+
+**One thing found that is not this phase's and may not be fixed here.** A queued member's
+`queued #1` label renders in `--faint` rather than `--honey` for as long as they are still walking
+to the waiting area. `components.jsx` derives the *text* from `position` and the `pawn--waiting`
+*class* from `waiting && !isWalking`, so the two disagree for about a second. It is identical in
+every world including Paper Office, it is shared code a world phase may not touch, and it resolves
+correctly the moment the walk ends — confirmed on the deployed board, `rgb(138,78,7)`. Recorded
+for **Phase 27**, which is the phase allowed to touch shared code.
+
+**Not re-run:** `rehearse.py`. No backend file changed, Paper Office is the demo world and is
+proven unchanged above, and the shared Validation block only requires it when a world changes the
+demo framing — which none of them may.
+
+**Test partition left in the table:** `p23cloud` (created here; budget set via the admin panel to
+20,000 so a full floor, a queue and two handoffs all fit — ~16,300 tokens spent across about a
+dozen tasks and two handoff chains, which also walked the meter through all three budget bands).
+Inert, like the others — Phase 9 partitions every row by team.
+
+---
 
 **Phase 21 — Reef Station — 2026-09-21 — deployed and verified**
 

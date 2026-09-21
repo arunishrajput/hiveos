@@ -573,6 +573,208 @@ const SERVICE_ROBOTS = [
   ],
 ]
 
+/* --- Cloud City's cast ------------------------------------------------------
+ *
+ * The sky harbour's people are pilots: flying helmets, goggles, high-collared
+ * jackets. Its agents are the courier drones that work the control desks. The
+ * second world to use `agentDesigns`, and honest here for the colony's reason —
+ * a harbour is a place machines work and people arrive at, so an agent at a
+ * desk is visibly not one of the people watching it.
+ *
+ *   H  helmet / cap    --sp-hair    per-pilot, from the palette below
+ *   F  the face        --sp-skin
+ *   S  flight jacket   --sp-shirt
+ *   A  goggles, straps --sp-accent  weathered leather
+ *   D  the eyes        --sp-detail
+ *
+ * Identity lives in rows 0 and 1 — Phase 21's lesson, taken as given rather
+ * than rediscovered — but this cast gets a second register the animals did not
+ * have. A pilot's most identifying feature is at the FRONT of the head, where
+ * rows 2-5 are "dominated by the eyes"; goggles are worn exactly there, so the
+ * `A` layer can replace the eye row outright. Two of these five have their
+ * goggles down over the eyes and three have them pushed up, which doubles the
+ * silhouette work rows 0 and 1 are doing.
+ *
+ * The last row is legs and nothing else in every design, because `stepFrame`
+ * and `seatedFrame` replace exactly that row.
+ */
+const PILOTS = [
+  // 0 — leather flying helmet, goggles DOWN over the eyes
+  [
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHHHHHHHH',
+    'HAAAAAAAH',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — peaked harbour cap, goggles pushed up onto the brim
+  [
+    '...HHH...',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HAAAAAAAH',
+    '.HDFFFDH.',
+    '..FFFFF..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — helmet with the earflaps out, which is the widest row 1 in the set
+  [
+    '...HHH...',
+    'AHHHHHHHA',
+    'HHHHHHHHH',
+    'HHHHHHHHH',
+    '.HDFFFDH.',
+    '..FFFFF..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — chin straps flying loose behind, so row 0 is split rather than solid
+  [
+    '.A.....A.',
+    '.AHHHHHA.',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHDHHHDHH',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — crested helmet, visor band DOWN
+  [
+    '....H....',
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHAAAAAHH',
+    '..HFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+]
+
+/* The agents. Small courier drones working the harbour's control desks.
+ *
+ * No `F` layer in any of the four, which is the same tell the colony's robots
+ * carry: a drone has no skin, so `shadowFor` simply emits nothing for it. The
+ * dark optic on `D` is what gives a hovering box a front.
+ *
+ * The last row is landing skids rather than legs, which turns out to be the
+ * same gift the reef's tails were: `..S...S..` is a pair of skids together and
+ * `.S.....S.` is the same pair spread, so the walk cycle the office uses for
+ * feet reads here as a hover settling and lifting.
+ *
+ * Their rotors are the `A` layer, in the pilots' leather rather than in
+ * anything bright. A drone with a lit nose would be a small cyan mark moving
+ * about a floor whose whole argument is that only a working desk is cyan —
+ * the same trap the reef's ROV would have walked into.
+ */
+const SKY_DRONES = [
+  // 0 — quadrotor, discs at the corners
+  [
+    'A.......A',
+    '.AHHHHHA.',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHDDDDDHH',
+    '.HHHHHHH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 1 — single main rotor over a narrow hull
+  [
+    '....A....',
+    '...AAA...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHDDDHHH',
+    '.HHHHHHH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 2 — fixed-wing glider, a wing out to each edge.
+  //
+  // Its optic row is the wide band twice over, which is deliberate: a single
+  // recessed dot was drawn first and the two gaps around it read as a PAIR OF
+  // EYES, which is the one thing a machine on this floor may not have. Sharing
+  // an optic with design 0 costs nothing, because identity lives in rows 0 and
+  // 1 and these two do not share those.
+  [
+    '..HHHHH..',
+    'AAHHHHHAA',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHDDDDDHH',
+    '.HHHHHHH.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 3 — twin stacked rotors, the tallest pair in the set
+  [
+    '.AA...AA.',
+    '.AA...AA.',
+    '..HHHHH..',
+    '..HHHHH..',
+    '.HDDDDDH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+]
+
+/* One jacket colour per marker, shared by the pilots and their drones.
+ *
+ * Shared for the colony's reason: the palette is *identity*, and the person who
+ * picked the fox is the fox whichever body the world gives them. Silhouette is
+ * what separates a person from an agent here, and it survives a compressed
+ * recording better than hue does.
+ *
+ * MEASURED AGAINST A BRIGHT WORLD, WHICH INVERTS THE PROBLEM. The office's
+ * eight are pitched to sit darker than a cream floor and the three dark worlds
+ * lifted theirs to read against navy, moss and water. Cloud City is brighter
+ * than the office, so these come *down* again and further: every one clears
+ * 4.0:1 on the platform stone, a pavilion deck, a busy pavilion deck and the
+ * cloud seen through a gap in the deck, worst case 4.05.
+ *
+ * Held between 0.15 and 0.61 saturation where this world's four state hues run
+ * 0.81-0.95 — the widest saturation floor any world has needed, because a
+ * bright world's state hues have to be deep and saturated to carry a word, and
+ * deep saturated marks are exactly what an identity must not be mistaken for.
+ * The harbour blue at 214deg is the closest call and is held at 0.26 against
+ * `--cool`'s 0.91.
+ */
+const PILOT_JACKETS = [
+  '#6b5586', // aubergine
+  '#3f6285', // deep harbour
+  '#7d5a31', // tan
+  '#4f7350', // olive
+  '#7a5566', // mulberry
+  '#5f6289', // iris
+  '#8a5a52', // terracotta
+  '#5d6b7d', // slate
+]
+
 /* One hull colour per marker, shared by the colonists and their robots.
  *
  * Shared on purpose: the palette is *identity*, and the person who picked the
@@ -721,6 +923,31 @@ const REGISTRY = [
     agentDesigns: SERVICE_ROBOTS,
     layers: DEFAULT_LAYERS,
     palette: COLONY_HULLS,
+  },
+  {
+    id: 'cloudcity',
+    label: 'Cloud City',
+    blurb: 'A sky harbour of platforms and pavilions, above the cloud line.',
+    // THE FIRST WORLD SINCE PAPER OFFICE THAT IS LIGHT, and the only one of
+    // the nine brighter than it. Which means the three overrides every dark
+    // world needs — the two scrims, the chair's under-edge — are not needed
+    // here at all: `--ink` still means "the mark on the page" AND still means
+    // "a dark colour", because the page is pale. Phase 19's finding 2 is a
+    // *dark*-world finding, and this is the world that proves it.
+    colorScheme: 'light',
+    // `--cream` in worlds/cloudcity.css. Literal for the same reason all the
+    // others are: the browser needs it before a stylesheet exists.
+    themeColor: '#e9f2fb',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the pavilions
+    // at y=14, so a world that raised its band would run the sky behind them.
+    walkTop: 14,
+    designs: PILOTS,
+    // The second world whose agents are a different species, and the reasoning
+    // is the colony's rather than the night deck's: a harbour is a place
+    // machines work and people arrive at. See SKY_DRONES above.
+    agentDesigns: SKY_DRONES,
+    layers: DEFAULT_LAYERS,
+    palette: PILOT_JACKETS,
   },
 ]
 

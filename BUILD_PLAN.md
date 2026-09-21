@@ -533,12 +533,12 @@ there was a submittable deliverable at every point.
 
 > ### ▶ These are the active phases as of 2026-09-21
 >
-> The hackathon is over and submitted. **Four worlds have shipped — 19 Night Watch, 20 Enchanted
-> Forest, 21 Reef Station and 22 Alien Colony** (Paper Office is the Phase 12 default, not a world
-> phase). The user is building the rest, one phase per session.
+> The hackathon is over and submitted. **Five worlds have shipped — 19 Night Watch, 20 Enchanted
+> Forest, 21 Reef Station, 22 Alien Colony and 23 Cloud City** (Paper Office is the Phase 12
+> default, not a world phase). The user is building the rest, one phase per session.
 >
 > **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
-> **23 → 24 → 25 → 26 → 27.**
+> **24 → 25 → 26 → 27.**
 >
 > 19–26 depend on 18 and on nothing else, so that order is a convention and the user may reorder
 > or drop any of them. **27 is genuinely last** — it depends on whichever worlds actually shipped.
@@ -576,7 +576,7 @@ the recorded demo is never at risk from a world that is still being built.
 | 20 | Enchanted Forest | `worlds/forest.css` + `worlds.js` | 18 |
 | 21 | Reef Station | `worlds/underwater.css` + `worlds.js` | 18 |
 | 22 | Alien Colony | `worlds/alien.css` + `worlds.js` | 18 |
-| 23 | Cloud City | `worlds/cloud.css` + `worlds.js` | 18 |
+| 23 | Cloud City | `worlds/cloudcity.css` + `worlds.js` | 18 |
 | 24 | Arctic Base | `worlds/arctic.css` + `worlds.js` | 18 |
 | 25 | Desert Outpost | `worlds/desert.css` + `worlds.js` | 18 |
 | 26 | Ancient Ruins | `worlds/ruins.css` + `worlds.js` | 18 |
@@ -1105,7 +1105,7 @@ the opposite of every other world's: not enough contrast rather than too little 
 - **Decoration slots** — sky: layered clouds and a drifting airship; air: occasional wisps.
 - **Handoff** — the envelope becomes a small courier bird or drone on the same path.
 
-**Files.** `frontend/src/worlds/cloud.css` (new), `frontend/src/worlds.js`.
+**Files.** `frontend/src/worlds/cloudcity.css` (new), `frontend/src/worlds.js`.
 
 **Non-negotiables.** The shared scope above, plus: **a bright world is where text goes to die.**
 Every one of the four state hues needs re-darkening against near-white surfaces, and the pawn
@@ -1115,6 +1115,87 @@ brightest platform.
 **Validation.** The shared block above, plus every small mono label read at 540 px.
 
 **Gate.** Nothing on a white platform is hard to read, and the four state hues all pass.
+
+**Shipped 2026-09-21. Four things the plan got wrong, corrected in flight — and all four are
+findings for worlds 24-26 rather than details of this one:**
+
+1. **EVERY LIGHTING TECHNIQUE THE THREE DARK WORLDS ESTABLISHED IS UNAVAILABLE HERE, AND THE
+   REASON IS ARITHMETIC RATHER THAN TASTE.** A dark world reports state by adding light: a lit
+   dome, a glowing hollow, a woken scope. Glow is additive, and against a near-black ground it
+   barely has to try. There is no headroom above white. The platform stone is value 0.98 and the
+   pavilion deck 0.99, so a lamp that reports by getting brighter has nowhere to go, and a soft
+   pale halo around it is invisible on the surface it is meant to be lighting. Measured: the
+   brightest cyan still clearing the 3:1 indicator bar against this world's own surfaces is 0.64
+   in value — DARKER than the floor it sits on. So a bright world reports three other ways
+   instead, and all three had to be found: **value downwards** (all four state hues deeper than
+   any world so far, 0.42-0.65 against surfaces at 0.94-0.99); **saturation** (state hues at
+   0.81-0.95 against a world held under 0.43); and, the transferable one, **shadow instead of
+   light** — you cannot paint sun onto a white deck, so the sun is painted as the shadow it is
+   interrupted by. The ground slot carries cloud shadows crawling across the platforms, the
+   pavilions read as buildings because of the shadow they throw rather than because they are a
+   shade lighter than the corridor, and the handoff is the first one in the product that is DARK.
+   **Arctic Base is the same problem with snow, and 25's sand is halfway there.**
+2. **Phase 19's findings 2 and 3 are DARK-world findings, and this is the world that shows where
+   their edge is.** `--ink` inverts, so every dark world needs the two scrims and
+   `.desk__chair`'s under-edge re-pointed at `--cream-rgb`, and needs a world-local `--sheet`
+   because `--paper` has gone dark under the handoff envelope. A light world needs **none of
+   those five overrides**: `--ink` means "maximum contrast" AND "a dark colour" at the same time
+   again, and `--paper` is still a pale sheet. Cloud City's stylesheet contains no `.modal`, no
+   `.drawer` and no `.sprite::before` rule at all. Worth knowing before 25 — a desert outpost in
+   daylight is a light world too. **Finding 4 inverts rather than lapsing**: on a dark ground
+   honey and amber cannot separate by value, so the dark worlds bought a 15-19deg hue gap; a
+   bright world gets the value separation back and more of it than cream did (3.61:1 apart here
+   against Paper Office's 2.29:1), so the hue gap can go back down to 7.0deg.
+3. **`--tile` was got wrong a third time, in a third direction, and the correction improved every
+   contrast number in the world.** Phase 22 established that the token means "the other ground
+   colour" rather than "lighter than the floor" — a crater is darker than its regolith, machined
+   plate greyer than its sand. A gap in the floor of a sky harbour is not a surface at all: it is
+   the sunlit top of the cloud layer far below, and it is BRIGHTER than the stone standing over
+   it. Drawn dark first, on the reasonable-sounding grounds that a hole is dark, and the deck
+   rendered as grout — a pale tile field with dark lines ruled across it, which is a bathroom.
+   Two consequences. The art one: a bright slot with a shadow on its near lip reads instantly as
+   light coming up through a hole. The measurement one: `--tile` had been the darkest of the
+   eight surfaces and therefore the one every contrast number was worst against, and inverting it
+   moved the whole table. **Ask what is actually on the other side of the hole before picking its
+   value.**
+4. **A gap needs an ASYMMETRIC pair of lips or it is not a gap, it is another line.** The first
+   version gave both edges 1px at 0.45 alpha — the same weight as the plank joints inside a
+   platform — and the deck read as a striped texture. The near lip is now twice as wide and
+   nearly four times as dark as the far one, which is what an edge you are looking over the top
+   of actually does, and the plank joints were dropped to 0.5 so there is a hierarchy rather than
+   two grids of equal weight. The general shape: **a line that means "depth" and a line that
+   means "joint" cannot be drawn at the same weight**, and this is the same class of mistake as
+   Phase 21's cell-count problem — legibility of a texture is about the relationship between its
+   marks, not about any one of them.
+
+**Three notes that are not corrections.**
+
+**The beacon is on the pavilion's front-left corner and not on its ridge, which is where the brief
+put it.** The ridge is `left: 50%`, and `.desk` is centred in the room with a two-line nameplate
+riding above the desk stack — so a beacon there sits directly behind the `ENGINEER` caption.
+Measured rather than guessed. It matters more here than the equivalent would anywhere else,
+because **the other half of this world's busy state is routinely hidden**: the base stylesheet's
+speech bubble sits over the monitor whenever an agent has anything to say, in every world, so the
+signal lamp cannot be relied on as the thing a viewer sees. Every world from here should place its
+room-level state expression somewhere the nameplate and the bubble never reach.
+
+**The courier bird is one `clip-path` polygon rather than three stacked boxes, and the first
+attempt was the other way round.** Built like every other object in the file — a rounded body,
+a wing bar on `::after`, a head on the flap — it rendered at 22x10 real pixels as a dark blob with
+a pale blob on top of it. This is Phase 21's "drawn twice" lesson in another key: **below a certain
+size a shape assembled from overlapping boxes stops being a shape and becomes the average of its
+parts**, and what survives is a single outline. A polygon is also the only construction in the file
+exact at every framing without arithmetic, because its points are percentages of a box whose sides
+both scale with `--furn`.
+
+**The windsock is charcoal and white, not orange.** Every windsock anyone has ever seen is orange,
+and an orange object sitting permanently in the corridor of a board whose `--honey` means "queued"
+and whose `--alarm` means "over budget" is exactly the defect Phase 21 caught in its coral. The
+same check caught a second one: the fittings were drawn in brass, 1.8deg from `--honey` at 0.49
+saturation, which put a small permanent ochre mark on every pawn via `--sp-accent`. Every metal
+fitting in this world is galvanised steel and the goggle leather is held at 0.26 saturation against
+honey's 0.95. **Two worlds running, the prop whose real-world colour is a state hue has been the
+thing that nearly shipped.**
 
 ---
 
