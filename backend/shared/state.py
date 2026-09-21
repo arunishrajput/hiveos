@@ -82,6 +82,22 @@ def ttl_after(seconds):
     return int(datetime.now(timezone.utc).timestamp()) + int(seconds)
 
 
+def clear_idempotency_marker(team, task_id, hops=0):
+    """Delete the idempotency gate for a task/hop so it can be safely replayed.
+
+    Used by DLQ recovery to permit a dead-lettered message to be redriven without
+    being falsely dropped as a duplicate by `_already_delivered`.
+    """
+    if not task_id:
+        return
+    table().delete_item(
+        Key={
+            "PK": team_pk(team),
+            "SK": f"IDEMPOTENCY#{task_id}#{int(hops or 0)}",
+        }
+    )
+
+
 def now_iso_micros():
     """Microsecond-precision timestamp, used only for QUEUE# sort keys.
 

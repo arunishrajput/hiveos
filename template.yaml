@@ -248,6 +248,7 @@ Resources:
           # The runner dispatches the next queued task itself, so it both
           # consumes from and produces to the same queue.
           QUEUE_URL: !Ref TaskQueue
+          DLQ_URL: !Ref TaskDLQ
           TOKEN_BUDGET: !Ref TokenBudget
           MAX_TOKENS_PER_CALL: !Ref MaxTokensPerCall
           GROQ_MODEL: !Ref GroqModel
@@ -325,6 +326,8 @@ Outputs:
   DeadLetterQueueUrl:
     Description: Dead-letter queue — inspect this when a task vanishes
     Value: !Ref TaskDLQ
+    Export:
+      Name: !Sub '${AWS::StackName}-DeadLetterQueueUrl'
 
   AgentRunnerFunctionName:
     Description: Agent Runner Lambda, for sam logs
