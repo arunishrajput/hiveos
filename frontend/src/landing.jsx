@@ -11,7 +11,9 @@
  * card in the architecture band.
  */
 
-import { CanvasPanel, QuotaBar, Mark } from './components'
+import { useState } from 'react'
+
+import { CanvasPanel, QuotaBar, Mark, WorldModal } from './components'
 
 const REPO = 'https://github.com/arunishrajput/hiveos'
 const WORKSPACE = '#/workspace'
@@ -179,6 +181,23 @@ const PIPELINE = `Browser ──wss──► API Gateway WebSocket ──► Rou
 /* --- The page ------------------------------------------------------------- */
 
 export default function Landing() {
+  /* The world picker, on the front door as well as in the workspace.
+   *
+   * `Landing` already renders inside `WorldProvider` — App.jsx wraps every
+   * route, because the preview floor below draws the sprite system and a
+   * visitor who picked a world should not be shown a paper office at the
+   * door. So this needs no new plumbing: the same `WorldModal` the app bar
+   * opens works here, writes to the same `localStorage` key, and the whole
+   * page — nav, bands, preview floor and all — is already repainted by the
+   * world's own token block.
+   *
+   * The button is the same glyph and the same accessible name as the one in
+   * the app bar, deliberately. It is one control in two places, not two
+   * controls, and a visitor who finds it here should recognise it when they
+   * are on the floor.
+   */
+  const [showWorlds, setShowWorlds] = useState(false)
+
   return (
     <div className="lp">
       <header className="lp-nav">
@@ -187,6 +206,14 @@ export default function Landing() {
           <span className="lp-nav__name">HiveOS</span>
         </a>
         <span className="lp-nav__spacer" />
+        <button
+          type="button"
+          className="lp-nav__world"
+          onClick={() => setShowWorlds((open) => !open)}
+          aria-label="Change world"
+        >
+          <span aria-hidden="true">◑</span>
+        </button>
         <a
           className="lp-nav__link"
           href={REPO}
@@ -199,6 +226,8 @@ export default function Landing() {
           Enter the workspace
         </a>
       </header>
+
+      {showWorlds && <WorldModal onClose={() => setShowWorlds(false)} />}
 
       <main>
         {/* Hero — cream */}

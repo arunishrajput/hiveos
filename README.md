@@ -64,14 +64,14 @@ id. Bounded to one hop, so a chain cannot ping-pong through the budget.
 created on first join with no provisioning step, and optionally **passphrase-protected** with
 an owner who can set the budget or delete it.
 
-**Worlds.** The same board can wear a different place. A picker in the title bar swaps the whole
-workspace between **Paper Office** (warm daylight and cream tiles), **Night Watch** (a deck under
-a star field, lit by its instruments), **Enchanted Forest** (hollow stumps and carved benches
-under a dappled canopy), **Reef Station** (research domes on the seabed, under caustics from a
-surface far above), **Alien Colony** (command modules on landing pads under two moons) and
-**Cloud City** (a sky harbour of platforms and pavilions, above the cloud line) — same sockets,
-same scheduler, same rows in DynamoDB, re-dressed. It is a personal setting, stored in
-your own browser, and it changes nothing anyone else sees.
+**Worlds.** The same board can wear a different place. A picker — in the title bar on the floor,
+and in the nav on the front page — swaps the whole workspace between **Paper Office** (warm
+daylight and cream tiles), **Night Watch** (a deck under a star field, lit by its instruments),
+**Enchanted Forest** (hollow stumps and carved benches under a dappled canopy), **Reef Station**
+(research domes on the seabed, under caustics from a surface far above), **Alien Colony** (command
+modules on landing pads under two moons) and **Cloud City** (a sky harbour of platforms and
+pavilions, above the cloud line) — same sockets, same scheduler, same rows in DynamoDB, re-dressed.
+It is a personal setting, stored in your own browser, and it changes nothing anyone else sees.
 
 A world is not a colour scheme and it is never allowed to change what anything *means*. The busy
 blue, the queued ochre, the budget jade and the over-budget red carry the whole governance story,

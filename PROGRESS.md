@@ -18,7 +18,7 @@
 | **▶ Current phase** | **Phase 24 — Arctic Base. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 24.** Queue after it: **25 → 26 → 27** (27 last — it depends on every world that shipped) |
 | **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 23 `COMPLETE` — deployed and verified 2026-09-21. **Six looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City — and the board wears any of them. **Five of the eight world phases have shipped; three remain and are queued.** Gates after Phase 23: `pytest` **42/42**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding the only two live connections belonged to a stranger (`dana`) on `TEAM#alpha` while `TEAM#p23cloud` had none — the whole flow walked in Cloud City on the deployed board across **five identities** (4/4 desks lit at once, a settled `queued #1` in `--honey`, and two real handoffs at 540 and 960), and Paper Office proven unchanged by a **73/73 custom-property, 4,752-computed-field** diff against a HEAD build whose only four deltas were the live coordinates of one pawn. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 35, the Phase 23 build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 23 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 36, the world-picker-on-the-landing-page build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 23 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -128,6 +128,46 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**The world picker on the landing page — 2026-09-21 — deployed and verified**
+
+User request, and a small one: the `◑` button that opens the world picker now sits in the landing
+page's nav as well as in the workspace's title bar. A visitor can choose the look before they have
+entered anything.
+
+**It needed no new plumbing.** `Landing` already renders inside `WorldProvider` — App.jsx wraps
+every route, because the preview floor draws the sprite system and somebody who picked a world
+should not meet a paper-office character at the door. So the same `WorldModal` the app bar opens
+works here unchanged, writes the same two `localStorage` keys, and the whole page (nav, bands and
+preview floor) was already repainted by each world's token block.
+
+**The button is deliberately identical to `.appbar__gear`** — same 26px square, same hairline, same
+raised fill, same glyph, same `aria-label="Change world"` — because it is one control in two
+places rather than two controls. It is a separate rule rather than a shared class on purpose: the
+app bar is a fixed-height row with its own width crisis (the 520px wordmark rule Phase 18 had to
+add), and coupling the two would mean a future fix to one silently moved the other.
+
+**What changed:** `frontend/src/landing.jsx` (the button, the `useState`, and the modal render) ·
+`frontend/src/styles.css` (one new `.lp-nav__world` block, landing-scoped).
+
+**Verified:**
+
+| Check | Result |
+|---|---|
+| `npm run build` | clean; `./scripts/deploy-frontend.sh` job **36 → SUCCEED** |
+| **The width risk — Phase 18's trap** | a second control in a nav row is exactly what pushed a 390px phone into horizontal scroll in Phase 18. Swept **1440 / 1100 / 960 / 900 / 560 / 540 / 430 / 390 / 360**: **zero horizontal overflow at every one**, the nav itself never scrolls, and the button is a full 26×26 and inside the viewport at all nine. No new breakpoint was needed, so neither demo framing moved |
+| The modal over a **sticky** nav | `.lp-nav` is `position: sticky; z-index: 20` and `.modal` is `position: fixed; z-index: 50` — `elementFromPoint` at the centre of the nav returns the scrim, so the dialog genuinely covers it. Checked at 540, at 390 **scrolled 1200px down**, and at 1440 |
+| The dialog itself | `role="dialog"`, `aria-modal="true"`, a `radiogroup` of all six worlds, click-away close — all inherited from `WorldModal`, none of it re-implemented |
+| Picking a world from the landing page | repaints the page live (body and nav), updates `theme-color` and `color-scheme`, writes `hiveos.world` **and** `hiveos.world.paint`, and **carries into the workspace and back** |
+| Button legibility, all six worlds | glyph on its own fill **6.65–8.69:1** at rest and **11.72–15.87:1** hovered. Its fill against the nav is 1.07–1.32:1 and the hairline carries the edge at 1.30–1.79:1 — which is the same construction `.appbar__gear` has against its own bar (1.11–1.20:1), so this matches the product's existing icon-button standard rather than introducing a weaker one. **If icon-button boundaries should be strengthened, that is a deliberate change to both bars and not this one.** |
+| **The workspace is untouched** | Paper Office at 540 against a `c3da8ca` build: **73/73 custom properties identical**, **5,828 computed fields across 62 elements — 6 differences, all `#rect`**: one live pawn and its two labels standing somewhere else between the two loads, and two sprites caught 1px apart mid-`pawn-idle`. **Zero style diffs**, page height 1164 identical. Cloud City the same way: 6,014 fields, 14 diffs, every one a live animation frame or a pawn's position |
+| Cold visitor on the deployed URL | lands on Paper Office (`#fff8e7`), the button is present and labelled, zero overflow, **zero console errors or warnings** |
+
+**Not re-run:** `pytest`, `ws_smoke.py`, `rehearse.py`. No backend file changed and no protocol,
+schema or shared workspace behaviour moved — the diff is one component's markup and one
+landing-scoped CSS block, and the workspace parity above is the check that actually covers it.
+
+---
 
 **Phase 23 — Cloud City — 2026-09-21 — deployed and verified**
 

@@ -2675,6 +2675,43 @@ a.btn {
   text-decoration: underline;
 }
 
+/* The world picker, on the front door.
+ *
+ * Deliberately the same object as `.appbar__gear` — same 26px square, same
+ * hairline, same raised fill, same glyph, same accessible name — because it
+ * IS the same control. A visitor who changes the look here and then walks onto
+ * the floor should find the button they already know in the place they already
+ * looked, and the quickest way to promise that is to make the two identical
+ * rather than merely similar.
+ *
+ * Not a duplicate rule for the sake of it: `.appbar__gear` is sized and spaced
+ * for a fixed-height title bar that has its own width crisis (see the 520px
+ * note below it), and coupling the landing nav to that would mean a future fix
+ * to one silently moved the other. */
+.lp-nav__world {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--panel-raised);
+  color: var(--dim);
+  border-radius: var(--r-sm);
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.lp-nav__world:hover {
+  border-color: var(--rule-strong);
+  color: var(--text);
+}
+
+.lp-nav__world:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
 /* --- Bands ----------------------------------------------------------------- *
  *
  * Alternating cream and sand, divided by a hairline. The two surfaces are 3%
