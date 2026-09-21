@@ -1,321 +1,488 @@
-"""Deterministic tests for Bug D — Budget ceiling race condition and atomic reservation.
+"""The budget ceiling under concurrency — the reservation and its settlement.
 
-Proves and verifies:
-1. Two concurrent runners cannot both pass budget check and invoke the model when
-   remaining budget cannot accommodate both.
-2. Server-side atomic reservation in DynamoDB prevents overshooting the token ceiling.
-3. Provider-reported tokens are reconciled accurately upon task completion.
-4. Failed tasks refund reservations so unspent tokens are not charged.
-5. Fallback/estimated token accounting is preserved.
+The ceiling has always been checked immediately before the model call, which
+is the only honest moment: a task can sit in the queue while the tasks ahead
+of it spend what was left. What it used to do at that moment was *read* the
+counter and decide, and commit the spend at the end of the task. Two runners
+finishing their reads in the same instant therefore both saw room and both
+invoked the model, and the overshoot grew with the number of desks rather than
+staying at the one task's worth CONTRACT.md promises.
+
+`state.reserve_budget` closes that window by asking and committing in one
+conditional write, whose condition — `tokens_used < token_budget` — is
+evaluated by DynamoDB against the committed row rather than against a number
+this Lambda read a moment ago. The threshold is unchanged; what changed is
+that the second runner is tested against the first one's reservation.
+
+The reservation is a placeholder, not a bill. `state.add_tokens` settles it
+against what the provider actually counted, and `_release_reservation` gives
+it back on every path that never reached a reply. These tests are mostly about
+that arithmetic: a placeholder that is not reconciled is a meter that lies,
+which is the one failure this product cannot have.
 """
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
+
 import botocore.exceptions
-import pytest
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
-
-from shared import state, history, broadcast
+from shared import state
+from shared import history
 from agent_runner import app as runner
 from agent_runner.app import AgentResult
 
-
 TEAM = "default"
-SLOT = "desk-1"
-USER = "ada-user"
+
+# What a real task costs with tools, measured on the deployed build and
+# recorded in CONTRACT.md. The reservation has to clear it; see the note on
+# `RESERVATION_CEILING`.
+MEASURED_TASK_TOKENS = 800
+
+ROSTER = [
+    {"slot_id": "desk-1", "name": "Ada", "role": "Engineer"},
+    {"slot_id": "desk-2", "name": "Iris", "role": "Designer"},
+]
+
+TASK_1 = {
+    "task_id": "task-1",
+    "slot_id": "desk-1",
+    "user_id": "user-1",
+    "team_id": TEAM,
+    "prompt": "summarise the quarter",
+}
+TASK_2 = {
+    "task_id": "task-2",
+    "slot_id": "desk-2",
+    "user_id": "user-2",
+    "team_id": TEAM,
+    "prompt": "and draft the email",
+}
 
 
 def _client_error(code="ConditionalCheckFailedException"):
     return botocore.exceptions.ClientError(
-        {"Error": {"Code": code, "Message": "conditional check failed"}},
-        "UpdateItem",
+        {"Error": {"Code": code, "Message": code}}, "UpdateItem"
     )
 
 
-class TestBudgetReservationAtomicity:
-    """Tests for state.reserve_budget, commit_tokens/add_tokens, and refund_tokens."""
+class FakeMetadata:
+    """The METADATA row with just enough DynamoDB in it to be raced against.
 
-    def test_reserve_budget_succeeds_when_under_ceiling(self):
-        mock_table = MagicMock()
-        mock_table.get_item.return_value = {
-            "Item": {"tokens_used": 500, "token_budget": 1000}
-        }
-        mock_table.update_item.return_value = {
-            "Attributes": {"tokens_used": 550, "token_budget": 1000}
-        }
+    The condition is evaluated here, against this object's live state, which is
+    the whole reason the race tests below mean anything: a test that stubbed
+    `reserve_budget` out and handed it a scripted answer would be asserting its
+    own script. The expression string is asserted rather than parsed, so the
+    fake cannot quietly go on agreeing with a condition the code no longer
+    sends.
+    """
 
-        with patch("shared.state.table", return_value=mock_table):
-            allowed, reserved, used, budget = state.reserve_budget(TEAM, 50)
+    RESERVE_CONDITION = (
+        "attribute_exists(token_budget) AND "
+        "(attribute_not_exists(tokens_used) OR tokens_used < token_budget)"
+    )
 
-        assert allowed is True
-        assert reserved == 50
-        assert used == 550
-        assert budget == 1000
-        mock_table.update_item.assert_called_once()
-        call_kwargs = mock_table.update_item.call_args.kwargs
-        assert call_kwargs["ExpressionAttributeValues"][":amount"] == 50
-        assert call_kwargs["ExpressionAttributeValues"][":max_allowed"] == 950
+    def __init__(self, tokens_used=0, token_budget=1000):
+        self.row = {"tokens_used": tokens_used, "token_budget": token_budget}
+        self.writes = []
 
-    def test_reserve_budget_refuses_when_already_at_or_over_ceiling(self):
-        mock_table = MagicMock()
-        mock_table.get_item.return_value = {
-            "Item": {"tokens_used": 1000, "token_budget": 1000}
-        }
+    # --- the two calls the ceiling makes ---
 
-        with patch("shared.state.table", return_value=mock_table):
-            allowed, reserved, used, budget = state.reserve_budget(TEAM, 10)
+    def get_item(self, Key):
+        return {"Item": dict(self.row)}
 
-        assert allowed is False
+    def put_item(self, **kwargs):
+        return {}
+
+    def update_item(
+        self,
+        Key,
+        UpdateExpression,
+        ExpressionAttributeValues,
+        ConditionExpression=None,
+        ReturnValues=None,
+    ):
+        assert UpdateExpression.startswith("ADD tokens_used :n")
+        if ConditionExpression is not None:
+            assert ConditionExpression == self.RESERVE_CONDITION
+            budget = self.row.get("token_budget")
+            if not budget or self.row.get("tokens_used", 0) >= budget:
+                raise _client_error()
+        self.writes.append(ExpressionAttributeValues[":n"])
+        self.row["tokens_used"] = (
+            self.row.get("tokens_used", 0) + ExpressionAttributeValues[":n"]
+        )
+        if ":e" in ExpressionAttributeValues:
+            self.row["usage_estimated"] = ExpressionAttributeValues[":e"]
+        return {"Attributes": dict(self.row)}
+
+
+def _harness(table, run_agent):
+    """Everything around the runner that is not the ceiling."""
+    return [
+        patch("shared.state.table", return_value=table),
+        patch("shared.state.roster", return_value=ROSTER),
+        patch("agent_runner.app._run_agent", side_effect=run_agent),
+        patch("shared.history.record"),
+        patch("shared.broadcast.broadcast_to_team"),
+        patch("shared.scheduler.release_and_dispatch"),
+        patch("agent_runner.app._reply_error"),
+    ]
+
+
+class _Running:
+    def __init__(self, table, run_agent):
+        self._patches = _harness(table, run_agent)
+
+    def __enter__(self):
+        self.mocks = [p.start() for p in self._patches]
+        return self
+
+    def __exit__(self, *exc):
+        for p in self._patches:
+            p.stop()
+        return False
+
+    @property
+    def broadcasts(self):
+        return [c.args[1] for c in self.mocks[4].call_args_list]
+
+    @property
+    def records(self):
+        return [c.kwargs for c in self.mocks[3].call_args_list]
+
+    @property
+    def releases(self):
+        return self.mocks[5]
+
+
+# --- The reservation itself -------------------------------------------------
+
+
+class TestReserveBudget:
+    def test_a_task_with_room_is_admitted_and_the_counter_moves_first(self):
+        """The commit is what admission *is* now, not a separate step later."""
+        table = FakeMetadata(tokens_used=500, token_budget=1000)
+
+        with patch("shared.state.table", return_value=table):
+            admitted, reserved, used, budget = state.reserve_budget(TEAM, 120)
+
+        assert admitted is True
+        assert reserved == 120
+        assert (used, budget) == (620, 1000)
+        assert table.row["tokens_used"] == 620
+
+    def test_a_spent_budget_refuses_and_reserves_nothing(self):
+        table = FakeMetadata(tokens_used=1000, token_budget=1000)
+
+        with patch("shared.state.table", return_value=table):
+            admitted, reserved, used, budget = state.reserve_budget(TEAM, 120)
+
+        assert admitted is False
         assert reserved == 0
-        assert used == 1000
-        assert budget == 1000
-        mock_table.update_item.assert_not_called()
+        # The numbers the refusal reports are the ones that caused it, and the
+        # counter is untouched — a refused task costs zero, which is the
+        # clearest evidence the ceiling is a control and not a gauge.
+        assert (used, budget) == (1000, 1000)
+        assert table.row["tokens_used"] == 1000
 
-    def test_reserve_budget_refuses_when_amount_exceeds_remaining(self):
-        mock_table = MagicMock()
-        mock_table.get_item.return_value = {
-            "Item": {"tokens_used": 950, "token_budget": 1000}
-        }
+    def test_the_last_token_still_buys_a_turn_and_the_hold_is_clamped_to_it(self):
+        """The threshold did not move: budget left means the task runs.
 
-        with patch("shared.state.table", return_value=mock_table):
-            allowed, reserved, used, budget = state.reserve_budget(TEAM, 60)
-
-        assert allowed is False
-        assert reserved == 0
-        assert used == 950
-        assert budget == 1000
-        mock_table.update_item.assert_not_called()
-
-    def test_reserve_budget_handles_conditional_check_failed_lost_race(self):
-        """Simulates losing the atomic race to another runner in DynamoDB."""
-        mock_table = MagicMock()
-        # First read sees 900 used
-        mock_table.get_item.side_effect = [
-            {"Item": {"tokens_used": 900, "token_budget": 1000}},
-            # Second read after lost race sees 980 used
-            {"Item": {"tokens_used": 980, "token_budget": 1000}},
-        ]
-        # DynamoDB rejects the conditional update because another runner moved tokens_used
-        mock_table.update_item.side_effect = _client_error("ConditionalCheckFailedException")
-
-        with patch("shared.state.table", return_value=mock_table):
-            allowed, reserved, used, budget = state.reserve_budget(TEAM, 60, retries=0)
-
-        assert allowed is False
-        assert reserved == 0
-        assert used == 980
-        assert budget == 1000
-
-    def test_reserve_budget_unlimited_when_budget_zero(self):
-        mock_table = MagicMock()
-        mock_table.get_item.return_value = {
-            "Item": {"tokens_used": 500, "token_budget": 0}
-        }
-
-        with patch("shared.state.table", return_value=mock_table):
-            allowed, reserved, used, budget = state.reserve_budget(TEAM, 50)
-
-        assert allowed is True
-        assert reserved == 0
-        assert used == 500
-        assert budget == 0
-        mock_table.update_item.assert_not_called()
-
-    def test_add_tokens_reconciles_reservation_delta(self):
-        mock_table = MagicMock()
-        mock_table.update_item.return_value = {
-            "Attributes": {"tokens_used": 580, "token_budget": 1000, "usage_estimated": False}
-        }
-
-        with patch("shared.state.table", return_value=mock_table):
-            # Reserved 50, actual tokens spent was 80 -> delta is +30
-            usage = state.add_tokens(TEAM, count=80, estimated=False, reserved=50)
-
-        assert usage["tokens_used"] == 580
-        assert usage["token_budget"] == 1000
-        call_kwargs = mock_table.update_item.call_args.kwargs
-        assert call_kwargs["ExpressionAttributeValues"][":n"] == 30
-
-    def test_refund_tokens_decrements_reservation(self):
-        mock_table = MagicMock()
-        mock_table.update_item.return_value = {
-            "Attributes": {"tokens_used": 500, "token_budget": 1000}
-        }
-
-        with patch("shared.state.table", return_value=mock_table):
-            used, budget = state.refund_tokens(TEAM, 50)
-
-        assert used == 500
-        assert budget == 1000
-        call_kwargs = mock_table.update_item.call_args.kwargs
-        assert call_kwargs["ExpressionAttributeValues"][":neg"] == -50
-
-
-class TestBudgetCeilingConcurrencyRace:
-    """End-to-end tests for runner behaviour during concurrent tasks near budget ceiling."""
-
-    def test_concurrent_runners_racing_near_ceiling(self):
-        """Proves Bug D: Two concurrent tasks arrive when remaining budget can only cover one.
-
-        Task 1 wins reservation, invokes model, commits tokens.
-        Task 2 loses atomic reservation, is refused, does NOT invoke model, and releases slot.
+        What is held back is clamped to what is there. A placeholder that
+        pushed the counter past the ceiling would raise "Quota reached" on every
+        client that loaded while the task ran — `state_snapshot` and
+        `token_update` both latch on `tokens_used >= token_budget` — on a board
+        that had not actually spent anything.
         """
-        task_1 = {
-            "task_id": "task-1",
-            "slot_id": "desk-1",
-            "user_id": "user-1",
-            "team_id": TEAM,
-            "prompt": "Task 1 prompt requiring tokens",
-        }
-        task_2 = {
-            "task_id": "task-2",
-            "slot_id": "desk-2",
-            "user_id": "user-2",
-            "team_id": TEAM,
-            "prompt": "Task 2 prompt requiring tokens",
-        }
+        table = FakeMetadata(tokens_used=999, token_budget=1000)
 
-        # Shared mock workspace state:
-        # budget = 1000, initial tokens_used = 900.
-        # Remaining budget = 100.
-        # Each prompt requires ~8 tokens reservation (or estimate).
-        # Suppose task 1 reserves 60 tokens, leaving only 40 tokens.
-        # Task 2 requires 60 tokens, so task 2 will fail the atomic condition in DynamoDB.
+        with patch("shared.state.table", return_value=table):
+            admitted, reserved, _, _ = state.reserve_budget(TEAM, 1800)
 
-        table_items = {"tokens_used": 900, "token_budget": 1000}
+        assert admitted is True
+        assert reserved == 1
+        # Parked exactly on the ceiling: high enough to refuse everybody else,
+        # never higher than the meter can honestly show.
+        assert table.row["tokens_used"] == 1000
 
-        def mock_get_item(Key):
-            return {"Item": dict(table_items)}
+    def test_a_reservation_never_reads_as_a_spent_quota(self):
+        """The clamp, driven across every position under a small ceiling."""
+        for used in range(0, 1000, 97):
+            table = FakeMetadata(tokens_used=used, token_budget=1000)
+            with patch("shared.state.table", return_value=table):
+                state.reserve_budget(TEAM, 1800)
+            assert table.row["tokens_used"] <= 1000, used
 
-        def mock_update_item(Key, UpdateExpression, ExpressionAttributeValues, **kwargs):
-            if "ADD tokens_used :amount" in UpdateExpression:
-                amount = ExpressionAttributeValues[":amount"]
-                max_allowed = ExpressionAttributeValues[":max_allowed"]
-                current_used = table_items.get("tokens_used", 0)
-                if current_used > max_allowed or current_used + amount > table_items["token_budget"]:
-                    raise _client_error("ConditionalCheckFailedException")
-                table_items["tokens_used"] = current_used + amount
-                return {"Attributes": dict(table_items)}
-            elif "ADD tokens_used :n" in UpdateExpression:
-                delta = ExpressionAttributeValues[":n"]
-                table_items["tokens_used"] = table_items.get("tokens_used", 0) + delta
-                return {"Attributes": dict(table_items)}
-            elif "ADD tokens_used :neg" in UpdateExpression:
-                neg = ExpressionAttributeValues[":neg"]
-                table_items["tokens_used"] = table_items.get("tokens_used", 0) + neg
-                return {"Attributes": dict(table_items)}
-            return {"Attributes": dict(table_items)}
+    def test_a_workspace_with_no_ceiling_reserves_nothing(self):
+        table = FakeMetadata(tokens_used=500, token_budget=0)
 
-        mock_table = MagicMock()
-        mock_table.get_item.side_effect = mock_get_item
-        mock_table.update_item.side_effect = mock_update_item
-        mock_table.put_item.return_value = {}
+        with patch("shared.state.table", return_value=table):
+            admitted, reserved, used, budget = state.reserve_budget(TEAM, 120)
 
-        roster = [
-            {"slot_id": "desk-1", "name": "Ada", "role": "Engineer"},
-            {"slot_id": "desk-2", "name": "Iris", "role": "Designer"},
-        ]
+        assert admitted is True
+        assert reserved == 0
+        assert (used, budget) == (500, 0)
+        # Nothing to enforce, so nothing is written at all.
+        assert table.writes == []
 
-        run_agent_calls = []
+    def test_throttling_is_not_laundered_into_a_refusal(self):
+        """A busy table must not be reported to a team as a spent quota."""
+        table = FakeMetadata(tokens_used=0, token_budget=1000)
+        table.update_item = MagicMock(
+            side_effect=_client_error("ProvisionedThroughputExceededException")
+        )
 
-        def fake_run_agent(team, task, desks):
-            run_agent_calls.append(task["task_id"])
-            return AgentResult(text="Answer", tokens=50, estimated=False), None
+        with patch("shared.state.table", return_value=table):
+            try:
+                state.reserve_budget(TEAM, 120)
+            except botocore.exceptions.ClientError as exc:
+                assert exc.response["Error"]["Code"] == "ProvisionedThroughputExceededException"
+            else:
+                raise AssertionError("a throttled write must raise, not refuse")
 
-        with patch("shared.state.table", return_value=mock_table), \
-             patch("shared.state.roster", return_value=roster), \
-             patch("agent_runner.app._run_agent", side_effect=fake_run_agent), \
-             patch("shared.history.record") as mock_record, \
-             patch("shared.broadcast.broadcast_to_team") as mock_broadcast, \
-             patch("shared.scheduler.release_and_dispatch") as mock_release, \
-             patch("agent_runner.app._reply_error") as mock_reply_error, \
-             patch("shared.state.reserve_budget", side_effect=[
-                 (True, 60, 960, 1000),   # Task 1 reserves 60 tokens -> used becomes 960
-                 (False, 0, 960, 1000),   # Task 2 fails reservation because 960 + 60 > 1000
-             ]):
 
-            # Execute Task 1
-            runner._handle(task_1)
+# --- Settling it ------------------------------------------------------------
 
-            # Execute Task 2
-            runner._handle(task_2)
 
-        # Verification:
-        # 1. Model was invoked for Task 1 ONLY
-        assert run_agent_calls == ["task-1"]
+class TestSettlement:
+    def test_a_task_that_cost_less_than_it_reserved_gives_the_rest_back(self):
+        table = FakeMetadata(tokens_used=1806, token_budget=10_000)
 
-        # 2. Task 2 was refused and never invoked the model
-        assert "task-2" not in run_agent_calls
+        with patch("shared.state.table", return_value=table):
+            usage = state.add_tokens(TEAM, 800, estimated=False, reserved=1806)
 
-        # 3. Task 2 broadcast budget_exhausted
-        budget_exhausted_broadcasts = [
-            call.args[1] for call in mock_broadcast.call_args_list
-            if call.args[1].get("event") == "budget_exhausted"
-        ]
-        assert len(budget_exhausted_broadcasts) == 1
-        assert budget_exhausted_broadcasts[0]["tokens_used"] == 960
-        assert budget_exhausted_broadcasts[0]["token_budget"] == 1000
+        # 1,806 held, 800 actually spent: the write is the difference.
+        assert table.writes == [-1006]
+        assert usage["tokens_used"] == 800
+        assert table.row["tokens_used"] == 800
 
-        # 4. Task 2 replied error to user
-        mock_reply_error.assert_called_once()
-        assert mock_reply_error.call_args[0][0]["task_id"] == "task-2"
+    def test_a_task_that_overran_its_reservation_is_charged_the_difference(self):
+        table = FakeMetadata(tokens_used=1806, token_budget=10_000)
 
-        # 5. Task 2 recorded REFUSED with tokens=0 in history
-        refused_history_calls = [
-            call for call in mock_record.call_args_list
-            if call.kwargs.get("status") == history.REFUSED
-        ]
-        assert len(refused_history_calls) == 1
-        assert refused_history_calls[0].kwargs["task_id"] == "task-2"
-        assert refused_history_calls[0].kwargs["tokens"] == 0
+        with patch("shared.state.table", return_value=table):
+            state.add_tokens(TEAM, 2000, estimated=False, reserved=1806)
 
-        # 6. Both tasks released their slots in finally
-        released_holders = [call.kwargs.get("expected_holder") for call in mock_release.call_args_list]
-        assert "user-1" in released_holders
-        assert "user-2" in released_holders
+        assert table.writes == [194]
+        assert table.row["tokens_used"] == 2000
 
-    def test_reservation_refunded_on_runner_exception(self):
-        """If runner raises an unhandled exception after reserving tokens, tokens must be refunded."""
-        task = {
-            "task_id": "failing-task",
-            "slot_id": "desk-1",
-            "user_id": "user-1",
-            "team_id": TEAM,
-            "prompt": "Prompt that fails during execution",
-        }
+    def test_without_a_reservation_it_adds_the_whole_cost(self):
+        """The unlimited-workspace path, unchanged from before reservations."""
+        table = FakeMetadata(tokens_used=0, token_budget=0)
 
-        mock_table = MagicMock()
-        mock_table.get_item.return_value = {
-            "Item": {"tokens_used": 500, "token_budget": 1000}
-        }
-        mock_table.update_item.return_value = {
-            "Attributes": {"tokens_used": 500, "token_budget": 1000}
-        }
-        mock_table.put_item.return_value = {}
+        with patch("shared.state.table", return_value=table):
+            state.add_tokens(TEAM, 800)
 
-        roster = [{"slot_id": "desk-1", "name": "Ada", "role": "Engineer"}]
+        assert table.writes == [800]
 
-        with patch("shared.state.table", return_value=mock_table), \
-             patch("shared.state.roster", return_value=roster), \
-             patch("agent_runner.app._run_agent", side_effect=RuntimeError("Model crashed")), \
-             patch("shared.state.refund_tokens") as mock_refund, \
-             patch("shared.history.record") as mock_record, \
-             patch("shared.scheduler.release_and_dispatch") as mock_release, \
-             patch("agent_runner.app._reply_error"):
+    def test_estimated_spend_is_still_sticky_through_the_settlement(self):
+        table = FakeMetadata(tokens_used=1806, token_budget=10_000)
 
+        with patch("shared.state.table", return_value=table):
+            usage = state.add_tokens(TEAM, 300, estimated=True, reserved=1806)
+
+        assert usage["estimated"] is True
+        assert table.row["usage_estimated"] is True
+
+    def test_a_refund_removes_exactly_the_placeholder(self):
+        table = FakeMetadata(tokens_used=1806, token_budget=10_000)
+
+        with patch("shared.state.table", return_value=table):
+            used, budget = state.refund_tokens(TEAM, 1806)
+
+        assert table.writes == [-1806]
+        assert (used, budget) == (0, 10_000)
+
+    def test_refunding_nothing_touches_nothing(self):
+        table = FakeMetadata(tokens_used=500, token_budget=1000)
+
+        with patch("shared.state.table", return_value=table):
+            assert state.refund_tokens(TEAM, 0) == (500, 1000)
+
+        assert table.writes == []
+
+
+# --- The race ---------------------------------------------------------------
+
+
+class TestTwoRunnersAtTheCeiling:
+    def test_only_one_of_two_runners_is_admitted_on_the_last_token(self):
+        """Both ask before either settles. That is the whole bug.
+
+        With one token of room the old check said yes to both, because both
+        read `used < budget` before either had written anything back.
+        """
+        table = FakeMetadata(tokens_used=999, token_budget=1000)
+
+        with patch("shared.state.table", return_value=table):
+            first = state.reserve_budget(TEAM, 1800)
+            second = state.reserve_budget(TEAM, 1800)
+
+        assert first[0] is True
+        assert second[0] is False
+        assert second[1] == 0
+
+    def test_a_whole_floor_asking_at_once_cannot_all_be_admitted(self):
+        """Why the reservation is sized to a task and not to the prompt.
+
+        Four desks ask before any of them settles. A placeholder the size of a
+        prompt — a dozen tokens — leaves the counter essentially where it was,
+        so every one of them reads room and the floor spends four tasks against
+        a budget with one left in it. A placeholder the size of a task does not.
+        """
+        table = FakeMetadata(tokens_used=0, token_budget=1000)
+
+        with patch("shared.state.table", return_value=table):
+            outcomes = [state.reserve_budget(TEAM, 1800)[0] for _ in range(4)]
+
+        assert outcomes == [True, False, False, False]
+
+    def test_spend_stays_inside_the_budget_plus_one_task(self):
+        """The bound the ceiling actually promises, driven to exhaustion.
+
+        Tasks are admitted and settled until the workspace refuses, with the
+        reservation an honest over-estimate of what each one costs. The counter
+        may cross the ceiling — by one task, which is the documented allowance —
+        and it may not cross it twice.
+        """
+        table = FakeMetadata(tokens_used=0, token_budget=1000)
+        cost = 800
+        spent = 0
+
+        with patch("shared.state.table", return_value=table):
+            for _ in range(20):
+                admitted, reserved, _, _ = state.reserve_budget(TEAM, 1800)
+                if not admitted:
+                    break
+                spent += cost
+                state.add_tokens(TEAM, cost, reserved=reserved)
+
+        assert table.row["tokens_used"] == spent
+        assert spent <= 1000 + cost
+
+    def test_the_reservation_is_at_least_what_a_task_costs(self):
+        """The constant, pinned to the number it is sized from.
+
+        A task measures around 800 tokens with tools (CONTRACT.md). A
+        placeholder smaller than that lets a floor of desks through the ceiling
+        one prompt at a time, because each one leaves the counter near enough
+        to where it found it that the next still reads room.
+        """
+        assert runner.RESERVATION_CEILING >= MEASURED_TASK_TOKENS
+
+    def test_the_second_runner_never_calls_the_model(self):
+        """End to end, with task 2 arriving while task 1 is at the model.
+
+        The budget starts untouched and holds one task, so nothing but task
+        1's own reservation can be what refuses task 2.
+        """
+        table = FakeMetadata(tokens_used=0, token_budget=1000)
+        called = []
+
+        def run(team, task, desks):
+            called.append(task["task_id"])
+            if task["task_id"] == "task-1":
+                # The window the old read-then-check lost: task 1 is spending
+                # and has not settled, and task 2 asks for its turn.
+                runner._handle(dict(TASK_2))
+            return AgentResult(text="answered", tokens=800, estimated=False), None
+
+        with _Running(table, run) as running:
+            runner._handle(dict(TASK_1))
+
+        assert called == ["task-1"]
+        refusals = [b for b in running.broadcasts if b["event"] == "budget_exhausted"]
+        assert len(refusals) == 1
+        # The refusal reports the counter that caused it, reservation included.
+        assert refusals[0]["token_budget"] == 1000
+
+        # Both desks still came back, which is the invariant that outranks
+        # everything else in this file.
+        assert running.releases.call_count == 2
+
+    def test_the_counter_lands_on_what_was_actually_spent(self):
+        """The placeholder must leave no trace once the provider has reported."""
+        table = FakeMetadata(tokens_used=0, token_budget=10_000)
+
+        def run(team, task, desks):
+            return AgentResult(text="answered", tokens=800, estimated=False), None
+
+        with _Running(table, run):
+            runner._handle(dict(TASK_1))
+
+        assert table.row["tokens_used"] == 800
+
+
+# --- Releasing it -----------------------------------------------------------
+
+
+class TestReleaseOnEveryPath:
+    def test_a_failed_task_gives_its_reservation_back(self):
+        table = FakeMetadata(tokens_used=0, token_budget=10_000)
+
+        def run(team, task, desks):
+            raise RuntimeError("the model crashed")
+
+        with _Running(table, run) as running:
+            runner._handle(dict(TASK_1))
+
+        # A failed task costs the team nothing, and the ledger says so.
+        assert table.row["tokens_used"] == 0
+        failed = [r for r in running.records if r.get("status") == history.FAILED]
+        assert len(failed) == 1 and failed[0]["tokens"] == 0
+
+    def test_a_reservation_survives_a_failed_settlement(self):
+        """If the accounting write itself fails, the hold is still outstanding."""
+        table = FakeMetadata(tokens_used=0, token_budget=10_000)
+
+        def run(team, task, desks):
+            return AgentResult(text="answered", tokens=800, estimated=False), None
+
+        with _Running(table, run):
+            with patch("shared.state.add_tokens", side_effect=RuntimeError("boom")):
+                runner._handle(dict(TASK_1))
+
+        assert table.row["tokens_used"] == 0
+
+    def test_a_release_that_fails_does_not_cost_the_desk(self):
+        """The slot release outranks the refund and must still happen."""
+        table = FakeMetadata(tokens_used=0, token_budget=10_000)
+
+        def run(team, task, desks):
+            raise RuntimeError("the model crashed")
+
+        with _Running(table, run) as running:
+            with patch("shared.state.refund_tokens", side_effect=RuntimeError("boom")):
+                runner._handle(dict(TASK_1))
+
+        running.releases.assert_called_once()
+
+    def test_a_refused_task_reserves_nothing_and_still_frees_its_desk(self):
+        table = FakeMetadata(tokens_used=10_000, token_budget=10_000)
+        called = []
+
+        def run(team, task, desks):
+            called.append(task["task_id"])
+            return AgentResult(text="", tokens=0, estimated=False), None
+
+        with _Running(table, run) as running:
+            runner._handle(dict(TASK_1))
+
+        assert called == []
+        assert table.row["tokens_used"] == 10_000
+        running.releases.assert_called_once()
+
+    def test_the_reservation_never_rides_on_the_task(self):
+        """`task` is an SQS body the ledger and the handoff read back.
+
+        The hold is a local in `_handle` precisely so it cannot end up on the
+        wire, and this is the assertion that keeps it there.
+        """
+        table = FakeMetadata(tokens_used=0, token_budget=10_000)
+        task = dict(TASK_1)
+
+        def run(team, task, desks):
+            return AgentResult(text="answered", tokens=800, estimated=False), None
+
+        with _Running(table, run):
             runner._handle(task)
 
-        # Refund must be called with the reserved token amount
-        mock_refund.assert_called_once()
-        assert mock_refund.call_args[0][0] == TEAM
-        assert mock_refund.call_args[0][1] > 0
-
-        # History must record FAILED with 0 tokens
-        failed_record = [call for call in mock_record.call_args_list if call.kwargs.get("status") == history.FAILED]
-        assert len(failed_record) == 1
-        assert failed_record[0].kwargs["tokens"] == 0
-
-        # Slot must be released
-        mock_release.assert_called_once()
+        assert task == TASK_1

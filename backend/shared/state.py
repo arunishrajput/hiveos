@@ -759,66 +759,100 @@ def budget_state(team):
     return int(item.get("tokens_used", 0)), int(item.get("token_budget", 0))
 
 
-def reserve_budget(team, amount, retries=1):
-    """Atomically reserve `amount` tokens against the workspace budget ceiling.
+def reserve_budget(team, amount):
+    """Admit one task against the ceiling, committing `amount` up front.
 
-    Returns (True, reserved_amount, used, budget) if reservation succeeded.
-    Returns (False, 0, used, budget) if over budget and refused.
+    Returns `(admitted, reserved, tokens_used, token_budget)`.
 
-    Enforced atomically via a DynamoDB conditional update on METADATA:
-    ConditionExpression: token_budget = :b AND tokens_used <= :max_allowed
-    where :max_allowed = budget - amount.
+    The admission rule is the one the product has always claimed: a task runs
+    if there was budget left when it asked, and is refused once there is not.
+    What moved is *when* the spend lands. `tokens_used` is incremented before
+    the model call rather than after it, by a conditional update whose
+    condition is the admission rule itself:
 
-    If two concurrent runners both attempt to start when remaining budget < 2*amount,
-    only one succeeds and the other receives ConditionalCheckFailedException,
-    preventing concurrent tasks from overshooting the budget ceiling.
+        tokens_used < token_budget
+
+    Both sides of that comparison are attributes on the row, so DynamoDB
+    evaluates it against the committed state at the instant of the write — not
+    against a number this Lambda read a moment earlier. That is the whole
+    point. Two runners reaching the ceiling together used to *both* read
+    `used < budget` and both invoke the model; now the first one's reservation
+    is what the second one is tested against, and the second is refused.
+    Overshoot stays bounded at one task's worth however many runners are in
+    flight, which is what CONTRACT.md has always promised and what concurrency
+    used to be able to break.
+
+    `amount` is a placeholder for the cost, not a prediction of it: the
+    provider reports the real number afterwards and `add_tokens` reconciles to
+    it, `refund_tokens` releases it if the task never reaches its reply. Its
+    size therefore never changes what a team is charged — only how firmly the
+    next runner is held out while this one runs. See `RESERVATION_CEILING` in
+    the runner for how it is sized.
+
+    **It is clamped to what is actually left**, and that read is the reason
+    this function still does one. The read does not decide anything — the
+    conditional write does — it only stops a placeholder from pushing
+    `tokens_used` past `token_budget`, which every client would read as a spent
+    quota: `state_snapshot` and `token_update` both latch the refused state on
+    `tokens_used >= token_budget`, so an unclamped hold would raise the red
+    banner on a board with budget to spare for as long as one task ran. Clamped,
+    the worst it can do is park the counter exactly on the ceiling — which is
+    also what refuses everybody else, so the clamp tightens the guarantee
+    rather than loosening it.
+
+    A workspace with no `token_budget` has no ceiling to enforce: nothing is
+    reserved and nothing is written.
     """
-    if amount <= 0:
-        amount = 1
-
     used, budget = budget_state(team)
     if not budget:
-        # No budget configured (unlimited)
         return True, 0, used, budget
+    amount = max(1, min(amount, budget - used))
 
-    if used >= budget or (used + amount) > budget:
-        return False, 0, used, budget
-
-    max_allowed = budget - amount
     try:
-        response = table().update_item(
+        item = table().update_item(
             Key={"PK": team_pk(team), "SK": "METADATA"},
-            UpdateExpression="ADD tokens_used :amount",
-            ConditionExpression="attribute_exists(SK) AND token_budget = :b AND (attribute_not_exists(tokens_used) OR tokens_used <= :max_allowed)",
-            ExpressionAttributeValues={
-                ":amount": amount,
-                ":b": budget,
-                ":max_allowed": max_allowed,
-            },
+            UpdateExpression="ADD tokens_used :n",
+            ConditionExpression=(
+                "attribute_exists(token_budget) AND "
+                "(attribute_not_exists(tokens_used) OR tokens_used < token_budget)"
+            ),
+            ExpressionAttributeValues={":n": amount},
             ReturnValues="ALL_NEW",
+        )["Attributes"]
+        return (
+            True,
+            amount,
+            int(item.get("tokens_used", 0)),
+            int(item.get("token_budget", 0)),
         )
-        new_item = response.get("Attributes", {})
-        new_used = int(new_item.get("tokens_used", 0))
-        return True, amount, new_used, budget
     except ClientError as exc:
+        # Only a lost condition means "no room". Throttling must not be
+        # laundered into a refusal — that would tell a team its quota was spent
+        # because DynamoDB was busy.
         if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
             raise
-        # Lost race: another runner updated tokens_used or token_budget changed
-        current_used, current_budget = budget_state(team)
-        if retries > 0 and current_budget and (current_used + amount) <= current_budget:
-            return reserve_budget(team, amount, retries=retries - 1)
-        return False, 0, current_used, current_budget
+
+    # Re-read rather than report the numbers from above: the write lost to
+    # somebody, and what the refusal tells the room has to be the state that
+    # actually refused it.
+    used, budget = budget_state(team)
+    return False, 0, used, budget
 
 
 def add_tokens(team, count, estimated=False, reserved=0):
-    """Atomically commit token usage and reconcile against any reservation.
-
-    `reserved` is the token amount pre-allocated at the start of the task.
-    The net change to `tokens_used` is `count - reserved`.
+    """Atomically settle a task's spend; returns a ready `token_update` payload.
 
     `ADD` rather than read-then-write because two agent runs finishing
     together would otherwise lose one of the two increments — and an
     undercounted meter is exactly the failure the product claims to prevent.
+
+    `reserved` is what `reserve_budget` already put on the counter before the
+    model was called, so what is added here is the *difference* between the
+    provider's number and the placeholder. It is routinely negative: the
+    reservation is sized to hold the next runner out, not to guess the cost,
+    and a task that came in under it gives the remainder back in this same
+    write. Zero when there is no ceiling, in which case this behaves exactly as
+    it did before reservations existed.
 
     `ALL_NEW` so the budget comes back in the same round trip that moved the
     counter. Reading it separately would let the broadcast describe a state
@@ -830,9 +864,8 @@ def add_tokens(team, count, estimated=False, reserved=0):
     client loading cold has no other way to learn that. Only `seed.sh` clears
     it, by rewriting METADATA from scratch.
     """
-    delta = count - reserved
     expression = "ADD tokens_used :n"
-    values = {":n": delta}
+    values = {":n": count - reserved}
     if estimated:
         expression += " SET usage_estimated = :e"
         values[":e"] = True
@@ -855,13 +888,24 @@ def add_tokens(team, count, estimated=False, reserved=0):
 
 
 def refund_tokens(team, amount):
-    """Release an unused reservation when a task fails before completion."""
-    if not amount or amount <= 0:
+    """Give back a reservation whose task never reached its reply.
+
+    The mirror of `reserve_budget` and nothing more: it removes a placeholder,
+    it never removes real spend. `add_tokens` settles the reservation itself,
+    so the two are mutually exclusive by construction — the runner clears its
+    reservation the moment it commits one.
+
+    Deliberately unconditional. A conditional refund could fail and leave the
+    counter holding a charge for work that never happened, and of the two
+    directions an error can take, a meter that has forgotten a reservation is
+    recoverable and one that quietly keeps it is not.
+    """
+    if amount <= 0:
         return budget_state(team)
     item = table().update_item(
         Key={"PK": team_pk(team), "SK": "METADATA"},
-        UpdateExpression="ADD tokens_used :neg",
-        ExpressionAttributeValues={":neg": -amount},
+        UpdateExpression="ADD tokens_used :n",
+        ExpressionAttributeValues={":n": -amount},
         ReturnValues="ALL_NEW",
     )["Attributes"]
     return int(item.get("tokens_used", 0)), int(item.get("token_budget", 0))

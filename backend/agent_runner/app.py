@@ -10,7 +10,9 @@ Everything around the model is what the product actually claims:
 
   - team memory is loaded before the task runs, and saved facts broadcast
   - `tokens_used` is incremented atomically and broadcast to every client
-  - the budget ceiling is **enforced** — the agent is not invoked at 100%
+  - the budget ceiling is **enforced** — the agent is not invoked at 100%,
+    and the check that decides it is the same write that commits the spend, so
+    two desks arriving at the ceiling together cannot both be let through
 
 Four invariants live here:
 
@@ -54,6 +56,24 @@ FAIL_SENTINEL = "__hiveos_fail__"
 # where no provider counted anything; a real response reports usage directly
 # and `estimated` becomes False.
 CHARS_PER_TOKEN = 4
+
+# What one task provisionally takes off the meter before it is allowed to run.
+#
+# Not a prediction of the cost — the provider reports that afterwards and
+# `state.add_tokens` settles the difference, so this number never decides what
+# a team is charged. It decides one thing only: whether a second runner
+# arriving in the same instant still finds room under the ceiling. Sized to a
+# whole task so that it does, and derived rather than invented —
+# `llm.MAX_TOKENS` is the most one call may emit and `llm.MAX_TOOL_ROUNDS`
+# bounds how many calls a task makes, so their product is the completion side
+# of the worst case. The prompt is added on top by `_refuse_over_budget`.
+#
+# It is an approximation of the worst case, not a proof of it: the system
+# prompt, the team memory and a tool result are input tokens this does not
+# count. It runs about twice a measured task (~800 tokens, CONTRACT.md), which
+# is the margin that matters — a reservation at least the size of a real task
+# is what keeps total spend inside `budget + one task`.
+RESERVATION_CEILING = (llm.MAX_TOOL_ROUNDS + 1) * llm.MAX_TOKENS
 
 # How long an `IDEMPOTENCY#` marker is kept. It only has to outlive the window
 # in which SQS could still redeliver the task it guards: the queue retains a
@@ -107,28 +127,29 @@ def _handle(task):
     names = {desk["slot_id"]: desk["name"] for desk in desks}
 
     handoff = None
+    # What this task has provisionally taken off the meter. Held here, not on
+    # the task, because `task` is an SQS message body that gets read back by
+    # the ledger and the handoff — a local cannot leak into either.
+    reserved = 0
     try:
         # Returning here still runs `finally`, so a duplicate or a refused task
         # releases its slot exactly like a completed one.
         if _already_delivered(team, task):
             return
-        if _refuse_over_budget(team, task, names):
+        refused, reserved = _refuse_over_budget(team, task, names)
+        if refused:
             return
         result, handoff = _run_agent(team, task, desks)
-        _reply(team, task, result, names)
-        task["_reserved_tokens"] = 0
+        _reply(team, task, result, names, reserved)
+        # Settled by `_reply`, so there is nothing left for `finally` to give
+        # back. Cleared *after* it returns: if the accounting write itself
+        # fails, the reservation is still outstanding and must be released.
+        reserved = 0
     except Exception:
         # The task failed, not the infrastructure. Tell the user, then fall
         # through to finally — swallowing it here is what stops SQS from
         # redelivering a task we have already accounted for.
         traceback.print_exc()
-        reserved = task.get("_reserved_tokens", 0)
-        if reserved:
-            try:
-                state.refund_tokens(team, reserved)
-            except Exception:
-                pass
-            task["_reserved_tokens"] = 0
         history.record(
             team,
             task.get("user_id"),
@@ -145,6 +166,15 @@ def _handle(task):
         )
         _reply_error(task, "agent task failed")
     finally:
+        # Before the slot release and fully swallowed, in that order and for
+        # that reason: the release below is the invariant that outranks
+        # everything here, so nothing ahead of it may raise. A reservation is
+        # still outstanding on every path that did not reach `_reply` — a
+        # refusal reserved nothing, a duplicate never asked, and a failure
+        # already told the user it cost zero — so this is where the counter is
+        # put back.
+        _release_reservation(team, reserved)
+
         # Still deliberately not wrapped: if the release fails the slot is
         # leaked, and an SQS redelivery is the only thing that can still fix
         # it. Better a duplicate response than a deadlocked workspace.
@@ -243,7 +273,8 @@ def _already_delivered(team, task):
 
 
 def _refuse_over_budget(team, task, names):
-    """True if the quota is spent and the agent must not be invoked.
+    """`(refused, reserved)` — whether the agent must not be invoked, and what
+    running it has taken off the meter up front.
 
     This is the control the product is built around: a real refusal, not a
     gauge (PRD.md, ARCHITECTURE.md decision 4). It is also the spend guard —
@@ -253,18 +284,24 @@ def _refuse_over_budget(team, task, names):
     while the tasks ahead of it burn what was left, so the only honest moment
     to decide is immediately before the model would be called.
 
-    Reserves the task's estimated token cost atomically in DynamoDB. If two
-    concurrent runners both attempt to start when remaining budget cannot cover
-    both, only one succeeds and the other is refused, preventing concurrent
-    runners from overshooting the budget ceiling.
+    The decision is `state.reserve_budget`, which both asks and commits in one
+    conditional write. Asking and committing used to be separate — a read here
+    and an `add_tokens` at the end of the task — and two runners arriving
+    together could therefore both read the same remaining budget and both
+    spend it. The threshold has not moved: a task runs if there was budget left
+    when it asked. What moved is that the answer is now settled against
+    committed state, so a second runner is tested against the first one's
+    reservation instead of against the same stale read.
+
+    The reservation is a placeholder that `_reply` settles and the runner's
+    `finally` releases. It is never what the team is charged.
     """
     prompt = task.get("prompt", "")
-    amount = _estimate_tokens(prompt)
+    amount = RESERVATION_CEILING + _estimate_tokens(prompt)
 
-    allowed, reserved, used, budget = state.reserve_budget(team, amount)
-    if allowed:
-        task["_reserved_tokens"] = reserved
-        return False
+    admitted, reserved, used, budget = state.reserve_budget(team, amount)
+    if admitted:
+        return False, reserved
 
     print(f"[runner] REFUSED — over budget used={used} budget={budget}")
     # A refusal is part of the record, and the most telling part: it is what
@@ -293,7 +330,26 @@ def _refuse_over_budget(team, task, names):
         }
     )
     _reply_error(task, "team token quota reached — the agent was not invoked")
-    return True
+    return True, 0
+
+
+def _release_reservation(team, reserved):
+    """Give back a reservation the task never settled. Never raises.
+
+    Swallowed on purpose, and the only thing in this file that is. It runs in
+    `_handle`'s `finally` ahead of the slot release, and the slot release is
+    the invariant that outranks every other consideration here: a leaked desk
+    deadlocks the workspace, where a reservation that failed to come back is a
+    meter reading high until `seed.sh` next rewrites the row. Of the two, only
+    one of them is visible as the product being broken.
+    """
+    if not reserved:
+        return
+    try:
+        state.refund_tokens(team, reserved)
+    except Exception:
+        traceback.print_exc()
+        print(f"[runner] WARNING — {reserved} reserved tokens were not released")
 
 
 # --- The agent -------------------------------------------------------------
@@ -533,21 +589,25 @@ def _stub_agent(prompt, context, agent_name, fact):
 # --- Replies ---------------------------------------------------------------
 
 
-def _reply(team, task, result, names):
+def _reply(team, task, result, names, reserved):
     """Account for the spend, then tell the room.
 
     The `ADD` happens before either broadcast so no client is ever told about
     a response whose cost was not recorded. `token_update` goes first because
     it describes already-committed state and the meter is the headline number.
+
+    `reserved` is what `_refuse_over_budget` already put on the counter to win
+    this task its turn, so the write here is the difference between that
+    placeholder and what the provider actually counted — usually a credit back.
+    The broadcast still carries the settled total, read out of the same write,
+    so the meter a user sees is the real number and never the placeholder.
     """
-    reserved = task.get("_reserved_tokens", 0)
     usage = state.add_tokens(
         team,
         result.tokens,
         estimated=result.estimated,
         reserved=reserved,
     )
-    task["_reserved_tokens"] = 0
 
     # The desk it ran at, which is the agent that answered. Not the preference
     # on the request: those differ whenever the asked-for agent was busy, and

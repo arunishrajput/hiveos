@@ -16,9 +16,9 @@
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
 | **▶ Current phase** | **Phase 25 — Desert Outpost. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 25.** Queue after it: **26 → 27** (27 last — it depends on every world that shipped) |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 24 `COMPLETE` — deployed and verified 2026-09-21. **Seven looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base — and the board wears any of them. **Six of the eight world phases have shipped; two remain and are queued.** Gates after Phase 24: `pytest` **42/42**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding **zero** `CONN#` rows anywhere in the table — every state hue measured at **≥4.96:1 against all eight of this world's surfaces**, hiring and real tasks walked on the deployed board (21,688 real tokens spent on `TEAM#p24arctic`, 4/4 desks confirmed `BUSY` at once in DynamoDB), and Paper Office proven unchanged by a **73/73 custom-property, 37,959-computed-field** diff against a HEAD build with **zero** deltas. |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 24 `COMPLETE` — deployed and verified 2026-09-21. **Seven looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base — and the board wears any of them. **Six of the eight world phases have shipped; two remain and are queued.** Gates after Phase 24: `pytest` **65/65** (42 before PR #7), `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding **zero** `CONN#` rows anywhere in the table — every state hue measured at **≥4.96:1 against all eight of this world's surfaces**, hiring and real tasks walked on the deployed board (21,688 real tokens spent on `TEAM#p24arctic`, 4/4 desks confirmed `BUSY` at once in DynamoDB), and Paper Office proven unchanged by a **73/73 custom-property, 37,959-computed-field** diff against a HEAD build with **zero** deltas. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 37, the Arctic Base build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 24 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 37, the Arctic Base build**. ⚠️ **`main` is ahead of the stack on the backend.** PR #7 (the budget ceiling reservation, merged 2026-09-21) changes `agent_runner/app.py` and `shared/state.py` and **has not been deployed** — run `sam build --use-container && sam deploy`, then `ws_smoke.py` section 17. The frontend is in step: Phase 24 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. Before PR #7 the last backend change was PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission). DynamoDB TTL is `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -131,6 +131,50 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**PR #7 — the budget ceiling under concurrency — 2026-09-21 — merged, ⚠️ not yet deployed**
+
+Community PR from @Phantom9869, reviewed, reworked and merged. The bug it found is real: the
+ceiling *read* `tokens_used` and decided, then committed the spend at the end of the task, so two
+runners arriving together both saw room and both invoked the model. Overshoot grew with the size
+of the floor instead of staying at the one task's worth `CONTRACT.md` promises.
+
+`state.reserve_budget` now asks and commits in one conditional update whose condition is the
+admission rule itself — `tokens_used < token_budget`, both sides attribute paths, so DynamoDB
+evaluates it against the committed row and not against a number the Lambda read a moment ago. The
+second runner is tested against the first one's hold. `state.add_tokens` settles the hold against
+what the provider counted (usually a credit back), and the runner's `finally` releases it on every
+path that never reached a reply.
+
+**Three things the PR had wrong, and they are the transferable part:**
+
+1. **A hold the size of the prompt is not a hold.** The PR reserved `len(prompt)/4` — about a
+   dozen tokens against a task that costs ~800. Each admission left the counter near enough to
+   where it was found that the next desk still read room, so a floor of four could still walk
+   through a ceiling with one token left in it. `RESERVATION_CEILING` is
+   `(MAX_TOOL_ROUNDS + 1) * MAX_TOKENS` instead — derived from the two constants that bound what
+   a task may emit, roughly twice a measured task. **Sizing is the whole mechanism here, not a
+   detail of it.**
+2. **A hold must not be able to read as a spent quota.** Unclamped, a 1,806-token hold on the
+   1,600-token board `DEMO.md` documents for the ceiling beat would push `tokens_used` past
+   `token_budget`, and `useHive.js` latches the refused state on exactly that comparison from both
+   frames that carry the ceiling — red banner, disabled send, on a board with budget to spare, for
+   as long as one task ran. It is clamped to the remainder, which parks the counter *exactly* on
+   the ceiling: high enough to refuse everybody else, never higher than the meter can honestly
+   show. **A server-side placeholder is a client-visible number on this product.**
+3. **A refund in `except` misses the paths that `return`.** Moved to `finally`, ahead of the slot
+   release and fully swallowed — the release is the invariant that outranks it, so nothing in
+   front of it may raise. The hold also moved off the `task` dict into a local: `task` is an SQS
+   body the ledger and the handoff read back.
+
+The PR's own race test stubbed `reserve_budget` out and fed it scripted answers, which proves
+nothing about the condition. `tests/test_budget_ceiling_race.py` was rewritten around a fake
+METADATA row that evaluates the real condition against live state, and every claim in it was
+checked by mutation — shrinking the hold, dropping the clamp, dropping the `ConditionExpression`
+and dropping the settlement each fail tests that name the failure.
+
+**`pytest` 65/65.** Not deployed: the stack still runs the pre-PR runner. `sam build
+--use-container && sam deploy` is what takes it live, and `ws_smoke.py` section 17 is the gate.
 
 **The world picker on the landing page — 2026-09-21 — deployed and verified**
 
@@ -2994,7 +3038,7 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | WebSocket API `hiveos-ws` | ✅ `mel2gpat9c`, stage `prod` |
 | Router Lambda `hiveos-router` | ✅ verified end to end |
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered |
-| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens |
+| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens. ⚠️ **running the pre-PR-#7 code**: the budget-ceiling reservation is merged on `main` and not yet deployed |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
 | Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 37**, Phase 24 build |
 | Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base** — read back from the live picker |
