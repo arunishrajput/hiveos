@@ -116,11 +116,19 @@ def _handle(task):
             return
         result, handoff = _run_agent(team, task, desks)
         _reply(team, task, result, names)
+        task["_reserved_tokens"] = 0
     except Exception:
         # The task failed, not the infrastructure. Tell the user, then fall
         # through to finally — swallowing it here is what stops SQS from
         # redelivering a task we have already accounted for.
         traceback.print_exc()
+        reserved = task.get("_reserved_tokens", 0)
+        if reserved:
+            try:
+                state.refund_tokens(team, reserved)
+            except Exception:
+                pass
+            task["_reserved_tokens"] = 0
         history.record(
             team,
             task.get("user_id"),
@@ -244,9 +252,18 @@ def _refuse_over_budget(team, task, names):
     Checked *here*, not at claim time, on purpose. A task can sit in the queue
     while the tasks ahead of it burn what was left, so the only honest moment
     to decide is immediately before the model would be called.
+
+    Reserves the task's estimated token cost atomically in DynamoDB. If two
+    concurrent runners both attempt to start when remaining budget cannot cover
+    both, only one succeeds and the other is refused, preventing concurrent
+    runners from overshooting the budget ceiling.
     """
-    used, budget = state.budget_state(team)
-    if not budget or used < budget:
+    prompt = task.get("prompt", "")
+    amount = _estimate_tokens(prompt)
+
+    allowed, reserved, used, budget = state.reserve_budget(team, amount)
+    if allowed:
+        task["_reserved_tokens"] = reserved
         return False
 
     print(f"[runner] REFUSED — over budget used={used} budget={budget}")
@@ -260,7 +277,7 @@ def _refuse_over_budget(team, task, names):
         tokens=0,
         estimated=False,
         status=history.REFUSED,
-        prompt=task.get("prompt", ""),
+        prompt=prompt,
         requested_agent=task.get("requested_agent"),
         task_id=task.get("task_id"),
         handoff_from=task.get("handoff_from"),
@@ -523,7 +540,14 @@ def _reply(team, task, result, names):
     a response whose cost was not recorded. `token_update` goes first because
     it describes already-committed state and the meter is the headline number.
     """
-    usage = state.add_tokens(team, result.tokens, estimated=result.estimated)
+    reserved = task.get("_reserved_tokens", 0)
+    usage = state.add_tokens(
+        team,
+        result.tokens,
+        estimated=result.estimated,
+        reserved=reserved,
+    )
+    task["_reserved_tokens"] = 0
 
     # The desk it ran at, which is the agent that answered. Not the preference
     # on the request: those differ whenever the asked-for agent was busy, and

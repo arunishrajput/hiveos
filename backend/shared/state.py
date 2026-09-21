@@ -759,8 +759,62 @@ def budget_state(team):
     return int(item.get("tokens_used", 0)), int(item.get("token_budget", 0))
 
 
-def add_tokens(team, count, estimated=False):
-    """Atomically add to `tokens_used`; returns a ready `token_update` payload.
+def reserve_budget(team, amount, retries=1):
+    """Atomically reserve `amount` tokens against the workspace budget ceiling.
+
+    Returns (True, reserved_amount, used, budget) if reservation succeeded.
+    Returns (False, 0, used, budget) if over budget and refused.
+
+    Enforced atomically via a DynamoDB conditional update on METADATA:
+    ConditionExpression: token_budget = :b AND tokens_used <= :max_allowed
+    where :max_allowed = budget - amount.
+
+    If two concurrent runners both attempt to start when remaining budget < 2*amount,
+    only one succeeds and the other receives ConditionalCheckFailedException,
+    preventing concurrent tasks from overshooting the budget ceiling.
+    """
+    if amount <= 0:
+        amount = 1
+
+    used, budget = budget_state(team)
+    if not budget:
+        # No budget configured (unlimited)
+        return True, 0, used, budget
+
+    if used >= budget or (used + amount) > budget:
+        return False, 0, used, budget
+
+    max_allowed = budget - amount
+    try:
+        response = table().update_item(
+            Key={"PK": team_pk(team), "SK": "METADATA"},
+            UpdateExpression="ADD tokens_used :amount",
+            ConditionExpression="attribute_exists(SK) AND token_budget = :b AND (attribute_not_exists(tokens_used) OR tokens_used <= :max_allowed)",
+            ExpressionAttributeValues={
+                ":amount": amount,
+                ":b": budget,
+                ":max_allowed": max_allowed,
+            },
+            ReturnValues="ALL_NEW",
+        )
+        new_item = response.get("Attributes", {})
+        new_used = int(new_item.get("tokens_used", 0))
+        return True, amount, new_used, budget
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+        # Lost race: another runner updated tokens_used or token_budget changed
+        current_used, current_budget = budget_state(team)
+        if retries > 0 and current_budget and (current_used + amount) <= current_budget:
+            return reserve_budget(team, amount, retries=retries - 1)
+        return False, 0, current_used, current_budget
+
+
+def add_tokens(team, count, estimated=False, reserved=0):
+    """Atomically commit token usage and reconcile against any reservation.
+
+    `reserved` is the token amount pre-allocated at the start of the task.
+    The net change to `tokens_used` is `count - reserved`.
 
     `ADD` rather than read-then-write because two agent runs finishing
     together would otherwise lose one of the two increments — and an
@@ -776,8 +830,9 @@ def add_tokens(team, count, estimated=False):
     client loading cold has no other way to learn that. Only `seed.sh` clears
     it, by rewriting METADATA from scratch.
     """
+    delta = count - reserved
     expression = "ADD tokens_used :n"
-    values = {":n": count}
+    values = {":n": delta}
     if estimated:
         expression += " SET usage_estimated = :e"
         values[":e"] = True
@@ -797,6 +852,19 @@ def add_tokens(team, count, estimated=False):
         "pct_used": pct_used(used, budget),
         "estimated": bool(item.get("usage_estimated", False)),
     }
+
+
+def refund_tokens(team, amount):
+    """Release an unused reservation when a task fails before completion."""
+    if not amount or amount <= 0:
+        return budget_state(team)
+    item = table().update_item(
+        Key={"PK": team_pk(team), "SK": "METADATA"},
+        UpdateExpression="ADD tokens_used :neg",
+        ExpressionAttributeValues={":neg": -amount},
+        ReturnValues="ALL_NEW",
+    )["Attributes"]
+    return int(item.get("tokens_used", 0)), int(item.get("token_budget", 0))
 
 
 # --- Snapshot --------------------------------------------------------------
