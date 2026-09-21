@@ -122,6 +122,29 @@ class TestDLQRecoveryAndReplay:
             }
         )
 
+    @patch("shared.state.table")
+    def test_claim_dlq_redrive_ttl_matches_full_dlq_retention_window(self, mock_table_fn):
+        """Asserts DLQ redrive claims persist for the full 14-day DLQ retention period (1,209,600s)."""
+        import time
+        mock_table = MagicMock()
+        mock_table_fn.return_value = mock_table
+
+        now_sec = int(time.time())
+        assert state.DLQ_REDRIVE_TTL_SECONDS == 1209600  # 14 days in seconds
+
+        success = state.claim_dlq_redrive(TEAM, "task-ttl-check", hops=0)
+        assert success is True
+
+        mock_table.put_item.assert_called_once()
+        put_item_call = mock_table.put_item.call_args[1]
+        item = put_item_call["Item"]
+        assert item["PK"] == state.team_pk(TEAM)
+        assert item["SK"] == "DLQ_REDRIVE#task-ttl-check#0"
+        # Verify TTL is at least 14 days (1,209,600s) from now
+        assert item["expires_at"] >= now_sec + 1209600
+        assert item["expires_at"] <= now_sec + 1209600 + 10
+        assert put_item_call["ConditionExpression"] == "attribute_not_exists(SK)"
+
     @patch("shared.state.release_dlq_redrive")
     @patch("shared.state.claim_dlq_redrive", return_value=True)
     @patch("shared.state.clear_idempotency_marker")

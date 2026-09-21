@@ -98,13 +98,22 @@ def clear_idempotency_marker(team, task_id, hops=0):
     )
 
 
-def claim_dlq_redrive(team, task_id, hops=0, message_id=None):
+# TaskDLQ retention period is 14 days (1,209,600s) as configured in template.yaml.
+# Redrive claim markers must survive for at least this window so that an orphaned
+# DLQ message whose deletion failed cannot be re-sent if redriven days later.
+DLQ_REDRIVE_TTL_SECONDS = 1209600
+
+
+def claim_dlq_redrive(team, task_id, hops=0, message_id=None, ttl_seconds=DLQ_REDRIVE_TTL_SECONDS):
     """Atomically claim redrive execution for a dead-lettered task.
 
     Returns True if this is the first redrive claim (safe to dispatch).
     Returns False if already claimed by a prior redrive attempt that failed
     at the DLQ deletion step (meaning the message was already sent to the main
     queue and must NOT be sent again).
+
+    The claim TTL matches the DLQ MessageRetentionPeriod (14 days) to guarantee
+    the claim never expires while the dead-lettered message is still in the queue.
     """
     if not task_id:
         return True
@@ -117,7 +126,7 @@ def claim_dlq_redrive(team, task_id, hops=0, message_id=None):
                 "hops": int(hops or 0),
                 "message_id": message_id,
                 "claimed_at": now_iso(),
-                "expires_at": ttl_after(3600),  # 1 hour safety TTL
+                "expires_at": ttl_after(ttl_seconds),
             },
             ConditionExpression="attribute_not_exists(SK)",
         )
