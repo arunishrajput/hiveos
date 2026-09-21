@@ -121,20 +121,23 @@ def _handle(task):
         # through to finally — swallowing it here is what stops SQS from
         # redelivering a task we have already accounted for.
         traceback.print_exc()
-        history.record(
-            team,
-            task.get("user_id"),
-            slot_id,
-            tokens=0,
-            estimated=False,
-            status=history.FAILED,
-            prompt=task.get("prompt", ""),
-            requested_agent=task.get("requested_agent"),
-            task_id=task.get("task_id"),
-            handoff_from=task.get("handoff_from"),
-            agent_name=_named(names, slot_id),
-            handoff_from_name=_named(names, task.get("handoff_from")),
-        )
+        try:
+            history.record(
+                team,
+                task.get("user_id"),
+                slot_id,
+                tokens=0,
+                estimated=False,
+                status=history.FAILED,
+                prompt=task.get("prompt", ""),
+                requested_agent=task.get("requested_agent"),
+                task_id=task.get("task_id"),
+                handoff_from=task.get("handoff_from"),
+                agent_name=_named(names, slot_id),
+                handoff_from_name=_named(names, task.get("handoff_from")),
+            )
+        except Exception:
+            traceback.print_exc()
         _reply_error(task, "agent task failed")
     finally:
         # Still deliberately not wrapped: if the release fails the slot is
