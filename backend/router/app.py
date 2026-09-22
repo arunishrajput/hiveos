@@ -90,14 +90,15 @@ def _on_connect(event, connection_id):
     # recognised as its administrator on the same connection that made it.
     is_admin = state.admin_token_ok(team, admin_token)
 
-    member = state.add_connection(team, connection_id, user_id, avatar, is_admin)
-    print(f"[connect] connection={connection_id} user={user_id} team={team} admin={is_admin}")
+    member, is_first = state.add_connection(team, connection_id, user_id, avatar, is_admin)
+    print(f"[connect] connection={connection_id} user={user_id} team={team} admin={is_admin} is_first={is_first}")
 
-    broadcast.broadcast_to_team(
-        team,
-        {"event": "user_joined", **member},
-        exclude=connection_id,
-    )
+    if is_first:
+        broadcast.broadcast_to_team(
+            team,
+            {"event": "user_joined", **member},
+            exclude=connection_id,
+        )
     return OK
 
 
@@ -107,7 +108,7 @@ def _on_disconnect(connection_id):
     user_id = previous.get("user_id")
     print(f"[disconnect] connection={connection_id} user={user_id} team={team}")
 
-    if user_id:
+    if user_id and not state.user_has_connection(team, user_id):
         broadcast.broadcast_to_team(team, {"event": "user_left", "user_id": user_id})
     return OK
 

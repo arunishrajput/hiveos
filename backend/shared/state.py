@@ -158,11 +158,50 @@ def spawn_point(connection_id):
     }
 
 
+def user_connections(team, user_id):
+    """Return all active connection IDs for a user on a team."""
+    return [
+        item["SK"].split("#", 1)[1]
+        for item in query_team(team, "CONN#")
+        if item.get("user_id") == user_id
+    ]
+
+
+def user_has_connection(team, user_id):
+    """Whether a user has at least one active connection in the team."""
+    return bool(user_connections(team, user_id))
+
+
+def get_user_member(team, user_id):
+    """Find existing member profile (avatar, x, y) for a user in the team if connected."""
+    for item in query_team(team, "CONN#"):
+        if item.get("user_id") == user_id:
+            return {
+                "avatar": item.get("avatar"),
+                "x": item.get("x", Decimal(50)),
+                "y": item.get("y", Decimal(50)),
+            }
+    return None
+
+
 def add_connection(team, connection_id, user_id, avatar, is_admin=False):
+    existing = get_user_member(team, user_id)
+    if existing:
+        pos = {
+            "x": existing.get("x", Decimal(50)),
+            "y": existing.get("y", Decimal(50)),
+        }
+        member_avatar = avatar or existing.get("avatar") or "\U0001f41d"
+        is_first = False
+    else:
+        pos = spawn_point(connection_id)
+        member_avatar = avatar or "\U0001f41d"
+        is_first = True
+
     member = {
         "user_id": user_id,
-        "avatar": avatar,
-        **spawn_point(connection_id),
+        "avatar": member_avatar,
+        **pos,
     }
     table().put_item(
         Item={
@@ -178,7 +217,7 @@ def add_connection(team, connection_id, user_id, avatar, is_admin=False):
     # Written together: a member row without its index is a connection nothing
     # can route a later frame to.
     bind_connection(connection_id, team)
-    return member
+    return member, is_first
 
 
 def move_connection(team, connection_id, x, y):
@@ -205,7 +244,22 @@ def move_connection(team, connection_id, x, y):
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return None
         raise
-    return (response.get("Attributes") or {}).get("user_id")
+    attrs = response.get("Attributes") or {}
+    user_id = attrs.get("user_id")
+    if user_id:
+        for other_cid in user_connections(team, user_id):
+            if other_cid != connection_id:
+                try:
+                    table().update_item(
+                        Key={"PK": team_pk(team), "SK": f"CONN#{other_cid}"},
+                        UpdateExpression="SET x = :x, y = :y",
+                        ConditionExpression="attribute_exists(SK)",
+                        ExpressionAttributeValues={":x": Decimal(str(x)), ":y": Decimal(str(y))},
+                    )
+                except ClientError as exc:
+                    if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                        raise
+    return user_id
 
 
 def remove_connection(team, connection_id):
@@ -832,6 +886,7 @@ def state_snapshot(team, is_admin=False):
     # `desks`, not `agents` — the module of that name is the roster, and the
     # two would shadow each other in the loop below.
     metadata, desks, members, memory, waiting, tasks = {}, [], [], [], [], []
+    seen_members = {}
 
     for item in query_team(team):
         sk = item["SK"]
@@ -855,14 +910,14 @@ def state_snapshot(team, is_admin=False):
                 }
             )
         elif sk.startswith("CONN#"):
-            members.append(
-                {
-                    "user_id": item.get("user_id"),
+            uid = item.get("user_id")
+            if uid and uid not in seen_members:
+                seen_members[uid] = {
+                    "user_id": uid,
                     "avatar": item.get("avatar"),
                     "x": item.get("x", 0),
                     "y": item.get("y", 0),
                 }
-            )
         elif sk.startswith("TASK#"):
             tasks.append(item)
         elif sk.startswith("MEMORY#"):
@@ -873,6 +928,8 @@ def state_snapshot(team, is_admin=False):
                     "updated_by": item.get("updated_by"),
                 }
             )
+
+    members = list(seen_members.values())
 
     budget = metadata.get("token_budget", 0)
     used = metadata.get("tokens_used", 0)
