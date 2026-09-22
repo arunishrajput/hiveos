@@ -240,7 +240,9 @@ class TestRunnerRelease:
         }
 
         # Refusing on budget returns early and still runs `finally`, which is
-        # the block under test, without reaching a model call.
+        # the block under test, without reaching a model call. `(refused,
+        # reserved)`: a refusal reserves nothing, so the release below is all
+        # the `finally` has left to do.
         #
         # `_handle` reads the roster up front now — the desks are per workspace,
         # so who Ada is depends on which board this is — hence the stub. It is
@@ -248,7 +250,7 @@ class TestRunnerRelease:
         # does not touch it.
         with patch("shared.state.roster", return_value=[
                     {"slot_id": SLOT, "name": "Ada", "role": "Engineer"}]), \
-             patch.object(runner, "_refuse_over_budget", return_value=True), \
+             patch.object(runner, "_refuse_over_budget", return_value=(True, 0)), \
              patch("shared.scheduler.release_and_dispatch") as release:
             runner._handle(task)
 
