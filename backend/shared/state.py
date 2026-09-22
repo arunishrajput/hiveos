@@ -76,8 +76,9 @@ def ttl_after(seconds):
     uses, because TTL is the one field DynamoDB itself reads and that is the
     only format it accepts.
 
-    Only `IDEMPOTENCY#` rows carry this. Every other row in the table is state
-    somebody can still read, so nothing else should ever expire.
+    Used by ephemeral rows (`IDEMPOTENCY#` redelivery guards and `ACTIVE#`
+    admission safety records). Persistent rows omit `expires_at` so they are
+    never swept by DynamoDB TTL.
     """
     return int(datetime.now(timezone.utc).timestamp()) + int(seconds)
 

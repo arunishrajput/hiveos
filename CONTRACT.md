@@ -189,7 +189,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
 | `TEAM#<team>` | `ACTIVE#<userId>` | `user_id`, `task_id`, `claimed_at`, `expires_at` (N, epoch seconds). Enforces single-task admission per user. Carries TTL (3600s) as an orphan safety net. |
-| `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). **The only row in the schema that expires.** Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. **Keyed on the leg, not the chain** — see below |
+| `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). Carries TTL (86400s). Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. **Keyed on the leg, not the chain** — see below |
 
 ### Teams
 
@@ -384,11 +384,11 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   slot. Returning earlier would make a leaked desk permanent — trading a
   double charge for a deadlocked workspace, which is the worse of the two.
 
-  **The only row in the schema with an expiry.** `expires_at` is epoch seconds
-  (DynamoDB TTL accepts nothing else) and is set a day out, comfortably past
-  the queue's one-hour `MessageRetentionPeriod`. Nothing reads these rows, and
-  `state_snapshot` queries the whole partition on every `hello`, so keeping
-  them forever would grow that read without bound.
+  **TTL and expiry.** `expires_at` is epoch seconds (DynamoDB TTL accepts
+  nothing else) and is set a day out, comfortably past the queue's one-hour
+  `MessageRetentionPeriod`. Nothing reads these rows, and `state_snapshot`
+  queries the whole partition on every `hello`, so keeping them forever would
+  grow that read without bound.
 
 - **METADATA `usage_estimated`** — set when any spend folded into
   `tokens_used` was an estimate rather than billed model usage. Sticky: never
