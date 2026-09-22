@@ -645,13 +645,26 @@ def _reply(team, task, result, names, reserved):
             handoff_from_name=_named(names, handed_from),
         )
     except Exception:
-        # If writing the ledger row fails permanently after retries, roll back the tokens
-        # added to METADATA so tokens_used never diverges from the TASK# ledger and fair
-        # scheduler computations.
-        # Tradeoff note: Provider-side token usage incurred by Bedrock/LLM inference cannot
-        # be reversed. This rollback is an internal MVP consistency decision (preventing meter
-        # vs ledger desync), not a statement that provider billing was reversed.
-        state.add_tokens(team, -result.tokens)
+        # The ledger write failed permanently after its retries, so this task
+        # is not in the ledger and the counter must not claim it is. Roll the
+        # settlement above back so `tokens_used` never diverges from the TASK#
+        # rows that `history.spend` and `state.fair_order` are read from.
+        #
+        # **Undo the settlement, do not zero the task.** What the `add_tokens`
+        # above applied is `result.tokens - reserved`, so that is what comes
+        # off here — which puts the counter back to still *holding this task's
+        # reservation*, exactly where `_reply` found it. That is the state
+        # `_handle` expects on this path: `reserved` is only cleared after
+        # `_reply` returns, so its `finally` releases the hold. Subtracting
+        # `result.tokens` alone would leave the hold released here and
+        # released again there, and two releases of one placeholder drive the
+        # meter below where the task found it.
+        #
+        # Tradeoff note: provider-side token usage cannot be reversed. This is
+        # an internal consistency decision — the meter agreeing with the
+        # ledger — not a claim that billing was reversed. CONTRACT.md says so
+        # in as many words.
+        state.add_tokens(team, reserved - result.tokens)
         raise
 
     # `usage` already carries `estimated`, read back from the row, so the

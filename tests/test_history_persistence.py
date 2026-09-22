@@ -251,12 +251,18 @@ class TestRunnerHandlingOnRecordFailure:
     def test_record_failure_in_reply_rolls_back_tokens_added(
         self, mock_add_tokens, mock_record, mock_broadcast
     ):
-        """If history.record() raises in _reply(), added tokens are rolled back so METADATA does not diverge."""
+        """If history.record() raises in _reply(), the settlement is rolled back so METADATA does not diverge.
+
+        The rollback undoes the settling write rather than zeroing the task:
+        `_reply` settles `result.tokens - reserved`, so backing that same
+        amount out returns the counter to still holding the reservation, which
+        is what `_handle`'s `finally` then releases. See the note in `_reply`.
+        """
         from agent_runner import app
 
         mock_add_tokens.side_effect = [
-            {"tokens_used": 1500, "usage_estimated": False},  # first call: +500
-            {"tokens_used": 1000, "usage_estimated": False},  # rollback call: -500
+            {"tokens_used": 1500, "usage_estimated": False},  # settle: +500 -1200
+            {"tokens_used": 2200, "usage_estimated": False},  # rollback: +1200 -500
         ]
         mock_record.side_effect = _client_error("InternalServerError", status=500)
 
@@ -268,14 +274,15 @@ class TestRunnerHandlingOnRecordFailure:
         }
         result = MagicMock(tokens=500, estimated=False)
         names = {"ada": "Ada"}
+        reserved = 1200
 
         with pytest.raises(ClientError):
-            app._reply(TEAM, task, result, names)
+            app._reply(TEAM, task, result, names, reserved)
 
         assert mock_add_tokens.call_count == 2
         mock_add_tokens.assert_has_calls([
-            call(TEAM, 500, estimated=False),
-            call(TEAM, -500),
+            call(TEAM, 500, estimated=False, reserved=1200),
+            call(TEAM, 1200 - 500),
         ])
         # Broadcasts should NOT have gone out
         assert mock_broadcast.call_count == 0
