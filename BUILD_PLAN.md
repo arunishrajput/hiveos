@@ -533,17 +533,15 @@ there was a submittable deliverable at every point.
 
 > ### ▶ These are the active phases as of 2026-09-22
 >
-> The hackathon is over and submitted. **Seven worlds have shipped — 19 Night Watch, 20 Enchanted
-> Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City, 24 Arctic Base and 25 Desert Outpost**
-> (Paper Office is the Phase 12 default, not a world phase). The user is building the rest, one
-> phase per session.
+> The hackathon is over and submitted. **All eight worlds have shipped — 19 Night Watch, 20
+> Enchanted Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City, 24 Arctic Base, 25 Desert
+> Outpost and 26 Ancient Ruins** (Paper Office is the Phase 12 default, not a world phase).
 >
 > **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
-> **26 → 27.**
+> **27, and it is the only one left.**
 >
-> 19–26 depend on 18 and on nothing else, so that order is a convention and the user may reorder
-> or drop either of them. **27 is genuinely last** — it depends on whichever worlds actually
-> shipped.
+> 19–26 depended on 18 and on nothing else. **27 is genuinely last** — it depends on whichever
+> worlds actually shipped, and all eight did.
 > `PROGRESS.md`'s phase board is the live record of what is done; check it rather than assuming.
 >
 > **No deadline applies any more. The gates are unchanged** — the recolour test, the
@@ -1496,6 +1494,82 @@ hues, and make sure it stops dead under `prefers-reduced-motion: reduce`.
 in the ambience should ever look like something happening.
 
 **Gate.** The recolour test passes, and a quiet floor looks quiet.
+
+**Shipped 2026-09-22. Four things the plan got wrong, corrected in flight — and all four are
+findings for Phase 27 rather than details of this one:**
+
+1. **A LENGTH IS A PERCENTAGE IN DISGUISE TOO, BECAUSE `--tile-size` IS NOT ONE NUMBER.** Every
+   world since Phase 20 has sized shaped light off `--tile-size` on the stated grounds that it is
+   "44px at both framings". That is true of the two *narrow* framings and false in general: the
+   token is **44px at 540 and 52px at 960**, because the 960 workspace is the wide layout. So a
+   wash drawn at `1.4 × tile` is 62px across one framing and 73px across the other — an 18%
+   difference in a box whose nameplate sits at a fixed percentage. The busy chamber's cool wash
+   was solved against 44 and shipped into 52, and the `ENGINEER` caption under it measured
+   **2.39:1**. The rule the earlier phases were reaching for is narrower than the one they wrote
+   down: **`--tile-size` is stable across the two DEMO framings and nowhere else**, so anything
+   sized off it that has to clear a percentage-positioned object must be checked at both — and the
+   check is pixels, not arithmetic.
+
+2. **MEASURING A TOKEN AGAINST A TOKEN IS NOT MEASURING THE CONTRAST, AND EVERY WORLD SO FAR HAS
+   DONE IT.** The state-legibility contract says ≥4.5:1 against "this world's own surfaces", and
+   eight surface tokens is what every phase note records. But a caption does not sit on a token —
+   it sits on whatever is actually painted under it, which in a lit world is the surface *plus*
+   every pool, wash, glow and shadow over it. This world passes the token table at **4.92:1 worst**
+   and failed the real thing in two places at once: the cool wash at 2.39:1, and the tablet's own
+   spill rising into the caption two pixels above it at **3.41:1**. The method that caught both —
+   hide the text, screenshot, sample every pixel inside each caption's own box, take the worst — is
+   cheap, and it is the only one that sees a composite. **Phase 27's contrast matrix should be run
+   this way for all nine worlds**; the token table is a floor, not the measurement.
+
+3. **THE BASE GEOMETRY PUTS THE DIMMEST TEXT IN THE SYSTEM ON TOP OF A LIGHT SOURCE, AND THE FIX
+   IS A SECOND RE-PITCH RATHER THAN A DIMMER GLOW.** `.desk__role` sits two pixels above
+   `.desk__monitor` in the flex column, so *any* upward spill from a lit screen lands on it —
+   distance cannot solve it, and Paper Office has the same collision (its own role caption measures
+   **3.08:1** on a busy desk). Phase 24's finding 2 says every value register costs a re-pitch of
+   the small type; this is that finding one step further in, because **the register here is a
+   light rather than a surface** — the caption's ground brightens when the desk it names starts
+   working, and no single pitch of `--faint` clears both states. The answer is to let the lit state
+   take `--dim`, which the base stylesheet already half-does by turning the *name* above it
+   `--cool`. Pushing the wide spill downward (offset 12px against a 22px blur) was necessary and
+   not sufficient: it alone left the caption at 4.1:1.
+
+4. **A WORLD'S LIGHT HAS TO STAND WHERE THE FLOOR PLAN LETS IT BE SEEN, AND TWO OBVIOUS PLACES
+   ARE BOTH BLIND.** The brief asks for "torch-flicker shadow across the flags". Drawn first as
+   the spill through each chamber's doorway, which is the literal picture — and it paints under
+   the colonnade, because the doors are at floor (23, 62) and (77, 62) while the stylobate starts
+   at y 64, runs x 21-79, and is opaque. Moved to sconces on the carved wall either side of the
+   stele, which is where a sconce belongs — and the stele is **111px wide at the 960 framing** and
+   covers the corridor's whole width in the band, with a chamber directly under every other part
+   of that wall. Both are facts of the floor plan rather than tuning problems. The light ended up
+   as two torches *standing in the corridor itself*, which is the only place on this floor where a
+   flame has visible ground around it. **Check where a light can be SEEN before deciding where it
+   would realistically be.**
+
+**Three notes that are not corrections.**
+
+**The busy room's nameplate overlaps its own `--cool` top border, and that is base geometry rather
+than this world's.** `.desk`'s flex column starts at the room's top edge, so `.desk__label`'s box
+crosses the 2px border that `.room--busy` turns `--cool` in every world. Measured on Paper Office
+at the same framing it reads **1.00:1** — identical, because the label takes `--cool` too. Nothing
+a world file can fix without touching shared code, and Paper Office is pixel-frozen; **it belongs
+to Phase 27**, whose contrast matrix will find it in all nine worlds at once.
+
+**The mosaic runner may not be the lightest surface, which cost a redraw.** Drawn first as a pale
+inlay on the reasonable-sounding grounds that polished tesserae catch light where worn flagstone
+does not. It became the binding surface for every pale word in the world, and then the one thing
+the corridor's light has to land on — a torch pool — pushed `--faint` under the bar at 0.06 alpha,
+which is an alpha too faint to see. A mosaic in torchlight is *dark* tesserae with pale mortar
+between them, so the runner now sits at the flags' own value and separates by hue, by texture and
+by its two edges. **A surface that has to receive light cannot also be the brightest thing in the
+world.** The same pass corrected the mortar: drawn dark at 0.55 it rendered as a wire grate, which
+is Reef Station's cell-count problem — the lines between small stones are pale, and at 0.09 they
+are a texture rather than a grid.
+
+**A hole is dark, and a rim is what catches the light.** The three lost-tessera patches were
+filled paler than the runner first, and read as three stones *lying on* the pavement rather than
+as gaps in it. Filled darker with a bright broken edge, they read as holes immediately — and,
+overlapped into a cluster per Phase 25's finding 4, their rims become the crack network the world
+would otherwise have had to draw as forbidden strokes.
 
 ---
 

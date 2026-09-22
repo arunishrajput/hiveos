@@ -1239,6 +1239,207 @@ const CARAVAN_CLOTH = [
   '#4e443a', // dust
 ]
 
+/* --- Ancient Ruins' cast ----------------------------------------------------
+ *
+ * The temple's people are an expedition of archaeologists; its agents are the
+ * stone sentinels that were carved here long before anybody arrived with a
+ * trowel. The fifth world to use `agentDesigns`, and the argument is the
+ * colony's rather than Arctic Base's: a temple is a place its guardians work
+ * and its excavators visit, so an agent at a worktable is visibly not one of
+ * the people watching it.
+ *
+ *   H  hat / stone        --sp-hair    per-character, from the palette below
+ *   F  the face           --sp-skin    people only
+ *   S  jacket / torso     --sp-shirt
+ *   A  band, peak, strap  --sp-accent  bone canvas
+ *   D  eyes / eye slits   --sp-detail
+ *
+ * WHAT MAKES THESE NOT THE NIGHT WATCH'S HOODS, THE ICE TEAM'S PARKAS OR THE
+ * CARAVAN'S HEAD WRAPS — the risk a FOURTH covered-head cast runs. A hood
+ * closes over the head and carries a lamp ACROSS the brim; a parka RINGS the
+ * face opening; a head wrap's tell is one loose end down one shoulder. A hat
+ * is none of those: seen from above it is a brim, which is WIDER than the head
+ * under it, with a band ringing the crown inside the brim's edge. Three of the
+ * five here are hats of different widths, and the other two are what an
+ * archaeologist wears when the hat is off — a knotted bandana and a headband
+ * — both of which show the whole crown, which no hooded or wrapped cast ever
+ * does. The pack straps and the satchel strap are the other tell: kit worn
+ * over the jacket, which the night deck, the ice and the caravan never carry.
+ *
+ * THE SENTINELS HAVE NO `F` LAYER, the same tell the colony's robots, the
+ * harbour's drones, the ice's penguins and the dune's animals carry: a carved
+ * guardian is stone all the way through, and `--sp-skin` stays unambiguously
+ * human. And their hands are `H` rather than `F` — stone fists in the same
+ * stone as the head — which is what makes a sentinel read as one carved
+ * object rather than as a person in a mask. Identity lives in rows 0 and 1 in
+ * both tables: Phase 21's lesson, taken as given and now holding for an
+ * eighth cast. The last row is legs and nothing else in every design, because
+ * `stepFrame` and `seatedFrame` replace exactly that row.
+ */
+const EXPEDITION = [
+  // 0 — slouch hat: a brim turned up on one side, a band round the crown
+  [
+    '..HHHHH..',
+    '.HHHHHHHH',
+    'HHAAAHHHH',
+    '.HHHHHHH.',
+    '..HFFFH..',
+    '..DFFFD..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — pith helmet: a dome with a pale rim all the way round
+  [
+    '...AAA...',
+    '..AHHHA..',
+    '.AHHHHHA.',
+    '.AHHHHHA.',
+    '..AFFFA..',
+    '..DFFFD..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — bandana knotted at the back, pack straps over both shoulders
+  [
+    '...HH..H.',
+    '..HHHHHH.',
+    '.HHHHHHH.',
+    '.HHHHHHH.',
+    '..FFFFF..',
+    '..DFFFD..',
+    '.SASSSAS.',
+    'SSASSSASS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — the wide flat brim: the whole width of the grid, band inside it
+  [
+    '.HHHHHHH.',
+    'HHHAAAHHH',
+    'HHAHHHAHH',
+    'HHHAAAHHH',
+    '.HHFFFHH.',
+    '..DFFFD..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — hat off: cropped hair under a headband, one satchel strap across
+  [
+    '...HHH...',
+    '..HHHHH..',
+    '.HAAAAAH.',
+    '.HHHHHHH.',
+    '..FFFFF..',
+    '..DFFFD..',
+    '.SSSSSAS.',
+    'SSSSSASSS',
+    'FSSSSASSF',
+    '..S...S..',
+  ],
+]
+
+/* The stone sentinels. Four carved heads, every one of them a shape no living
+ * head has: a square block, a crown of points, a flat slab with a brow across
+ * it, and a rounded head with lappets hanging either side of it. The eye
+ * slits are `D` and are dark — a guardian whose eyes glowed would be a second
+ * status light walking about the floor, and this world's argument is that
+ * there is exactly one. The collar and the brow are the pale `A`, which is
+ * the same bone canvas as a hat band: dressed stone and bleached cloth are
+ * close enough in colour that one token honestly serves both. */
+const SENTINELS = [
+  // 0 — the block: a square head, wide eye slits, a collar
+  [
+    '.HHHHHHH.',
+    '.HHHHHHH.',
+    '.HDDHDDH.',
+    '.HHHHHHH.',
+    '.HHHHHHH.',
+    '..AAAAA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'HSSSSSSSH',
+    '..S...S..',
+  ],
+  // 1 — the crowned: a row of points along the top of the head
+  [
+    'H.H.H.H.H',
+    'HHHHHHHHH',
+    '.HHHHHHH.',
+    '.HDHHHDH.',
+    '.HHHHHHH.',
+    '..AAAAA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'HSSSSSSSH',
+    '..S...S..',
+  ],
+  // 2 — the slab: a flat head the full width of the grid, a pale brow across it
+  [
+    'HHHHHHHHH',
+    'HAAAAAAAH',
+    'HHDHHHDHH',
+    'HHHHHHHHH',
+    '.HHHHHHH.',
+    '..SSSSS..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'HSSSSSSSH',
+    '..S...S..',
+  ],
+  // 3 — the lappets: a rounded head with the headdress hanging down both sides
+  [
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'AHHHHHHHA',
+    'AHDHHHDHA',
+    'AHHHHHHHA',
+    '.A.....A.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'HSSSSSSSH',
+    '..S...S..',
+  ],
+]
+
+/* One hat per marker, shared by the expedition and the sentinels.
+ *
+ * Shared for the reason every world with two casts shares its palette: the
+ * palette is *identity*, and the person who picked the fox is the fox
+ * whichever body the world gives them. On a sentinel it reads as the stone
+ * the guardian was carved from — and temple statuary genuinely runs from
+ * slate to serpentine to rose granite.
+ *
+ * PALE, because the floor is dark, and every one of them is lighter than the
+ * jacket so identity still reads from the top down. Held between 0.08 and
+ * 0.20 saturation where this world's four state hues run 0.53-0.61, and the
+ * wedges are avoided by hue as well: nothing here is within 25deg of `--cool`
+ * at 198deg or `--honey` at 25deg, the one green is a grey-green at 164deg
+ * and 0.14 saturation against the jade's 151deg and 0.61, and the one warm
+ * neutral is held at 0.15 saturation against honey's 0.59, a 3.9x gap.
+ *
+ * MEASURED AGAINST THREE VALUE REGISTERS. Every one clears 4.0:1 on all five
+ * surfaces a pawn can stand on — the flags, the mosaic runner, a chamber
+ * floor, a lit chamber floor and the stylobate — worst case 4.34:1 against
+ * the runner, which is the lightest of the eight and the binding one every
+ * time in this world.
+ */
+const EXPEDITION_HATS = [
+  '#a293b8', // heather
+  '#8fa0b2', // slate
+  '#aca68c', // limestone
+  '#96a892', // sage
+  '#b0929f', // mauve
+  '#93aaa4', // verdigris
+  '#a2a2b0', // ash
+  '#ab9c92', // dust
+]
+
 const REGISTRY = [
   {
     id: DEFAULT_WORLD_ID,
@@ -1423,6 +1624,33 @@ const REGISTRY = [
     agentDesigns: DESERT_FAUNA,
     layers: DEFAULT_LAYERS,
     palette: CARAVAN_CLOTH,
+  },
+  {
+    id: 'ruins',
+    label: 'Ancient Ruins',
+    blurb: 'Pillared stone chambers under a carved frieze, lit by torches and by glyphs.',
+    // THE FIRST DARK WORLD SINCE REEF STATION, and it is dark everywhere:
+    // stone above the walk line and stone below it, with the only light
+    // coming from the torches and — when something is happening — from the
+    // glyphs. So `--ink` inverts and the five overrides every dark world
+    // needs come back: the two scrims, the chair's under-edge, a world-local
+    // `--sheet`, and the sprite rim held down to a lit edge. Phase 19's
+    // finding 2, applied for the fifth time.
+    colorScheme: 'dark',
+    // `--cream` in worlds/ruins.css. Literal for the same reason all the
+    // others are: the browser needs it before a stylesheet exists.
+    themeColor: '#16130f',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the chambers
+    // at y=14, so a world that raised its band would run the carved wall
+    // behind them.
+    walkTop: 14,
+    designs: EXPEDITION,
+    // The fifth world whose agents are a different species, on the colony's
+    // argument: a temple is a place its guardians work and its excavators
+    // visit. See SENTINELS above.
+    agentDesigns: SENTINELS,
+    layers: DEFAULT_LAYERS,
+    palette: EXPEDITION_HATS,
   },
 ]
 

@@ -32,6 +32,7 @@ import './worlds/alien.css'
 import './worlds/cloudcity.css'
 import './worlds/arctic.css'
 import './worlds/desert.css'
+import './worlds/ruins.css'
 
 import App from './App'
 

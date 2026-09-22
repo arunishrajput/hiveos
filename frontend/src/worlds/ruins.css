@@ -1,0 +1,2203 @@
+/* Ancient Ruins — the office as a temple complex.
+ *
+ * The same floor, the same rooms, the same scheduler. Heavy dark stone, a
+ * carved wall with a glyph frieze along the back, pillared chambers standing
+ * against it, a mosaic runner down the corridor and a colonnade where the
+ * queue waits — worked by an expedition of archaeologists, and by the stone
+ * sentinels who were carved here long before them.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one of them is re-tuned for stone and
+ *    none of them is reassigned. The words — `working`, `idle`, `queued #N`,
+ *    `HALT`, `WAITING AREA` — are untouched; this file contains no `content`
+ *    that carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *    THIS IS THE WORLD THE BRIEF NAMES FOR THAT SPLIT — two light sources,
+ *    "torch amber that decorates, and glyph cyan that reports". The torch in
+ *    every chamber burns whether or not anyone is working and means nothing at
+ *    all. When an agent goes BUSY the chamber's glyph wall and the tablet on
+ *    the worktable light arcane cyan, and that is the thing that means
+ *    something.
+ *
+ * THE PROBLEM THIS WORLD IS BUILT AROUND: TORCH AMBER IS `--HONEY` IN A
+ * COSTUME. On a dark ground the warn hue has to come UP to carry a word, so it
+ * is a bright orange at 25deg here, exactly as it is on the night deck and in
+ * the clearing. Firelight is an orange at 25-35deg. A world that painted its
+ * torchlight as light would lay the queued colour across every chamber floor
+ * — not as a prop that can be recoloured, as the illumination itself — and the
+ * brief's own non-negotiable ("flicker must not read as an alert") is the same
+ * problem stated from the other end. Phase 25 found the answer for the desert
+ * sun and it transfers whole: WHEN THE AMBIENT LIGHT'S COLOUR COLLIDES WITH A
+ * STATE HUE, STATE THE LIGHT AS GEOMETRY. So the torch itself is a small pale
+ * flame with a near-white core rather than an orange one; the light it throws
+ * is a cream at 38deg and 0.31 saturation, 13deg from honey at half its
+ * saturation, and it is never painted above 0.13 alpha — at which strength a
+ * warm tint over dark stone is a value lift with a temperature, not a colour.
+ * And the thing that actually SAYS "torchlight" is not the tint. It is the
+ * two pools spreading from the standing torches at the head of the corridor
+ * across the flags, breathing slowly, and the V of two shadows the urn
+ * between them throws. Shape and shadow, not colour, carry the light.
+ *
+ * THREE VALUE REGISTERS, WHICH PHASE 24'S FINDING 2 SAYS COSTS A RE-PITCH OF
+ * THE SMALL TYPE. Flagstone in the corridor, moss on it at the edges, and a
+ * torchlit chamber interior are three different brightnesses a word can land
+ * on, and the pale `--dim` / `--faint` pair has to clear the LIGHTEST of them
+ * — on a dark world the binding surface inverts. The lightest of the eight are
+ * the stylobate and a chamber floor, and every number in the state block below
+ * was measured against them. The moss is held to the floor's edges and
+ * corners, where no caption ever sits, and at an alpha that leaves the
+ * composite darker than either in any case.
+ *
+ * AND THE MOSAIC RUNNER IS NOT THE LIGHTEST SURFACE, WHICH IT WAS FOR ONE
+ * DRAFT. Drawn first as a pale inlay, it became the binding surface for every
+ * word, and then a torch pool on it — the one place the corridor's light has
+ * to land — cost `--faint` its 4.5:1 at 0.06 alpha, which is invisible. A
+ * mosaic in torchlight is dark tesserae with pale mortar between them, so the
+ * runner sits at the flags' own value and separates by hue, by texture and by
+ * its two edges instead of by brightness. That is what buys the pools their
+ * headroom.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="ruins"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every
+ * surface in the product including the chrome and the landing page; and the
+ * scoped rules, which re-dress the objects on the floor. A world that stopped
+ * at the first half would be a colour scheme, which is the one thing a world
+ * is not allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,3,0) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy` and `.desk--busy .desk__monitor` below exist for
+ * exactly that reason as much as for the art.
+ */
+
+:root[data-world='ruins'] {
+  /* A dark room, and it says so before a single pixel is painted. The
+   * pre-paint script in index.html stamps `data-world` and replays
+   * `hiveos.world.paint` from localStorage, so this lands with the stylesheet
+   * rather than after React mounts. Inherited from Phase 19 — this world adds
+   * nothing to index.html. */
+  color-scheme: dark;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Three warm near-blacks, close together, separated by hairlines rather
+   * than by contrast — the paper office's construction, inverted. `--sand` is
+   * the *raised* surface, so on dark it is the lightest of the three. Warm
+   * rather than the night deck's navy or the clearing's green: the darkest
+   * thing in a temple is the shadow of sandstone, and sandstone in shadow is
+   * brown. */
+  --cream: #16130f;
+  --paper: #1e1a15;
+  --sand: #2a251d;
+
+  /* `--ink` is "the mark on the page", not "a dark colour" — so it inverts
+   * with the page and becomes the palest thing in the system. That is what
+   * keeps `--text`, the solid `.btn--ink`, and every `--on` selection border
+   * correct for free. The three places where the base stylesheet uses
+   * `--ink-rgb` to mean *dark* rather than *maximum contrast* — the two scrims
+   * and the chair's under-edge — are re-pointed at `--cream-rgb` below. Phase
+   * 19's finding 2, written up front here rather than discovered again. */
+  --ink: #ebe4d6;
+  --rule: #3a332a;
+  --rule-soft: #2c2620;
+  --rule-strong: #4d453a;
+
+  /* Pitched against the stylobate and the chamber floor, the lightest of the
+   * eight surfaces — see the note at the top. `--faint` carries `.desk__role`
+   * under every nameplate, `.pawn__state` when a person is idle and the
+   * `WAITING AREA` caption; the pair is held 1.45:1 apart, which is the
+   * separation Paper Office (1.42:1) and the ice (1.43:1) hold. */
+  --dim: #cdc3b3;
+  --faint: #aca290;
+
+  /* Brand, still fills only, and deepened well below #ffca54 for the two
+   * reasons Night Watch found: at full brightness an amber button on a
+   * near-black page is the loudest thing on the board, and the quota strip
+   * has to stay the loudest thing on the board; and it buys the value headroom
+   * `--honey` needs below. Its dark label clears at 8.30:1. */
+  --amber: #d9a332;
+  --amber-deep: #c8922b;
+  --on-amber: #141105;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Lifted until each one carries a word on stone. Measured against all eight
+   * of this world's surfaces — the table is in PROGRESS.md — and the binding
+   * surface is the stylobate or a chamber floor every time.
+   *
+   * HONEY vs AMBER is Phase 19's finding 4, taken as given: on a dark ground
+   * "darker" is not available, so a text-weight warn hue has to come *up*,
+   * which is where the brand amber already sits. The separation moves to hue —
+   * honey an orange at 25deg, amber a yellow at 41deg — and the guarantee
+   * underneath is the one that actually holds: amber is only ever a filled
+   * rectangle with dark text on it, honey is only ever a word.
+   *
+   * HONEY vs THE TORCHES is this world's own line, and the note at the top of
+   * the file is about it. The torchlight is 13deg further round and at half
+   * the saturation, and it is never a mark — it is a tint over stone at a low
+   * alpha, and a tint is not a word.
+   *
+   * COOL vs SAFE. 195deg against 150deg, the same 45deg the night deck holds.
+   * These are the two saturated bright marks a reader has to tell apart at a
+   * glance, and nothing in this world's own palette is anywhere near either —
+   * the moss is an olive at 92deg, held at value 0.38 against the jade's
+   * 0.79. */
+  --cool: #6ec4e8;
+  --safe: #4fca8f;
+  --honey: #ffa869;
+  --alarm: #f7806f;
+
+  /* Channels. Each is exactly the token it is named after — keep them in
+   * step, the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 235, 228, 214;
+  --cream-rgb: 22, 19, 15;
+  --paper-rgb: 30, 26, 21;
+  --amber-rgb: 217, 163, 50;
+  --cool-rgb: 110, 196, 232;
+  --alarm-rgb: 247, 128, 111;
+
+  /* The quota strip's empty track. */
+  --tick: #302a22;
+
+  /* --- The pavement ------------------------------------------------------ *
+   *
+   * Flagstone, and a mosaic runner laid down the corridor through it. `--tile`
+   * is the runner, which is Phase 22's finding 4 for the sixth time: the token
+   * means "the other ground colour", not "lighter than the floor" — and here
+   * the other ground colour is a different MATERIAL at the same value: dark
+   * tesserae, greyer and cooler than the sandstone flags, separated from them
+   * by mortar lines and by the runner's two edges rather than by brightness.
+   * See the note at the top for why it may not be the lightest surface. */
+  --floor: #2b2721;
+  --tile: #2c2a26;
+  /* Inside a chamber: torchlit, so a shade above the corridor. */
+  --room-floor: #332e26;
+  /* The wash of a lit glyph wall across the chamber floor, and the only place
+   * a chamber takes a hue. */
+  --room-floor-busy: #27363d;
+
+  /* Stone worktables. Dressed limestone rather than laminate, and the
+   * lightest large objects on the floor: a desk is the one piece of furniture
+   * a person has to find at a glance, and on dark stone the way to be found is
+   * to be pale. */
+  --desk: #5c544a;
+  --desk-edge: #2a2621;
+  --desk-edge-rgb: 42, 38, 33;
+  --desk-top: #6f665b;
+
+  /* The handoff is a scroll here, so `--envelope-edge` stops being a hairline
+   * round a piece of paper and becomes the darker rolled ends of a parchment.
+   * Same token, same rules in the base stylesheet, a different object — which
+   * is the whole reason these are named for the thing and not for the
+   * colour. */
+  --envelope-edge: #8f836c;
+  --envelope-contact-rgb: 4, 3, 2;
+
+  /* A dormant glyph tablet, and a woken one. The woken value keeps the extra
+   * brightness `--cool` gives up to stay legible as text — a light source is
+   * not a label, and the two have to read as the same hue at different
+   * weights. 2deg apart, and it should stay that way. */
+  --screen-off: #3b352d;
+  --screen-on: #7ad7f5;
+  --screen-on-rgb: 122, 215, 245;
+
+  /* The vines. An olive rather than a leaf green, and the most load-bearing
+   * value in the file after the torchlight: 59deg from `--safe` and half its
+   * value, so nothing growing over these stones can be mistaken for a healthy
+   * budget. Paper Office's own ferns-vs-jade gap is 25deg. */
+  --foliage: #5c6b3e;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become
+   * a carved stele and a water cooler become an urn without the token names
+   * going wrong. */
+  --mug: #6f5b4c; /* the potsherd bowl among the finds */
+  --board-face: #756a5c; /* the stele's dressed face */
+  --board-frame: #4a4238; /* its carved border */
+  --bottle: #4a3f36; /* the urn's lip */
+  --bottle-base: #2f2823;
+  --cooler-body: #524740; /* the urn's shoulder */
+  --glass-sky: #a9b4bb; /* daylight through the broken roof */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The hat is per-character and arrives inline from `lookFor`; these are the
+   * four layers every archaeologist and every stone sentinel shares. See
+   * EXPEDITION and SENTINELS in worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the field jacket and the sentinel's mossy torso, and it is
+   * the one value here that was measured rather than picked — Night Watch's
+   * lesson, that a mid-tone torso which reads beautifully on cream dissolves
+   * entirely on a dark floor. It clears 3.5:1 on every surface a pawn can
+   * stand on, while staying darker than all eight hats so identity still reads
+   * from the top down. Olive drab and not khaki: khaki is tan, and tan is
+   * `--honey` with the saturation turned down. Held 33deg round and at 0.24
+   * saturation against honey's 0.59.
+   *
+   * `--sp-accent` is a hat band, a helmet peak, a pack strap. Bone canvas at
+   * 0.15 saturation — pale enough to read as a strap on a dark jacket, and
+   * nowhere near the warn hue. It reports nothing. */
+  --sp-skin: #d2a57c;
+  --sp-shirt: #8e8d6e;
+  --sp-accent: #cfc6b1;
+  --sp-detail: #16120d;
+
+  /* Structure. `--wall` is read only by the base `.floor` recipe, which this
+   * file replaces wholesale; it is kept honest at the carved wall's own stone
+   * so nothing downstream is surprised. `--wall-trim` is a chamber's wall seen
+   * from above — dressed sandstone, and the lightest line in the corridor. */
+  --wall: #24201a;
+  --wall-trim: #56493a;
+  /* The stylobate the colonnade stands on: worn limestone, a shade above the
+   * flags, and still dark — a queued member's `queued #N` is `--honey` and
+   * stands on this, so it is a surface a word lands on. */
+  --rug: #342f27;
+  --rug-edge-rgb: 150, 136, 110;
+  --chair: #4b443b; /* a stone block seat */
+  --glass: #1f2427; /* deep in the broken roof, where no light reaches */
+
+  /* Shadows go black rather than brown, and harder: a 0.22 shadow that reads
+   * on cream is invisible on dark stone. */
+  --shadow-rgb: 4, 3, 2;
+  --shadow: rgba(var(--shadow-rgb), 0.5);
+  --vignette-rgb: 6, 5, 3;
+  --sheen-rgb: 255, 248, 235;
+
+  /* `.btn--ink` is a pale button with dark text here, so its hover settles
+   * *down* rather than lifting. */
+  --ink-hover: #d8d0c2;
+  --engage-flash: #23404b;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because a torch, a
+   * frieze, a pillar, a lintel, a mosaic, a stele, an urn and a scroll are
+   * objects the paper office does not have, and inventing a shared token for
+   * them would put Paper Office's stylesheet in the business of describing a
+   * world it is not.
+   */
+
+  /* THE TORCHLIGHT, and see the note at the top of the file. A cream at 38deg
+   * and 0.31 saturation — 13deg from `--honey` at half its saturation — and it
+   * is only ever used as a tint at 0.13 alpha or below. `--flame-core` is the
+   * hottest part of a flame, which is nearly white; `--flame` is its edge. The
+   * flame is the one warm OBJECT in this world and it is 5x7 pixels. */
+  --torch-rgb: 255, 226, 176;
+  --flame-core: #fff4d6;
+  --flame: #ffd9a0;
+  --iron: #1a1714; /* the torch bracket */
+
+  /* Stone. `--lit-rgb` is the chamfered top edge of a flag or a block catching
+   * light; `--joint-rgb` is the gap beside it. Every joint in this world is
+   * drawn as that pair — one dark pixel, one lit one — which is Cloud City's
+   * finding 4: a line that means "depth" cannot be drawn at the same weight as
+   * a line that means "joint", and a gap between two stones means depth. */
+  --joint-rgb: 8, 6, 4;
+  --lit-rgb: 214, 200, 176;
+  --worn-rgb: 160, 148, 126; /* stone polished pale by feet */
+  --damp-rgb: 10, 9, 8; /* where water has stood */
+  /* Moss, and it is an olive at 92deg for the reason the vines are. Only ever
+   * a tint at the floor's edges. */
+  --moss-rgb: 74, 96, 52;
+
+  /* Pillars, seen from above: a capital with a lit crown. */
+  --pillar: #5e564a;
+  --pillar-lit: #7d7466;
+  --pillar-dark: #3a342c;
+
+  /* A chamber's lintel, and the plinth course the carved wall stands on. */
+  --lintel: #6a6053;
+  --lintel-lit: #8a7f70;
+  --plinth: #4b4337;
+  --plinth-shadow: #0d0b08;
+
+  /* The carved wall's own stone, darkest at the top where no torch reaches. */
+  --wall-high: #1c1915;
+  --wall-low: #2a251e;
+
+  /* The glyph wall panel in each chamber, and the tablet on each worktable.
+   * `--glyph-idle-rgb` is the faint scratch of a carved mark on unlit stone;
+   * when the state arrives the same marks read dark on lit cyan instead. */
+  --glyph-idle-rgb: 210, 196, 170;
+  --panel-stone: #2a2520;
+  --panel-stone-lit: #17303a;
+
+  /* The mosaic runner: the mortar lines between dark tesserae, and the bed
+   * showing through where tesserae have been lost. The bed is DARKER than
+   * the runner — drawn paler first, on the grounds that mortar is pale, and
+   * the three patches read as three stones lying on the pavement. A hole is
+   * a hole because it is in shadow, and what catches the light is the broken
+   * edge of the tesserae round it, which is the rim. */
+  --mortar-rgb: 214, 200, 176;
+  --mosaic-bed: #1f1d1a;
+  --mosaic-rim-rgb: 214, 200, 176;
+
+  /* The finds on a worktable, and the field kit. */
+  --sherd-in: #3a2e27; /* the inside of the broken bowl */
+  --tool: #d9cdb4; /* brush handles */
+  --tool-steel: #9aa3a8; /* the trowel */
+  --tray: #2f2a24;
+  /* The field notebook on a worktable, and the scroll that carries a handoff.
+   * `--paper` is the *panel* surface and has gone dark with the rest of the
+   * chrome, so anything that has to read as a pale sheet needs its own token —
+   * Phase 19's finding 3. */
+  --sheet: #e6dcc4;
+  --scroll-end: #c4b79b; /* the rolled ends of the parchment */
+  --scroll-tie: #3d3229; /* the cord round it — dark, and NOT red */
+
+  /* Daylight through the broken roof, and the shaft it throws. Neutral rather
+   * than warm or cool, and this is the one cool-ish thing in the file allowed
+   * to mean nothing: it plays the paper office's own sunlight role, which is
+   * the purest possible case of a colour that reports nothing. */
+  --day-rgb: 214, 220, 224;
+  --rubble: #4e463c;
+  --rubble-rgb: 78, 70, 60;
+  --rubble-dark: #17191b;
+  --beam: #3f3427; /* a fallen roof beam */
+
+  --urn-dark: #1f1a16;
+  --urn-lit: #7d7166;
+
+  --glyph-carved: #3a3229; /* the stele's inscription */
+  --foliage-dark: #46522f;
+
+  /* What hangs in the air. Warm and pale, because it is dust in torchlight. */
+  --dust-rgb: 236, 224, 200;
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. The paper office's recipe is a wall band over two
+ * offset 45deg checkers; this is a carved wall on a plinth over a floor of
+ * large flagstones, with a mosaic runner laid down the corridor and moss
+ * creeping in at the edges.
+ *
+ * THIS IS THE SURFACE THREE PHASES HAVE CIRCLED — moss on flagstone — and the
+ * question each of them left is "which PART of it is periodic?" Here the
+ * answer is clean. The flags were LAID, so their joints are genuinely
+ * periodic, and a laid surface may tile: that is Paper Office's own checker
+ * and the night deck's grid. Large flags, a tile and a half wide by a tile
+ * tall, so the field reads as slabs rather than as graph paper. The moss was
+ * NOT laid. It is a continuous variation in colour, and Phase 20's finding is
+ * that any periodicity in one of those reads as a rendering artefact — so it
+ * is six large irregular tints at hand-picked positions with `no-repeat`,
+ * sized off `--tile-size` and never as floor percentages, painted ABOVE the
+ * joint grid in the layer list so the joints show through it: moss grows over
+ * the stones and into the gaps, and a joint that vanished under a blotch
+ * would say the moss was a sticker.
+ *
+ * AND THE JOINT IS AN EDGE, NOT A STROKE. Phase 24's finding 4 and Cloud
+ * City's finding 4, together: a mark meaning "gap between two stones" is
+ * drawn as one dark pixel and one lit pixel beside it — the gap, and the
+ * chamfered edge of the next flag catching light. Two hairlines of equal
+ * weight would be a grid; a dark line with a lit edge is a floor.
+ *
+ * THE MOSAIC RUNNER IS THE CORRIDOR'S PATH, and the piece of ground art with
+ * a job beyond atmosphere: the route every dispatch walks happens *on*
+ * something rather than across open floor. It is placed against the constants
+ * in components.jsx — the corridor is the 20% gap between ROOMS at x 40-60 —
+ * and it still reports nothing. Its tesserae are small discrete objects and
+ * may tile, which they do INSIDE a sized layer: a `repeating-linear-gradient`
+ * given a `background-size` tiles within its own box and nowhere else. And it
+ * is "cracked" without a single stroke: three patches where tesserae have
+ * fallen out, each ending on a hard rim rather than fading, OVERLAPPING so the
+ * rims that run through a neighbour stop being outlines and become the crack
+ * network — Phase 25's finding 4 exactly.
+ *
+ * The band's two layers are first in the list and the wall is opaque, so the
+ * pavement never shows above the plinth — the same trick the base file uses,
+ * and the reason neither needs a mask.
+ *
+ * Every shaped layer ends in `transparent`. Phase 21's finding 1: a
+ * `radial-gradient` paints its LAST colour across the whole background
+ * positioning area rather than out to its radius, which is a silent failure
+ * and has to be written down rather than remembered.
+ */
+:root[data-world='ruins'] .floor {
+  background-image:
+    /* the plinth course the wall stands on: a lit top edge, the step face,
+       and its shadow onto the flags */
+    linear-gradient(
+      transparent 0 calc(100% - 5px),
+      rgba(var(--lit-rgb), 0.28) calc(100% - 5px) calc(100% - 4px),
+      var(--plinth) calc(100% - 4px) calc(100% - 1px),
+      var(--plinth-shadow) calc(100% - 1px) 100%
+    ),
+    /* the carved wall itself: opaque, darkest where no torch reaches */
+      linear-gradient(var(--wall-high), var(--wall) 55%, var(--wall-low)),
+    /* Moss, at the edges and in the corners where damp collects, and nowhere a
+       caption sits. Six tints, none repeating. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.6) calc(var(--tile-size) * 0.9) at 3% 96%,
+        rgba(var(--moss-rgb), 0.28),
+        rgba(var(--moss-rgb), 0) 72%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 1.4) at 1% 40%,
+      rgba(var(--moss-rgb), 0.22),
+      rgba(var(--moss-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.4) calc(var(--tile-size) * 0.8) at 97% 97%,
+      rgba(var(--moss-rgb), 0.26),
+      rgba(var(--moss-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 1.3) at 99% 36%,
+      rgba(var(--moss-rgb), 0.2),
+      rgba(var(--moss-rgb), 0) 74%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.2) calc(var(--tile-size) * 0.6) at 41% 17%,
+      rgba(var(--moss-rgb), 0.16),
+      rgba(var(--moss-rgb), 0) 72%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.8) calc(var(--tile-size) * 0.5) at 60% 21%,
+      rgba(var(--moss-rgb), 0.14),
+      rgba(var(--moss-rgb), 0) 74%
+    ),
+    /* Where water has stood, in the two low corners. Dark, not periodic. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2) calc(var(--tile-size) * 1.1) at 0% 100%,
+        rgba(var(--damp-rgb), 0.5),
+        rgba(var(--damp-rgb), 0) 72%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.8) calc(var(--tile-size) * 1) at 100% 100%,
+      rgba(var(--damp-rgb), 0.45),
+      rgba(var(--damp-rgb), 0) 72%
+    ),
+    /* THE MOSAIC RUNNER. Three lost-tessera patches first, overlapping, each
+       on a hard rim — the bed showing through where the stones are gone. Then
+       the tesserae, as two repeating fields tiling inside the runner's own
+       box. Then the runner's bed with its two long edges, which are the edges
+       between mosaic and flag and are drawn as edges. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.34) calc(var(--tile-size) * 0.2) at 49.3% 40%,
+        var(--mosaic-bed) 0 62%,
+        rgba(var(--mosaic-rim-rgb), 0.18) 62% 72%,
+        transparent 76%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.26) calc(var(--tile-size) * 0.26) at 50.8% 42.2%,
+      var(--mosaic-bed) 0 60%,
+      rgba(var(--mosaic-rim-rgb), 0.16) 60% 71%,
+      transparent 75%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.3) calc(var(--tile-size) * 0.16) at 51.6% 39.2%,
+      var(--mosaic-bed) 0 60%,
+      rgba(var(--mosaic-rim-rgb), 0.17) 60% 71%,
+      transparent 75%
+    ),
+    /* The mortar lines. PALE, and faint: a first draft drew the tesserae
+       joints dark at 0.55 over a paler bed and the runner rendered as a wire
+       grate — Reef Station's cell-count problem, a field legible only when the
+       eye takes it whole instead of counting it. Mortar between dark stones is
+       what is actually pale, and at 0.09 it is a texture rather than a grid. */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--mortar-rgb), 0.09) 0 1px,
+        transparent 1px calc(var(--tile-size) / 9)
+      ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--mortar-rgb), 0.09) 0 1px,
+      transparent 1px calc(var(--tile-size) / 9)
+    ),
+    linear-gradient(
+      90deg,
+      rgba(var(--joint-rgb), 0.7) 0 1px,
+      rgba(var(--lit-rgb), 0.2) 1px 2px,
+      var(--tile) 2px calc(100% - 2px),
+      rgba(var(--lit-rgb), 0.2) calc(100% - 2px) calc(100% - 1px),
+      rgba(var(--joint-rgb), 0.7) calc(100% - 1px)
+    ),
+    /* the flags: a tile and a half wide, a tile tall, each joint a dark pixel
+       with a lit chamfer beside it. Anchored at the BOTTOM of the floor, so
+       the courses the eye actually sees — along the bottom and at the open
+       desks — sit the same way at both framings, and it is the top course
+       that the band cuts */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--joint-rgb), 0.6) 0 1px,
+        rgba(var(--lit-rgb), 0.1) 1px 2px,
+        transparent 2px calc(var(--tile-size) * 1.5)
+      ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--joint-rgb), 0.6) 0 1px,
+      rgba(var(--lit-rgb), 0.1) 1px 2px,
+      transparent 2px var(--tile-size)
+    );
+  background-size:
+    /* the two band layers: plinth and wall */
+    100% var(--walk-top),
+    100% var(--walk-top),
+    /* six moss tints, two damp corners */
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    /* three lost patches */
+    auto,
+    auto,
+    auto,
+    /* two tessera fields and the bed, all the runner's own box: the corridor
+       is x 40-60, so 12% wide centres it with flag either side, and 56% tall
+       runs it from under the band to under the colonnade */
+    12% 56%,
+    12% 56%,
+    12% 56%,
+    /* the flags */
+    auto,
+    auto;
+  /* The four-value form, and the runner's `top` was solved rather than
+   * nudged: `top p%` offsets by p% of (container - image), so for a 56% tall
+   * layer to begin at floor y 10% — safely under the opaque band — p is
+   * 10 / (100 - 56) = 22.7. It then ends at 66%, under the colonnade, which
+   * starts at 64%. `left 50%` centres a sized layer at any width. Both come
+   * out the same at both demo framings because the size is a percentage of
+   * the same box. */
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 50% top 22.7%,
+    left 50% top 22.7%,
+    left 50% top 22.7%,
+    left 0 bottom 0,
+    left 0 bottom 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat;
+  background-color: var(--floor);
+  /* Deeper and wider than the paper office's warm vignette, and as deep as the
+   * clearing's: the edges of a torchlit hall fall away into the dark. */
+  box-shadow: inset 0 0 64px 16px rgba(var(--vignette-rgb), 0.62);
+}
+
+/* --- The sky slot ----------------------------------------------------------
+ *
+ * The carved wall, in the band the paper office uses for its back wall. Two
+ * things on it, each on its own pseudo-element so both can be sized to
+ * exactly the band with `height: var(--walk-top)` — the number the registry
+ * owns, read here and never set.
+ *
+ * `::before` IS THE ASHLAR. Three courses of dressed blocks: two continuous
+ * course lines across the band and twelve vertical joints hand-placed between
+ * them, alternating courses, at irregular spacings. Hand-placed rather than a
+ * `repeating-linear-gradient`, for the reason the clearing's trunks are: evenly
+ * spaced joints read as a fence, and a wall with a rhythm you can count is a
+ * rendering. Positions in band percentages and sizes in band percentages, which
+ * is safe for LINES — the band is 606x35 at the demo framing and roughly
+ * 1000x126 in the wide layout, and a line at a percentage stays a line.
+ *
+ * `::after` IS THE FRIEZE, on the middle course. Carved glyphs are small
+ * discrete objects in a manufactured row, so they may tile, and a frieze is
+ * the one texture in this world where regularity is the POINT rather than the
+ * artefact: it was cut to a rhythm. Two motifs at one shared period, so they
+ * interleave. Each is a dark recess with a lit lower edge, which is what a
+ * mark cut into stone looks like under a light from below.
+ */
+:root[data-world='ruins'] .worldlayer--sky::before,
+:root[data-world='ruins'] .worldlayer--sky::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: var(--walk-top);
+  background-repeat: no-repeat;
+}
+
+:root[data-world='ruins'] .worldlayer--sky::before {
+  background-image:
+    /* the two course lines */
+    linear-gradient(180deg, rgba(var(--joint-rgb), 0.7) 0 1px, rgba(var(--lit-rgb), 0.12) 1px),
+    linear-gradient(180deg, rgba(var(--joint-rgb), 0.7) 0 1px, rgba(var(--lit-rgb), 0.12) 1px),
+    /* top course joints */
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    /* middle course joints, either side of the frieze's own motifs */
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    /* bottom course joints */
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px),
+    linear-gradient(90deg, rgba(var(--joint-rgb), 0.6) 0 1px, rgba(var(--lit-rgb), 0.1) 1px);
+  background-size:
+    100% 2px,
+    100% 2px,
+    2px 34%,
+    2px 34%,
+    2px 34%,
+    2px 34%,
+    2px 30%,
+    2px 30%,
+    2px 30%,
+    2px 36%,
+    2px 36%,
+    2px 36%,
+    2px 36%,
+    2px 36%;
+  /* The courses sit at 34% and 64% of the band. The vertical joints are
+   * placed clear of the two fixtures that hang here — the stele at x 44-56%
+   * and the broken roof at x 10-22% — so the wall reads as masonry rather than
+   * as lines disappearing behind furniture. */
+  background-position:
+    left 0 top 34%,
+    left 0 top 64%,
+    left 7% top 0,
+    left 30% top 0,
+    left 65% top 0,
+    left 88% top 0,
+    left 25% top 34%,
+    left 71% top 34%,
+    left 96% top 34%,
+    left 4% bottom 0,
+    left 29% bottom 0,
+    left 58% bottom 0,
+    left 80% bottom 0,
+    left 93% bottom 0;
+}
+
+/* The frieze: a band of carved glyphs along the middle course. A recessed bar
+ * and a recessed ring, alternating, at a shared period of 0.5 tile, so the
+ * row repeats every 22px at the demo framing. Both are drawn as a dark mark
+ * with a lit pixel under it. Confined to the middle course by its own size:
+ * 0.2 tile tall, centred on the course by the four-value position. */
+:root[data-world='ruins'] .worldlayer--sky::after {
+  background-image:
+    /* the bar's lit edge, then the bar */
+    linear-gradient(
+      90deg,
+      transparent 0 18%,
+      rgba(var(--lit-rgb), 0.14) 18% 34%,
+      transparent 34%
+    ),
+    linear-gradient(
+      90deg,
+      transparent 0 18%,
+      rgba(var(--joint-rgb), 0.75) 18% 34%,
+      transparent 34%
+    ),
+    /* the ring's lit edge, then the ring */
+    radial-gradient(
+      circle at 76% 50%,
+      transparent 0 calc(var(--tile-size) * 0.045),
+      rgba(var(--lit-rgb), 0.14) calc(var(--tile-size) * 0.045) calc(var(--tile-size) * 0.08),
+      transparent calc(var(--tile-size) * 0.08)
+    ),
+    radial-gradient(
+      circle at 76% 50%,
+      transparent 0 calc(var(--tile-size) * 0.045),
+      rgba(var(--joint-rgb), 0.75) calc(var(--tile-size) * 0.045) calc(var(--tile-size) * 0.08),
+      transparent calc(var(--tile-size) * 0.08)
+    );
+  background-size:
+    calc(var(--tile-size) * 0.5) calc(var(--tile-size) * 0.14),
+    calc(var(--tile-size) * 0.5) calc(var(--tile-size) * 0.14),
+    calc(var(--tile-size) * 0.5) calc(var(--tile-size) * 0.2),
+    calc(var(--tile-size) * 0.5) calc(var(--tile-size) * 0.2);
+  background-position:
+    left 0 top calc(49% + 1px),
+    left 0 top 49%,
+    left 0 top calc(49% + 1px),
+    left 0 top 49%;
+  background-repeat: repeat-x;
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * Two standing torches at the head of the corridor, and the pools they throw
+ * on the flags — and THIS is the world's decoration slot doing the job Phase
+ * 25's finding 3 says it has to.
+ *
+ * You cannot paint torchlight as colour in a world whose warn hue is orange.
+ * What a torch standing on a floor is actually visible as, from above, is a
+ * small flame on a dark base with a round pool of light spreading away from
+ * it across the stone — so that is what is drawn, and the pool is the
+ * statement. The tint is `--torch-rgb` at 0.08 — measured, not picked: it is
+ * the strength at which `--faint` still clears 4.5:1 on the composite, so a
+ * person who walks through the pool keeps a legible label — and the SHAPE
+ * says "light" while the colour says nearly nothing. The shadows the two
+ * torches throw are on the urn that stands between them, drawn with the urn
+ * so they are exact at every framing; see `.cooler__body`.
+ *
+ * AND IT BREATHES, which is the brief's "torch-flicker shadow across the
+ * flags". Slowly — a seven-second and a nine-second loop, never in step
+ * because the two have different periods and offsets, and the whole excursion
+ * is 14% of an already-faint layer. The flame breathes with its pool, because
+ * they are one element. Nothing here can be mistaken for a status light: a
+ * status light on this floor is cyan, saturated, and either on or off. The
+ * motion is declared only inside `prefers-reduced-motion: no-preference`,
+ * where the base stylesheet keeps all of its own.
+ *
+ * WHY STANDING, AND WHY HERE. Two placements were drawn first, and both
+ * painted where nothing could be seen. The spill through each chamber's
+ * doorway landed under the colonnade: the doors are at floor (23, 62) and
+ * (77, 62), the stylobate starts at y 64 and runs x 21-79, and it is opaque.
+ * Sconces on the carved wall either side of the stele were behind the stele,
+ * which is 111px wide at the 960 framing and spans the corridor's whole
+ * width in the band; and a sconce anywhere else on that wall has a chamber
+ * directly under it. Both are facts of the floor plan rather than tuning
+ * problems. The one place a flame can stand with visible flags around it is
+ * the corridor itself, so the torches stand in it — at its two top corners,
+ * just inside the chambers' outer walls, which is where a torch on a pole
+ * would be planted in a hall like this one.
+ *
+ * ON THE FLAGS AND NOT ON THE WALL. The slot is `inset: 0` in the base
+ * stylesheet, which includes the band. The top is pulled down to
+ * `--walk-top`, the same number the floor paints the wall from and the walk
+ * math uses, taken and never set — Reef Station's finding 2. Positions inside
+ * this slot are then no longer floor percentages: `layer_y = (floor_y - 14) /
+ * 0.86`, so a torch at floor y 19.5 is at 6.4% here.
+ */
+:root[data-world='ruins'] .worldlayer--ground {
+  top: var(--walk-top);
+  overflow: hidden;
+}
+
+:root[data-world='ruins'] .worldlayer--ground::before,
+:root[data-world='ruins'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  top: 6.4%;
+  /* Sized in tile lengths so the pool is the same shape at both framings, and
+   * centred on the torch with a transform rather than a percentage inset. */
+  width: calc(var(--tile-size) * 3);
+  height: calc(var(--tile-size) * 2.2);
+  transform: translate(-50%, -50%);
+  background-image:
+    /* the flame: a near-white core, the same one the chamber torches have */
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.055) at 50% 50%,
+      var(--flame-core) 0 38%,
+      var(--flame) 66%,
+      rgba(var(--torch-rgb), 0) 100%
+    ),
+    /* the iron base it stands in, under the flame */
+      radial-gradient(
+        circle calc(var(--tile-size) * 0.085) at 50% 52%,
+        var(--iron) 0 74%,
+        rgba(var(--shadow-rgb), 0.5) 74% 90%,
+        transparent 100%
+      ),
+    /* and the pool */
+      radial-gradient(
+        ellipse 50% 50% at 50% 50%,
+        rgba(var(--torch-rgb), 0.08),
+        rgba(var(--torch-rgb), 0.03) 52%,
+        rgba(var(--torch-rgb), 0) 74%
+      );
+  background-repeat: no-repeat;
+}
+
+:root[data-world='ruins'] .worldlayer--ground::before {
+  left: 41.5%;
+}
+
+:root[data-world='ruins'] .worldlayer--ground::after {
+  left: 58.5%;
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Dust hanging in the torchlight, drifting. Faint by a wide margin: this
+ * layer sits above every pawn, and anything strong enough to notice would be
+ * strong enough to sit on somebody's name label.
+ *
+ * Two fields rather than two layers on one element, which is Phase 19's trick
+ * and the whole reason this does not read as a rendering artefact: a single
+ * tiled dot field is a lattice, and one lattice over a flagged floor looks
+ * like a second grid. Two lattices whose tile sizes share no useful factor,
+ * drifting at different speeds, never resolve into one grid. Each seam-free
+ * loop needs its translate to be a whole tile, so they cannot share an
+ * element.
+ *
+ * Drifting mostly sideways with a slight rise — two tiles across for one
+ * tile up — which is what dust does in the convection off a torch. A
+ * translate of whole tiles in *each* direction is as seam-free as one tile
+ * along a single axis, provided the element has room to do it in.
+ */
+:root[data-world='ruins'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='ruins'] .worldlayer--air::before,
+:root[data-world='ruins'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  inset: -60% -60%;
+}
+
+:root[data-world='ruins'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--dust-rgb), 0.1) 0 0.7px,
+    transparent 1.5px
+  );
+  background-size: 127px 83px;
+}
+
+:root[data-world='ruins'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--dust-rgb), 0.07) 0 0.8px,
+    transparent 1.6px
+  );
+  background-size: 71px 59px;
+  background-position: 31px 17px;
+}
+
+/* --- Pillared chambers -----------------------------------------------------
+ *
+ * The project rooms become stone chambers standing against the carved wall:
+ * a pillar at each corner, a torch bracketed high on the left wall, a glyph
+ * panel set into the right, a lintel over the doorway and a threshold slab
+ * worn pale outside it.
+ *
+ * THE SILHOUETTE CHANGES, WHICH THE BRIEF ASKS FOR EXPLICITLY. The office's
+ * rooms are rounded at the corridor corners; a chamber is square-cut, and its
+ * four corners carry a pillar capital each — a circle from above, lit on its
+ * crown — so the outline is a rectangle with a boss at every corner. Each
+ * capital throws a short shadow down and to the right, away from the torch,
+ * which is the torchlight stated as geometry inside the chamber the way the
+ * door-spill states it outside.
+ *
+ * THE PILLARS ARE POSITIONED IN LENGTHS, not percentages. A room is 175x125 at
+ * the 540 framing and 175x299 at 960, so a capital "6% in from the top" would
+ * be 7px from the corner at one framing and 18px at the other. `calc(tile *
+ * 0.16)` is 7px at both — Phase 20's finding 2, applied to a position rather
+ * than to a radius.
+ *
+ * The border stays 2px and keeps the base geometry, so the room's padding box
+ * — and therefore where DESK_IN_ROOM puts the worktable — is identical to
+ * every other world. The thickness of the wall comes from an inset ring
+ * instead, which costs nothing.
+ */
+:root[data-world='ruins'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* THE WARM HALF OF THE PAIR. The torch's pool on the chamber floor,
+       falling from the top-left corner. It is the world being warm, it means
+       NOTHING, and it is restated unchanged under `.room--busy` below — a
+       light that changed when the agent started working would be a second
+       status light, and this board has exactly one. Held at 0.10, and its
+       74% edge is 5px clear of the nameplate's left end at the 540 framing
+       and 28px clear at 960 — solved, not eyeballed — so no caption ever
+       sits on it. */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.9) at 12% 8%,
+      rgba(var(--torch-rgb), 0.1),
+      rgba(var(--torch-rgb), 0) 74%
+    ),
+    /* THE FOUR CAPITALS. Each is a circle on a square — the shaft's top on
+       its abacus — because a circle alone at this size is a rivet, and a
+       circle sitting on a square is the one construction that reads as a
+       column from directly above. */
+      radial-gradient(
+        circle calc(var(--tile-size) * 0.13) at calc(var(--tile-size) * 0.16) calc(var(--tile-size) * 0.16),
+        var(--pillar-lit) 0 38%,
+        var(--pillar) 38% 80%,
+        var(--pillar-dark) 80% 100%,
+        transparent 100%
+      ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(100% - var(--tile-size) * 0.16) calc(var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(var(--tile-size) * 0.16) calc(100% - var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(100% - var(--tile-size) * 0.16) calc(100% - var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    /* their abaci: a square under each circle, pinned into the corner with
+       the four-value position, which needs no arithmetic */
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    /* and their shadows, all thrown the same way */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(var(--tile-size) * 0.27) calc(var(--tile-size) * 0.26),
+        rgba(var(--shadow-rgb), 0.5),
+        rgba(var(--shadow-rgb), 0) 70%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(100% - var(--tile-size) * 0.05) calc(var(--tile-size) * 0.26),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(var(--tile-size) * 0.27) calc(100% - var(--tile-size) * 0.06),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(100% - var(--tile-size) * 0.05) calc(100% - var(--tile-size) * 0.06),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    /* the chamber's own flags: smaller than the corridor's, the same joint */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--joint-rgb), 0.45) 0 1px,
+        rgba(var(--lit-rgb), 0.05) 1px 2px,
+        transparent 2px calc(var(--tile-size) * 0.75)
+      ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--joint-rgb), 0.45) 0 1px,
+      rgba(var(--lit-rgb), 0.05) 1px 2px,
+      transparent 2px calc(var(--tile-size) * 0.5)
+    );
+  /* pool, four capitals, four abaci, four shadows, two joint fields */
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 0 top 0,
+    right 0 top 0,
+    left 0 bottom 0,
+    right 0 bottom 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat;
+  border: 2px solid var(--wall-trim);
+  border-radius: 0;
+  box-shadow:
+    /* the inner face of the wall, and the dark that collects along it */
+    inset 0 0 0 2px rgba(var(--joint-rgb), 0.45),
+    inset 0 0 22px 6px rgba(var(--vignette-rgb), 0.45);
+}
+
+/* The doorway becomes a lintel: a dressed beam spanning the opening, seen
+ * from above as its lit top face, with a jamb block either side. A shade
+ * lighter than the wall, because a lintel is the one stone in the wall that
+ * was chosen for its size and dressed for show. */
+:root[data-world='ruins'] .room__door {
+  height: 4px;
+  bottom: -3px;
+  background: linear-gradient(180deg, var(--lintel-lit) 0 1px, var(--lintel) 1px);
+  box-shadow:
+    -3px 0 0 0 var(--pillar),
+    3px 0 0 0 var(--pillar),
+    0 2px 3px var(--shadow);
+}
+
+/* `.room__door` has no pseudo-element in the base stylesheet, so this is free:
+ * the threshold slab outside the door, worn pale by everyone who has gone in
+ * and out. It is the one place a viewer can see that somebody actually uses
+ * the door, and it is drawn as polish rather than as light — stone walked on
+ * goes paler and smoother, and a pale slab in front of a door reads as a
+ * threshold from a long way off. */
+:root[data-world='ruins'] .room__door::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: calc(var(--tile-size) * 0.75);
+  height: calc(var(--tile-size) * 0.16);
+  border-radius: 1px 1px 3px 3px;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--worn-rgb), 0.3),
+    rgba(var(--worn-rgb), 0.08) 70%,
+    rgba(var(--worn-rgb), 0) 100%
+  );
+}
+
+/* THE TORCH. High on the left wall, and it is the one warm object in this
+ * world — five by seven pixels of it.
+ *
+ * A flame is drawn from the inside out: a near-white core, because the
+ * hottest part of a fire is not orange, and a pale edge. The bracket under it
+ * is dark iron. The glow it throws on the wall is `--torch-rgb` at 0.22 and
+ * 0.09, which is the strongest the tint is allowed to be anywhere and is still
+ * a tint over near-black stone.
+ *
+ * It is deliberately NOT restated under `.room--busy` — a torch that changed
+ * when the agent started working would be a second status light, and this
+ * world's whole argument is that there is exactly one. The flicker lives in
+ * the reduced-motion block at the bottom of the file with the rest of the
+ * motion, and it is on the torch's own opacity so the flame and its glow
+ * breathe together.
+ *
+ * TOP-LEFT, with the glyph panel top-right, which is Cloud City's placement
+ * finding taken as given rather than rediscovered: `.desk` is centred in the
+ * room under a two-line nameplate, and the base stylesheet's speech bubble
+ * covers the tablet whenever an agent has anything to say, so the room-level
+ * pair has to live somewhere the nameplate and the bubble never reach. The
+ * top corners are that place in every world and at every framing.
+ */
+:root[data-world='ruins'] .room::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tile-size) * 0.32);
+  top: calc(var(--tile-size) * 0.16);
+  width: calc(5px * var(--furn));
+  height: calc(7px * var(--furn));
+  border-radius: 50% 50% 45% 45% / 62% 62% 38% 38%;
+  background: radial-gradient(
+    ellipse at 50% 68%,
+    var(--flame-core) 0 30%,
+    var(--flame) 62%,
+    rgba(var(--torch-rgb), 0) 100%
+  );
+  box-shadow:
+    /* the bracket */
+    0 calc(7px * var(--furn)) 0 calc(-1px * var(--furn)) var(--iron),
+    /* the glow on the wall */
+    0 0 6px 2px rgba(var(--torch-rgb), 0.22),
+    0 0 16px 6px rgba(var(--torch-rgb), 0.09);
+}
+
+/* THE GLYPH WALL, AND THIS IS THE STATE EXPRESSION WHOSE FORM THIS WORLD
+ * CHANGES.
+ *
+ * Paper Office announces a working room by tinting its floor. A bay lights
+ * its dome, a hollow glows from inside, a module lights its antenna array, a
+ * dome lights its porthole, a pavilion lights the beacon on its roof, a cabin
+ * lights the instrument port in its back wall, an outpost's charge controller
+ * comes alive. A CHAMBER'S GLYPHS LIGHT: a panel of carved marks set into the
+ * right-hand wall, faint scratches on unlit stone while nothing is happening,
+ * and burning cyan the moment the agent starts spending — and the marks read
+ * dark against the light, because they are cut INTO the stone that glows.
+ *
+ * Two rows of dashes on a dark panel. A wide low panel opposite a small
+ * upright flame: the pair must not read as two of the same fitting, and at
+ * 540px shape carries that better than hue does.
+ */
+:root[data-world='ruins'] .room::after {
+  content: '';
+  position: absolute;
+  right: calc(var(--tile-size) * 0.25);
+  top: calc(var(--tile-size) * 0.14);
+  width: calc(20px * var(--furn));
+  height: calc(9px * var(--furn));
+  border-radius: 1px;
+  background-color: var(--panel-stone);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--glyph-idle-rgb), 0.28) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(5px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--glyph-idle-rgb), 0.28) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(5px * var(--furn))
+    );
+  background-size:
+    100% calc(1px * var(--furn)),
+    100% calc(1px * var(--furn));
+  background-position:
+    left calc(2px * var(--furn)) top 28%,
+    left calc(4px * var(--furn)) top 68%;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--lit-rgb), 0.1),
+    0 2px 4px var(--shadow);
+}
+
+/* BUSY. The glyph wall's cool light falls across the chamber floor from the
+ * top-right corner and the wall goes cool with it.
+ *
+ * Restated at this specificity on purpose: the `.room` rule above is (0,3,0)
+ * and the base `.room--busy` is (0,2,0), so without this the chamber would
+ * keep its idle floor while BUSY and the whole beat would vanish.
+ *
+ * The torch pool is carried through unchanged. The two are side by side in
+ * one frame — a small warm pool top-left, a wide cool wash top-right — and
+ * they differ in position, shape and hue at once, which is what survives
+ * compression at 540px.
+ */
+:root[data-world='ruins'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.78) calc(var(--tile-size) * 0.62) at 94% 3%,
+      rgba(var(--cool-rgb), 0.38),
+      rgba(var(--cool-rgb), 0) 76%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.9) at 12% 8%,
+      rgba(var(--torch-rgb), 0.1),
+      rgba(var(--torch-rgb), 0) 74%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(var(--tile-size) * 0.16) calc(var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(100% - var(--tile-size) * 0.16) calc(var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(var(--tile-size) * 0.16) calc(100% - var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.13) at calc(100% - var(--tile-size) * 0.16) calc(100% - var(--tile-size) * 0.16),
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(var(--tile-size) * 0.27) calc(var(--tile-size) * 0.26),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(100% - var(--tile-size) * 0.05) calc(var(--tile-size) * 0.26),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(var(--tile-size) * 0.27) calc(100% - var(--tile-size) * 0.06),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.11) at calc(100% - var(--tile-size) * 0.05) calc(100% - var(--tile-size) * 0.06),
+      rgba(var(--shadow-rgb), 0.5),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--joint-rgb), 0.45) 0 1px,
+      rgba(var(--lit-rgb), 0.05) 1px 2px,
+      transparent 2px calc(var(--tile-size) * 0.75)
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--joint-rgb), 0.45) 0 1px,
+      rgba(var(--lit-rgb), 0.05) 1px 2px,
+      transparent 2px calc(var(--tile-size) * 0.5)
+    );
+  /* wash, pool, four capitals, four abaci, four shadows, two joint fields */
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    calc(var(--tile-size) * 0.32) calc(var(--tile-size) * 0.32),
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 0 top 0,
+    right 0 top 0,
+    left 0 bottom 0,
+    right 0 bottom 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat;
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cool-rgb), 0.28),
+    inset 0 0 22px 6px rgba(var(--vignette-rgb), 0.25);
+}
+
+/* And the glyphs light. Same specificity as `.room::after` above, so this has
+ * to come after it in source order — which it does. The stone behind the
+ * marks takes a cool cast, the marks themselves come up to the lit-screen
+ * value, and the panel throws the same shape of glow a lit tablet does. */
+:root[data-world='ruins'] .room--busy::after {
+  background-color: var(--panel-stone-lit);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      var(--screen-on) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(5px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--screen-on) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(5px * var(--furn))
+    );
+  box-shadow:
+    inset 0 0 0 1px var(--cool),
+    0 0 0 2px rgba(var(--cool-rgb), 0.35),
+    0 0 12px 4px rgba(var(--cool-rgb), 0.32);
+}
+
+/* --- Stone worktables ------------------------------------------------------
+ *
+ * The desk becomes a dressed limestone slab strewn with finds, and the
+ * monitor becomes a glyph tablet standing at the back of it: a stone plaque,
+ * dormant, that wakes when the agent is working.
+ *
+ * The tablet keeps most of the monitor's footprint rather than becoming a
+ * genuinely small plaque, and that is a legibility decision over an art one —
+ * "this desk is working" is the single most important thing this floor says,
+ * and it says it by this element lighting up at recording size.
+ */
+:root[data-world='ruins'] .desk__surface {
+  border-radius: 1px 2px 1px 3px;
+  background-image:
+    /* tool marks across the dressed face. A directional gradient is safe on
+       this box, whose aspect ratio is fixed at every framing — the trap is a
+       box that changes shape, and this one does not */
+    repeating-linear-gradient(
+      112deg,
+      rgba(var(--joint-rgb), 0.16) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.1),
+    inset 0 -4px 0 0 var(--desk-edge),
+    0 4px 7px var(--shadow);
+}
+
+/* The potsherd bowl, where the mug was: a broken bowl, dark inside. */
+:root[data-world='ruins'] .desk__surface::before {
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 50% 45%, var(--sherd-in) 0 38%, var(--mug) 44%);
+  box-shadow: 0 0 0 1px var(--desk-edge);
+}
+
+/* The field notebook, where the loose paper was. Its own pale token rather
+ * than `--paper`, which is the panel surface and has gone dark, and ruled. */
+:root[data-world='ruins'] .desk__surface::after {
+  background-color: var(--sheet);
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0 2px,
+    rgba(var(--cream-rgb), 0.3) 2px 3px
+  );
+  box-shadow: 0 0 0 1px rgba(var(--cream-rgb), 0.5);
+}
+
+/* A tray of brushes and a trowel along the near edge, where the keyboard was.
+ * Two pale handles and one steel blade: the trowel is the mark that says
+ * "dig" rather than "desk". */
+:root[data-world='ruins'] .desk__keyboard {
+  height: calc(5px * var(--furn));
+  border-radius: 1px;
+  background-color: var(--tray);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 16%,
+    var(--tool) 16% 21%,
+    transparent 21% 34%,
+    var(--tool) 34% 39%,
+    transparent 39% 58%,
+    var(--tool-steel) 58% 80%,
+    transparent 80%
+  );
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.05);
+}
+
+:root[data-world='ruins'] .desk__monitor {
+  position: relative;
+  width: calc(26px * var(--furn));
+  height: calc(20px * var(--furn));
+  /* A plaque, not a screen. Uneven on all four corners — a slab with one
+   * radius is a lozenge, which reads as manufactured. */
+  border-radius: 3px 2px 4px 2px;
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 2px 4px 0 rgba(var(--joint-rgb), 0.5);
+}
+
+/* The carved marks on the tablet: three short rows of glyph dashes. Faint
+ * scratches on dark stone while dormant. */
+:root[data-world='ruins'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  inset: 22% 20%;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--glyph-idle-rgb), 0.3) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(4px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--glyph-idle-rgb), 0.3) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(4px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--glyph-idle-rgb), 0.3) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(4px * var(--furn))
+    );
+  background-size: 100% calc(1px * var(--furn));
+  background-position:
+    left 0 top 0,
+    left calc(1px * var(--furn)) top 50%,
+    left 0 top 100%;
+  background-repeat: no-repeat;
+}
+
+/* The tablet wakes. Restated here for the same specificity reason as
+ * `.room--busy`, and re-tuned besides: the base alphas are deliberately strong
+ * because a glow has to fight a cream floor. Against dark stone a glow is
+ * additive and barely has to try, and at 0.72/0.34 the worktable went white.
+ *
+ * AND THE WIDE SPILL IS PUSHED DOWNWARD, which is measured rather than styled.
+ * `.desk__role` sits two pixels above the tablet in the flex column, so a
+ * spill with any upward reach lands on the caption — the base geometry puts
+ * the dimmest text in the system directly on top of a light source. The wide
+ * layer is offset 12px down against a 22px blur, so its reach above the
+ * tablet is 14px rather than 26px, and the caption above it is lifted to
+ * `--dim` below. Both were needed: the offset alone left the caption's bottom
+ * row at 4.1:1. */
+:root[data-world='ruins'] .desk--busy .desk__monitor {
+  background: var(--screen-on);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    0 0 10px 1px rgba(var(--screen-on-rgb), 0.38),
+    0 12px 22px 4px rgba(var(--screen-on-rgb), 0.18);
+}
+
+/* THE ROLE CAPTION OVER A LIT TABLET TAKES `--dim`, NOT `--faint`.
+ *
+ * Phase 24's finding 2 is that every value register a world adds costs a
+ * re-pitch of the small type. This is that finding one step further in: the
+ * register here is not a surface, it is a LIGHT — the caption's own ground
+ * brightens when the desk it names starts working, and no single pitch of
+ * `--faint` clears both states. Measured against the rendered pixels rather
+ * than against the token: on an unlit chamber floor the caption reads 5.2:1,
+ * and on the same floor with the tablet lit under it 3.4:1.
+ *
+ * `--dim` is the token the system already has for "the same caption, one step
+ * up", the pair is held 1.45:1 apart, and nothing about what the caption MEANS
+ * changes — a role is a role whether or not its agent is working. The name
+ * above it already takes `--cool` from the base stylesheet when busy, so the
+ * plate was always going to re-pitch on this state; this is the second half of
+ * a move the base file starts. */
+:root[data-world='ruins'] .desk--busy .desk__role {
+  color: var(--dim);
+}
+
+/* The marks read dark against the lit stone, because they are cut into it. */
+:root[data-world='ruins'] .desk--busy .desk__monitor::before {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--cream-rgb), 0.6) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(4px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--cream-rgb), 0.6) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(4px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--cream-rgb), 0.6) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(4px * var(--furn))
+    );
+}
+
+/* The stool becomes a stone block.
+ *
+ * Height unchanged at 18px so the desk stack — and therefore where the
+ * nameplate lands under it — is exactly where every other world puts it.
+ *
+ * The base rule shades the near edge with `rgba(--ink-rgb, 0.32)`, which
+ * means "a dark line" and would come out pale here, because `--ink` is the
+ * palest thing in this world. Re-pointed at the page ground, which is what it
+ * actually wanted. Phase 19's finding 2, third of three. */
+:root[data-world='ruins'] .desk__chair {
+  width: calc(18px * var(--furn));
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--pillar) 0 40%, var(--chair) 40%);
+  box-shadow:
+    inset 0 -2px 0 0 rgba(var(--cream-rgb), 0.6),
+    inset 0 0 0 1px rgba(var(--lit-rgb), 0.06),
+    0 3px 6px var(--shadow);
+}
+
+:root[data-world='ruins'] .desk__chair::before {
+  width: 60%;
+  height: 3px;
+  top: 3px;
+  border-radius: 1px;
+  background: rgba(var(--sheen-rgb), 0.08);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> a carved stele set into the wall. It sits IN the band, so it
+ * takes the band's regime and not the corridor's — Arctic Base's finding 1 —
+ * and the band is dark stone, so the stele is PALE: a dressed limestone plaque
+ * with an arched head and a carved border, standing proud of the wall behind
+ * it. The two scribbles become lines of inscription. */
+:root[data-world='ruins'] .fixture--board {
+  border-radius: 45% 45% 2px 2px / 32% 32% 2px 2px;
+  background-color: var(--board-face);
+  background-image:
+    repeating-linear-gradient(
+      112deg,
+      rgba(var(--joint-rgb), 0.12) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(180deg, rgba(var(--sheen-rgb), 0.08), rgba(var(--sheen-rgb), 0) 50%);
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    inset 0 0 0 3px rgba(var(--lit-rgb), 0.16),
+    0 3px 6px var(--shadow);
+}
+
+/* Inscription rather than scribble: a row of glyph dashes and dots, cut into
+ * the stone, so dark on the pale face. */
+:root[data-world='ruins'] .board__scribble {
+  height: 3px;
+  border-radius: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--glyph-carved) 0 3px,
+    transparent 3px 5px,
+    var(--glyph-carved) 5px 6px,
+    transparent 6px 9px
+  );
+}
+
+/* Water cooler -> an urn. The bottle becomes the urn's mouth seen from above
+ * — a dark hollow inside a stone lip — and the body becomes its shoulder, a
+ * wider round with a handle either side.
+ *
+ * WIDER than the mouth, which is the whole of what makes this read as a
+ * vessel from above rather than as a magnifying glass on a box — the Forest's
+ * well found that and it holds here. Dark fired clay rather than terracotta:
+ * terracotta is an orange at 20deg, and a warm orange pot standing
+ * permanently in the corridor of a board whose queue label is orange is the
+ * defect five worlds have now caught in a prop. Held at 0.26 saturation and
+ * 0.32 value. */
+:root[data-world='ruins'] .cooler__bottle {
+  position: relative;
+  z-index: 1;
+  width: calc(9px * var(--furn));
+  height: calc(9px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    var(--urn-dark) 0 42%,
+    var(--bottle) 48%,
+    var(--bottle-base) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--joint-rgb), 0.5),
+    0 1px 2px var(--shadow);
+}
+
+:root[data-world='ruins'] .cooler__body {
+  width: calc(17px * var(--furn));
+  height: calc(14px * var(--furn));
+  margin-top: calc(-5px * var(--furn));
+  border-radius: 50% 50% 46% 46% / 56% 56% 44% 44%;
+  background: radial-gradient(
+    circle at 36% 30%,
+    var(--urn-lit) 0 8%,
+    var(--cooler-body) 42%,
+    var(--urn-dark) 100%
+  );
+  box-shadow:
+    /* the two handles */
+    calc(-8px * var(--furn)) calc(-1px * var(--furn)) 0 calc(-4px * var(--furn)) var(--cooler-body),
+    calc(8px * var(--furn)) calc(-1px * var(--furn)) 0 calc(-4px * var(--furn)) var(--cooler-body),
+    /* TWO SHADOWS, because there are two torches. The urn stands in the
+       corridor exactly between them, so each throws it a shadow away from
+       itself — down-right from the left torch, down-left from the right —
+       and the V they make is the one mark on this floor that states where
+       both lights are at once. Attached to the urn rather than painted on
+       the ground slot so they are exact at every framing without arithmetic:
+       the urn is positioned in percentages and a shadow drawn separately
+       would have to be solved against it twice. */
+    calc(-7px * var(--furn)) calc(8px * var(--furn)) 6px calc(-2px * var(--furn)) rgba(var(--shadow-rgb), 0.5),
+    calc(7px * var(--furn)) calc(8px * var(--furn)) 6px calc(-2px * var(--furn)) rgba(var(--shadow-rgb), 0.5);
+}
+
+/* Window -> the broken roof. The glazing goes: a mullion and a transom are
+ * exactly what a collapsed section of roof should not have.
+ *
+ * NOT ONE CLEAN OPENING, which is the Forest's lesson taken as given: this
+ * fixture is 70x28, a wide low box, and any wide low pale shape in it reads
+ * as a single object. So the ground is the dark of the roof void, and daylight
+ * is THREE CHINKS of different sizes through fallen stone — which is what a
+ * collapse looks like from underneath, and is unmistakably not one object.
+ * Sized in lengths off `--tile-size` rather than in percentages, for the
+ * reason the moss is. `::after` is a fallen beam lying across it with rubble
+ * where it landed. */
+:root[data-world='ruins'] .fixture--window {
+  border-radius: 46% 54% 42% 58% / 52% 46% 54% 48%;
+  background-color: var(--glass);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.3) calc(var(--tile-size) * 0.17) at 30% 40%,
+      var(--glass-sky) 0 58%,
+      rgba(var(--rubble-rgb), 0) 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.18) calc(var(--tile-size) * 0.12) at 63% 60%,
+      var(--glass-sky) 0 56%,
+      rgba(var(--rubble-rgb), 0) 100%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.12) calc(var(--tile-size) * 0.09) at 78% 30%,
+      var(--glass-sky) 0 54%,
+      rgba(var(--rubble-rgb), 0) 100%
+    );
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 3px rgba(var(--rubble-rgb), 0.8),
+    0 0 0 1px var(--wall-trim),
+    0 3px 6px var(--shadow);
+}
+
+:root[data-world='ruins'] .fixture--window::before {
+  display: none;
+}
+
+:root[data-world='ruins'] .fixture--window::after {
+  left: 14%;
+  right: 24%;
+  top: 56%;
+  height: calc(2px * var(--furn));
+  transform: rotate(-9deg);
+  border-radius: 1px;
+  background: var(--beam);
+  box-shadow:
+    -6px 5px 0 -1px var(--rubble),
+    10px 4px 0 0 var(--rubble),
+    3px 6px 0 -1px var(--rubble-dark);
+}
+
+/* Daylight -> the shaft of light through the broken roof.
+ *
+ * The fixture keeps its role exactly: it is a pool of light in a fixed place
+ * at (17%, 46%), directly under the roof opening at (16%, 9%), so the shaft
+ * lands where the hole is. Neutral rather than warm, which is what daylight
+ * into a dark interior actually is beside torchlight — and held far below the
+ * strength of a woken tablet so the two can never be confused, 0.12 against
+ * the tablet's 0.42. */
+:root[data-world='ruins'] .fixture--daylight {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--day-rgb), 0.12),
+    rgba(var(--day-rgb), 0) 68%
+  );
+}
+
+/* Plants -> overgrown vines. Two of them, and they are adjacent siblings —
+ * PLANTS.map in components.jsx renders them back to back with nothing between
+ * — so `+` is what tells them apart. The first is a vine spilling over the
+ * stump of a fallen column; the second a vine over a fallen block. */
+:root[data-world='ruins'] .decor__leaves {
+  position: relative;
+  z-index: 1;
+  width: calc(11px * var(--furn));
+  height: calc(9px * var(--furn));
+  border-radius: 50% 50% 40% 40%;
+  background: var(--foliage);
+  box-shadow:
+    -7px 3px 0 -2px var(--foliage-dark),
+    6px 4px 0 -2px var(--foliage),
+    -3px -3px 0 -3px var(--foliage-dark),
+    5px -3px 0 -3px var(--foliage-dark);
+}
+
+/* The column stump, seen from above: a drum with a lit crown. */
+:root[data-world='ruins'] .decor__pot {
+  width: calc(13px * var(--furn));
+  height: calc(13px * var(--furn));
+  margin-top: calc(-4px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 36%,
+    var(--pillar-lit) 0 18%,
+    var(--pillar) 58%,
+    var(--pillar-dark) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--joint-rgb), 0.4),
+    0 3px 5px var(--shadow);
+}
+
+:root[data-world='ruins'] .decor--plant + .decor--plant .decor__leaves {
+  width: calc(8px * var(--furn));
+  height: calc(10px * var(--furn));
+  border-radius: 50% 50% 45% 45%;
+  box-shadow:
+    -5px 4px 0 -2px var(--foliage-dark),
+    5px 2px 0 -2px var(--foliage-dark),
+    2px -4px 0 -3px var(--foliage);
+}
+
+/* A fallen block, lying at a slight angle. */
+:root[data-world='ruins'] .decor--plant + .decor--plant .decor__pot {
+  width: calc(15px * var(--furn));
+  height: calc(7px * var(--furn));
+  margin-top: calc(-3px * var(--furn));
+  border-radius: 1px;
+  transform: rotate(-8deg);
+  background: linear-gradient(180deg, var(--pillar-lit) 0 1px, var(--pillar) 1px);
+  box-shadow:
+    inset 0 -2px 0 0 var(--pillar-dark),
+    0 3px 5px var(--shadow);
+}
+
+/* --- The colonnade ---------------------------------------------------------
+ *
+ * The waiting area becomes a stylobate — the stepped platform a colonnade
+ * stands on — with six column capitals along it, and a queued member waits
+ * BETWEEN two columns, on the platform, in order.
+ *
+ * The columns are placed against the queue's own constants in
+ * components.jsx: WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the
+ * first row land at floor x 38/47/56/65/74, which is 29.3/44.8/60.3/75.9/
+ * 91.4% of this box — it runs from 21% to 79%. The gaps between and before
+ * them are therefore centred at 6.1/21.6/37.1/52.6/68.1/83.6%, and a column
+ * goes in each. A person standing between two columns rather than beside one
+ * is the difference between a queue and a crowd — and the columns are there
+ * whether anyone is queued or not, so they report nothing.
+ *
+ * The overflow row stacks UPWARD (WAIT_DY is -12), to floor y 68, which is
+ * 12.5% of this box: above the columns, on the open platform, and clear of
+ * the caption.
+ *
+ * Radii in LENGTHS, not percentages, for the reason the moss is: this box is
+ * 298x83 at the 540 framing and 298x199 at 960, so a percentage circle is a
+ * capital at one and a standing egg at the other. Sized off `--tile-size`, a
+ * capital is a capital at both. Each capital throws a short shadow down and
+ * right, matching the chambers' pillars, so the whole floor agrees about
+ * where its light is.
+ *
+ * THE STEP EDGE IS ASYMMETRIC — Cloud City's finding 4. The far (top) lip is
+ * a thin lit line and the near (bottom) lip is three times wider and dark,
+ * which is what the edge of a platform you are looking over the top of
+ * actually does; drawn with both edges equal it is a rectangle painted on the
+ * floor rather than a step up from it. Square-cornered, because it is cut
+ * stone, and the corner radius is kept small so `.waiting__label`, which is
+ * pinned 10px from the top right, still sits inside the shape.
+ */
+:root[data-world='ruins'] .waiting {
+  border-radius: 2px;
+  background-color: var(--rug);
+  background-image:
+    /* SIX CAPITALS, each a circle on a square — the shaft's top on its
+       abacus. A circle alone at this size is a rivet in the platform; a circle
+       on a square is a column from above. The circles are placed with `at`,
+       and the squares are sized layers whose `left` was solved rather than
+       nudged: `left p%` offsets by p% of (container - image), so to centre a
+       layer w% wide at c% needs p = (c - w/2) / (100 - w). The abacus is
+       4.7% of the box wide precisely so that w is a percentage and p comes
+       out the same at both framings — this box is 298x83 at the 540 framing
+       and 298x199 at 960. Its height is a length, and `top 50%` centres a
+       sized layer at any height. */
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.14) at 6.1% 50%,
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.14) at 21.6% 50%,
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.14) at 37.1% 50%,
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.14) at 52.6% 50%,
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.14) at 68.1% 50%,
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle calc(var(--tile-size) * 0.14) at 83.6% 50%,
+      var(--pillar-lit) 0 38%,
+      var(--pillar) 38% 80%,
+      var(--pillar-dark) 80% 100%,
+      transparent 100%
+    ),
+    /* the six abaci */
+      linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    linear-gradient(180deg, rgba(var(--lit-rgb), 0.22) 0 1px, var(--pillar-dark) 1px),
+    /* and their shadows */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.24) calc(var(--tile-size) * 0.13) at calc(6.1% + var(--tile-size) * 0.12) calc(50% + var(--tile-size) * 0.12),
+        rgba(var(--shadow-rgb), 0.6),
+        rgba(var(--shadow-rgb), 0) 70%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.24) calc(var(--tile-size) * 0.13) at calc(21.6% + var(--tile-size) * 0.12) calc(50% + var(--tile-size) * 0.12),
+      rgba(var(--shadow-rgb), 0.6),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.24) calc(var(--tile-size) * 0.13) at calc(37.1% + var(--tile-size) * 0.12) calc(50% + var(--tile-size) * 0.12),
+      rgba(var(--shadow-rgb), 0.6),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.24) calc(var(--tile-size) * 0.13) at calc(52.6% + var(--tile-size) * 0.12) calc(50% + var(--tile-size) * 0.12),
+      rgba(var(--shadow-rgb), 0.6),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.24) calc(var(--tile-size) * 0.13) at calc(68.1% + var(--tile-size) * 0.12) calc(50% + var(--tile-size) * 0.12),
+      rgba(var(--shadow-rgb), 0.6),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.24) calc(var(--tile-size) * 0.13) at calc(83.6% + var(--tile-size) * 0.12) calc(50% + var(--tile-size) * 0.12),
+      rgba(var(--shadow-rgb), 0.6),
+      rgba(var(--shadow-rgb), 0) 70%
+    ),
+    /* the platform's stone, polished pale along the line where people stand
+       and nowhere else — a continuous variation, so it does not repeat */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 3.2) calc(var(--tile-size) * 0.5) at 50% 54%,
+        rgba(var(--worn-rgb), 0.08),
+        rgba(var(--worn-rgb), 0) 74%
+      ),
+    /* and its own flags, smaller than the corridor's */
+      repeating-linear-gradient(
+        90deg,
+        rgba(var(--joint-rgb), 0.45) 0 1px,
+        rgba(var(--lit-rgb), 0.05) 1px 2px,
+        transparent 2px calc(var(--tile-size) * 0.75)
+      ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--joint-rgb), 0.45) 0 1px,
+      rgba(var(--lit-rgb), 0.05) 1px 2px,
+      transparent 2px calc(var(--tile-size) * 0.5)
+    );
+  /* six capitals, six abaci, six shadows, the polish, two joint fields */
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    4.7% calc(var(--tile-size) * 0.32),
+    4.7% calc(var(--tile-size) * 0.32),
+    4.7% calc(var(--tile-size) * 0.32),
+    4.7% calc(var(--tile-size) * 0.32),
+    4.7% calc(var(--tile-size) * 0.32),
+    4.7% calc(var(--tile-size) * 0.32),
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  /* p = (c - 2.35) / 0.953 for c = 6.1 / 21.6 / 37.1 / 52.6 / 68.1 / 83.6 */
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    left 3.93% top 50%,
+    left 20.2% top 50%,
+    left 36.46% top 50%,
+    left 52.73% top 50%,
+    left 68.99% top 50%,
+    left 85.26% top 50%,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat;
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--lit-rgb), 0.2),
+    inset 0 -3px 0 0 rgba(var(--cream-rgb), 0.6),
+    inset 0 0 0 1px rgba(var(--rug-edge-rgb), 0.22),
+    inset 0 0 24px 6px rgba(var(--vignette-rgb), 0.4),
+    0 4px 8px var(--shadow);
+}
+
+/* --- The cast --------------------------------------------------------------
+ *
+ * The one-pixel rim around every sprite comes from `--ink-rgb`, which this
+ * world has inverted to the palest thing in the system — so what was a hard
+ * dark outline on cream becomes a lit edge on stone, which is both the right
+ * read for the world and the right physics for a hall lit by fire. Dropped to
+ * 0.32 because at the base 0.8 a pale rim is a halo. */
+:root[data-world='ruins'] .sprite::before,
+:root[data-world='ruins'] .agentface::before {
+  filter: drop-shadow(0 0 1px rgba(var(--ink-rgb), 0.32));
+}
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * A scroll, crossing the corridor. The path is untouched, the 1100 ms timing
+ * is untouched and still comes from the base `.envelope` transition in step
+ * with `ENVELOPE_MS` in components.jsx, and the `aria-live` label is
+ * untouched because it lives in the markup and this file has no reach into
+ * it. Only the thing travelling changes.
+ *
+ * PALE, because the floor it crosses is dark — Phase 19's finding 3, that
+ * `--paper` is the panel surface and has gone dark, so the sheet needs its
+ * own token. A rolled parchment: the body in `--sheet`, the two rolled ends a
+ * shade darker, and a cord round the middle. The cord is dark umber and NOT
+ * red, which is the obvious colour for a scroll's ribbon and is `--alarm`.
+ *
+ * THE FLAP IS REUSED RATHER THAN STOOD DOWN. A scroll is not a silhouette —
+ * it is a solid object with a cord round it, and a cord is a LINE rather than
+ * a blob, which is exactly the kind of mark that survives at 20x10 real
+ * pixels; the ice's dispatch tube found the same thing.
+ *
+ * NO ADDED MOTION, deliberately: the base `envelope-in` animation lives on
+ * `.envelope` itself and would be replaced by anything declared here.
+ */
+:root[data-world='ruins'] .envelope {
+  width: calc(20px * var(--furn));
+  height: calc(10px * var(--furn));
+  border: 0;
+  border-radius: 4px;
+  background-image: linear-gradient(
+    90deg,
+    var(--scroll-end) 0 15%,
+    var(--sheet) 15% 85%,
+    var(--scroll-end) 85%
+  );
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.35),
+    inset 0 -1px 0 0 rgba(var(--cream-rgb), 0.35),
+    0 3px 6px var(--shadow),
+    0 1px 2px rgba(var(--envelope-contact-rgb), 0.5);
+}
+
+:root[data-world='ruins'] .envelope__flap {
+  border-radius: 4px;
+}
+
+/* The flap's hairlines become the cord round the scroll. */
+:root[data-world='ruins'] .envelope__flap::before {
+  left: 50%;
+  top: -10%;
+  width: calc(2px * var(--furn));
+  height: 120%;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 0;
+  background: var(--scroll-tie);
+}
+
+/* --- Chrome ----------------------------------------------------------------
+ *
+ * The two scrims are the other place the base stylesheet uses `--ink-rgb` to
+ * mean "dark" rather than "maximum contrast against the page". Re-pointed at
+ * the page ground, so a dialog still darkens the board behind it instead of
+ * washing it out. Phase 19's finding 2, first and second of three. */
+:root[data-world='ruins'] .modal {
+  background: rgba(var(--cream-rgb), 0.74);
+}
+
+:root[data-world='ruins'] .drawer {
+  background: rgba(var(--cream-rgb), 0.6);
+}
+
+/* --- Motion ----------------------------------------------------------------
+ *
+ * Everything that moves in this world is declared here and nowhere else, so
+ * a reader who asked for less motion gets a still torch, a still spill and
+ * still dust, and nothing else has to remember to turn any of it off. The
+ * static frame is the one designed for; the motion is what the static frame
+ * does when nobody has asked it to stop.
+ *
+ * THE FLICKER IS SLOW AND SMALL, AND THAT IS THE BRIEF'S NON-NEGOTIABLE. A
+ * torch's whole excursion is 14% of its opacity across a six-second loop
+ * with uneven steps, so it never pulses and never blinks; each standing
+ * torch and its pool breathe 14% of an already-faint layer over seven to
+ * nine seconds. The two torches
+ * and the two pools each run at different periods with different offsets,
+ * because two lights breathing in step read as a signal and two breathing
+ * out of step read as fire. `.room + .room` is the second chamber: the walled
+ * rooms are rendered as consecutive siblings by `rooms.map` in
+ * components.jsx, so the adjacent-sibling combinator reaches exactly one of
+ * them. If that adjacency ever breaks, the failure is that both torches
+ * flicker in step, which is a fine thing for two torches to do. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='ruins'] .room::before {
+    animation: ruins-torch 6.3s ease-in-out infinite;
+  }
+
+  :root[data-world='ruins'] .room + .room::before {
+    animation-duration: 7.9s;
+    animation-delay: -2.7s;
+  }
+
+  :root[data-world='ruins'] .worldlayer--ground::before {
+    animation: ruins-pool 7.1s ease-in-out infinite;
+  }
+
+  :root[data-world='ruins'] .worldlayer--ground::after {
+    animation: ruins-pool 9.3s ease-in-out infinite;
+    animation-delay: -3.9s;
+  }
+
+  :root[data-world='ruins'] .worldlayer--air::before {
+    animation: ruins-dust-far 230s linear infinite;
+  }
+
+  :root[data-world='ruins'] .worldlayer--air::after {
+    animation: ruins-dust-near 150s linear infinite;
+  }
+
+  @keyframes ruins-torch {
+    0% {
+      opacity: 1;
+    }
+    23% {
+      opacity: 0.9;
+    }
+    47% {
+      opacity: 0.97;
+    }
+    68% {
+      opacity: 0.86;
+    }
+    86% {
+      opacity: 0.95;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes ruins-pool {
+    0% {
+      opacity: 1;
+    }
+    31% {
+      opacity: 0.88;
+    }
+    58% {
+      opacity: 0.96;
+    }
+    79% {
+      opacity: 0.86;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes ruins-dust-far {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(254px, -83px, 0);
+    }
+  }
+
+  @keyframes ruins-dust-near {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(142px, -59px, 0);
+    }
+  }
+}
