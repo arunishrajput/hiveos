@@ -347,6 +347,28 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   breakdown aggregates every row, so stale rows would open the board showing a
   team that had already spent its budget.
 
+  **Token rollback on permanent ledger write failure (MVP consistency tradeoff):**
+  If `history.record()` permanently fails to persist a ledger row after its
+  retries, the task is not in the ledger and the meter must not claim it is.
+  `_reply` rolls its own settlement back — `state.add_tokens(team, reserved -
+  result.tokens)`, the exact inverse of the `add_tokens(result.tokens,
+  reserved=reserved)` above it. This keeps `METADATA.tokens_used` in agreement
+  with the `TASK#` rows that `history.spend` and `state.fair_order` are read
+  from.
+
+  **The rollback restores the reservation; it does not release it.** Backing
+  out `result.tokens` alone would be wrong: the runner only clears its
+  `reserved` local *after* `_reply` returns, so on this path its `finally`
+  still releases the hold. Undoing the settlement leaves the counter exactly
+  where `_reply` found it — task unbilled, hold outstanding — and the release
+  then happens once. Subtracting `result.tokens` instead releases the same
+  placeholder twice and drives `tokens_used` below where the task found it,
+  which on a fresh workspace means negative.
+
+  *Tradeoff note:* Provider-side token consumption cannot be reversed; this
+  rollback is an internal data-consistency decision, not a claim that provider
+  billing was reversed.
+
 - **MEMORY#** — key/value facts saved by agents. No expiry in the MVP.
 
   **The SK is derived from the key, not a UUID** (`memory._slug`: lowercased,

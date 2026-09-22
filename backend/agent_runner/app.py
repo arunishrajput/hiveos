@@ -150,20 +150,23 @@ def _handle(task):
         # through to finally — swallowing it here is what stops SQS from
         # redelivering a task we have already accounted for.
         traceback.print_exc()
-        history.record(
-            team,
-            task.get("user_id"),
-            slot_id,
-            tokens=0,
-            estimated=False,
-            status=history.FAILED,
-            prompt=task.get("prompt", ""),
-            requested_agent=task.get("requested_agent"),
-            task_id=task.get("task_id"),
-            handoff_from=task.get("handoff_from"),
-            agent_name=_named(names, slot_id),
-            handoff_from_name=_named(names, task.get("handoff_from")),
-        )
+        try:
+            history.record(
+                team,
+                task.get("user_id"),
+                slot_id,
+                tokens=0,
+                estimated=False,
+                status=history.FAILED,
+                prompt=task.get("prompt", ""),
+                requested_agent=task.get("requested_agent"),
+                task_id=task.get("task_id"),
+                handoff_from=task.get("handoff_from"),
+                agent_name=_named(names, slot_id),
+                handoff_from_name=_named(names, task.get("handoff_from")),
+            )
+        except Exception:
+            traceback.print_exc()
         _reply_error(task, "agent task failed")
     finally:
         # Before the slot release and fully swallowed, in that order and for
@@ -619,27 +622,50 @@ def _reply(team, task, result, names, reserved):
 
     # After the ADD, never before: the ledger must not be able to report a cost
     # that the team counter has not actually taken.
-    history.record(
-        team,
-        task.get("user_id"),
-        slot_id,
-        tokens=result.tokens,
-        estimated=result.estimated,
-        status=history.DONE,
-        prompt=task.get("prompt", ""),
-        requested_agent=requested,
-        # Both legs of a handed-over task carry the same chain id, so the
-        # ledger can say the work cost the team N tokens rather than showing
-        # two unrelated tasks that happen to sit next to each other.
-        task_id=task.get("task_id"),
-        handoff_from=handed_from,
-        # Written now, at the moment the work ran, rather than joined on when
-        # the ledger is read. An agent can be fired, and a ledger that looked
-        # its names up later would attribute this row to whoever holds that id
-        # next — or to nobody.
-        agent_name=_named(names, slot_id),
-        handoff_from_name=_named(names, handed_from),
-    )
+    try:
+        history.record(
+            team,
+            task.get("user_id"),
+            slot_id,
+            tokens=result.tokens,
+            estimated=result.estimated,
+            status=history.DONE,
+            prompt=task.get("prompt", ""),
+            requested_agent=requested,
+            # Both legs of a handed-over task carry the same chain id, so the
+            # ledger can say the work cost the team N tokens rather than showing
+            # two unrelated tasks that happen to sit next to each other.
+            task_id=task.get("task_id"),
+            handoff_from=handed_from,
+            # Written now, at the moment the work ran, rather than joined on when
+            # the ledger is read. An agent can be fired, and a ledger that looked
+            # its names up later would attribute this row to whoever holds that id
+            # next — or to nobody.
+            agent_name=_named(names, slot_id),
+            handoff_from_name=_named(names, handed_from),
+        )
+    except Exception:
+        # The ledger write failed permanently after its retries, so this task
+        # is not in the ledger and the counter must not claim it is. Roll the
+        # settlement above back so `tokens_used` never diverges from the TASK#
+        # rows that `history.spend` and `state.fair_order` are read from.
+        #
+        # **Undo the settlement, do not zero the task.** What the `add_tokens`
+        # above applied is `result.tokens - reserved`, so that is what comes
+        # off here — which puts the counter back to still *holding this task's
+        # reservation*, exactly where `_reply` found it. That is the state
+        # `_handle` expects on this path: `reserved` is only cleared after
+        # `_reply` returns, so its `finally` releases the hold. Subtracting
+        # `result.tokens` alone would leave the hold released here and
+        # released again there, and two releases of one placeholder drive the
+        # meter below where the task found it.
+        #
+        # Tradeoff note: provider-side token usage cannot be reversed. This is
+        # an internal consistency decision — the meter agreeing with the
+        # ledger — not a claim that billing was reversed. CONTRACT.md says so
+        # in as many words.
+        state.add_tokens(team, reserved - result.tokens)
+        raise
 
     # `usage` already carries `estimated`, read back from the row, so the
     # broadcast reports the provenance of the whole total rather than of this

@@ -442,6 +442,29 @@ class TestReleaseOnEveryPath:
 
         assert table.row["tokens_used"] == 0
 
+    def test_a_failed_ledger_write_gives_the_hold_back_exactly_once(self):
+        """The rollback in `_reply` and the refund in `finally` are one release.
+
+        `history.record` raises now rather than swallowing (Bug F), so `_reply`
+        can fail *after* `add_tokens` has already settled the reservation. The
+        rollback there has to undo that settlement and nothing more — leaving
+        the hold outstanding for `finally` to release — or the two paths both
+        give the same placeholder back and the meter ends up below where the
+        task found it.
+        """
+        table = FakeMetadata(tokens_used=0, token_budget=10_000)
+
+        def run(team, task, desks):
+            return AgentResult(text="answered", tokens=800, estimated=False), None
+
+        with _Running(table, run) as running:
+            running.mocks[3].side_effect = RuntimeError("dynamo is down")
+            runner._handle(dict(TASK_1))
+
+        # Back exactly where it started: the work is not in the ledger, so the
+        # team is not charged for it, and the hold was released once.
+        assert table.row["tokens_used"] == 0
+
     def test_a_release_that_fails_does_not_cost_the_desk(self):
         """The slot release outranks the refund and must still happen."""
         table = FakeMetadata(tokens_used=0, token_budget=10_000)
