@@ -277,6 +277,19 @@
    * is only ever used at one alpha, over the grain behind it. */
   --bark-rgb: 59, 42, 20;
   --undergrowth: #16240f; /* the bushes closing both sides of the clearing */
+  /* The plate of `--floor` every floor caption carries, replacing Paper
+   * Office's thinner wash of it. See `worlds/nightsky.css` for why — the
+   * busy nameplate straddles a border of its own colour at the 540 framing,
+   * and the ground under the glyph is the only one of the three things
+   * involved that is allowed to move. */
+  --halo-plate:
+    0 1px 2px var(--floor),
+    0 0 1px var(--floor),
+    0 0 2px var(--floor),
+    0 0 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+  --halo-state: var(--halo-plate);
 }
 
 /* --- The ground plane ------------------------------------------------------
@@ -1386,4 +1399,39 @@
 
 :root[data-world='forest'] .drawer {
   background: rgba(var(--cream-rgb), 0.6);
+}
+
+/* --- The canopy's own beat -------------------------------------------------
+ *
+ * Phase 27, and the same gap the night deck's beacon fills: spores drifted
+ * through the air slot and nothing in the clearing itself ever moved.
+ *
+ * The branch across the gap is the right thing to move, because it is the one
+ * object in the world that is demonstrably *between* the viewer and something
+ * else. Rocking it three degrees makes the four chinks of sky read as holes
+ * through a canopy rather than as pale marks painted on a leaf — which is the
+ * exact failure this fixture was redrawn twice to escape, and motion settles
+ * it for free.
+ *
+ * `transform` restates the base rule's `rotate(-7deg)` at both ends. A keyframe
+ * replaces the whole transform, and dropping it would snap the branch straight
+ * the moment the animation started — the same trap `walk-shadow` has with its
+ * `translateX(-50%)` in the base stylesheet.
+ *
+ * 11s, which is a breath of wind rather than a wag, and long enough that it is
+ * never the thing a viewer is looking at. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='forest'] .fixture--window::after {
+    animation: forest-canopy 11s ease-in-out infinite alternate;
+    transform-origin: 8% 50%;
+  }
+
+  @keyframes forest-canopy {
+    from {
+      transform: rotate(-7deg);
+    }
+    to {
+      transform: rotate(-4deg);
+    }
+  }
 }

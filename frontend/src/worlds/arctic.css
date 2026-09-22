@@ -427,6 +427,19 @@
   --tube: #3b4149;
   --tube-cap: #98a4ae;
   --tube-band: #e2e8ee;
+  /* The plate of `--floor` every floor caption carries, replacing Paper
+   * Office's thinner wash of it. See `worlds/nightsky.css` for why — the
+   * busy nameplate straddles a border of its own colour at the 540 framing,
+   * and the ground under the glyph is the only one of the three things
+   * involved that is allowed to move. */
+  --halo-plate:
+    0 1px 2px var(--floor),
+    0 0 1px var(--floor),
+    0 0 2px var(--floor),
+    0 0 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+  --halo-state: var(--halo-plate);
 }
 
 /* --- The ground plane ------------------------------------------------------
@@ -1869,4 +1882,38 @@
   border: 0;
   border-radius: 1px;
   background: var(--tube-band);
+}
+
+/* --- The anemometer turns --------------------------------------------------
+ *
+ * Phase 27, filling the same gap the night deck's beacon and the clearing's
+ * canopy fill: snow fell and the aurora moved, but the base itself was still.
+ *
+ * The met tower is the one prop on this floor whose whole purpose is to be
+ * moving — three cups on a hub is a drawing of rotation, and a stopped one
+ * reads as broken equipment rather than as a weather station. So it turns.
+ *
+ * The cups are `box-shadow` offsets on the hub, which is what makes this
+ * cheap: rotating the hub carries all three round it with one composited
+ * transform and no repaint. 7s is one turn a week in real terms and entirely
+ * wrong as meteorology; it is right as reading, because a head spinning at
+ * any believable speed at this size is a flicker, and flicker on a board that
+ * uses flicker to mean BUSY is the one thing this world may not add.
+ *
+ * `linear`, because a wind-driven cup that eased would read as being pushed by
+ * hand. No `alternate`: an anemometer that ran backwards every other cycle
+ * would be a fan in reverse. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='arctic'] .decor--plant + .decor--plant .decor__leaves {
+    animation: arctic-anemometer 7s linear infinite;
+  }
+
+  @keyframes arctic-anemometer {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }

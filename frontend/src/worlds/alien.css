@@ -255,6 +255,19 @@
   --slate: #cfc2e4;
   /* The transmission pulse's core. */
   --pulse-rgb: 238, 228, 255;
+  /* The plate of `--floor` every floor caption carries, replacing Paper
+   * Office's thinner wash of it. See `worlds/nightsky.css` for why — the
+   * busy nameplate straddles a border of its own colour at the 540 framing,
+   * and the ground under the glyph is the only one of the three things
+   * involved that is allowed to move. */
+  --halo-plate:
+    0 1px 2px var(--floor),
+    0 0 1px var(--floor),
+    0 0 2px var(--floor),
+    0 0 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+  --halo-state: var(--halo-plate);
 }
 
 /* --- The ground plane ------------------------------------------------------

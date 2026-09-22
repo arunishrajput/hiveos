@@ -189,6 +189,41 @@
    * A world stylesheet must never set `--walk-top` — the JS would not see it. */
   --walk-top: 14%;
 
+  /* How much ground a floor caption carries with it.
+   *
+   * These are Paper Office's own halos, moved out of the rules below and into
+   * tokens so a world can thicken them without restating the rule. They are
+   * byte-identical to what `.desk__label`/`.desk__role` and `.pawn__state`
+   * were given in Phase 12 and Phase 15, so the default renders unchanged.
+   *
+   * Phase 27 hoisted them because the contrast matrix found the same defect
+   * in all eight worlds at the 540 framing: at that size the desk's flex
+   * column overflows the top of its room, so `.desk__label` — which is
+   * `--cool` on a busy desk — is drawn straddling the 2px border that
+   * `.room--busy` also turns `--cool`. The glyphs land on their own colour.
+   * Distance cannot fix it (the overflow is the narrow layout's geometry) and
+   * neither colour may move (both carry the busy state), so what has to give
+   * is the third thing: the ground *under* the glyph. A denser halo is an
+   * opaque plate of `--floor` rather than a wash of it, which is what lifts
+   * every world's `--cool` cell from 2.8-4.4:1 to 5.9-9.1:1. Measured on
+   * rendered pixels, not on tokens — see PROGRESS.md, Phase 27.
+   *
+   * Paper Office keeps the thin halos and therefore keeps the defect, at
+   * 2.59:1. It is pixel-frozen for the recording and is not being retuned;
+   * it is the control that proves the defect is base geometry rather than
+   * anything a world did. */
+  --halo-plate:
+    0 1px 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+  --halo-state: 0 1px 2px var(--floor), 0 0 3px var(--floor);
+
+  /* Half of a world change: the veil takes this long to rise, the attribute
+   * changes, and it takes this long to fall. MUST match SWAP_MS in worlds.js,
+   * which is what decides when the attribute actually changes — the same
+   * contract `.pawn`/WALK_MS and `.envelope`/ENVELOPE_MS already have. */
+  --swap-ms: 200ms;
+
   /* Sprite palette. Lives here rather than on `.sprite` because the member bar
    * draws the same art from a different class — scoping these to `.sprite`
    * left the chip portraits with undefined colours, so their shadows silently
@@ -1467,11 +1502,9 @@ body {
   /* The floor is patterned and people walk over it, so the plate needs its own
    * ground to stay readable. The halo is the floor colour, not the text
    * colour — it inverted with the theme, and an ink halo behind ink text on a
-   * cream floor would black out the label entirely. */
-  text-shadow:
-    0 1px 2px var(--floor),
-    0 0 3px var(--floor),
-    0 0 6px var(--floor);
+   * cream floor would black out the label entirely. In a token since Phase 27
+   * so a world can make it denser; see `--halo-plate`. */
+  text-shadow: var(--halo-plate);
 }
 
 .desk__role {
@@ -1482,10 +1515,7 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
-  text-shadow:
-    0 1px 2px var(--floor),
-    0 0 3px var(--floor),
-    0 0 6px var(--floor);
+  text-shadow: var(--halo-plate);
 }
 
 /* The name takes the instrument hue while the desk is working; the role stays
@@ -1929,7 +1959,10 @@ body {
   font-size: 9px;
   letter-spacing: 0.06em;
   color: var(--faint);
-  text-shadow: 0 1px 2px var(--floor), 0 0 3px var(--floor);
+  /* `working` and `queued #N` are the two words the whole product is for, and
+   * this is the thinnest halo on the floor. In a token since Phase 27 for the
+   * same reason as `--halo-plate`. */
+  text-shadow: var(--halo-state);
 }
 
 /* Your own marker is the one you need to find instantly to know that clicking
@@ -4449,6 +4482,79 @@ a.btn {
   }
 }
 
+/* --- The world cross-fade -------------------------------------------------- */
+
+/* Changing world repaints every surface on the page at once, and a hard cut
+ * between a near-black temple and a white sky harbour is a flash rather than
+ * a transition. So the swap happens behind a veil: it rises over the world
+ * you are leaving, the attribute changes while it is opaque, and it falls
+ * again over the world you arrived in.
+ *
+ * A veil rather than two boards blended together, and the reason is not
+ * laziness. The only way to cross-fade the board itself would be to render it
+ * twice and dissolve between the copies — two live floors, two sets of pawns,
+ * two sockets' worth of state on screen at once. What the veil gives instead
+ * is the same perceptual path for free: nine worlds are each dominated by one
+ * ground colour, so fading through that colour IS the dissolve, and it avoids
+ * the ghosting of two different floors overlaid. The veil's own background is
+ * `--cream`, which means it is the *old* world's ground on the way up and the
+ * *new* world's on the way down, with `background-color` tweening between the
+ * two while it is opaque. Three fades in one element.
+ *
+ * `--swap-ms` must match SWAP_MS in worlds.js: that constant decides when the
+ * attribute actually changes, and this decides how long the veil takes to get
+ * there. If they disagree the swap happens in front of the viewer.
+ *
+ * z-index 45 is deliberate and sits between the settings drawer (40) and the
+ * modal (50). The picker is a modal, so the board dissolves *behind the open
+ * dialog* — which is the whole interaction: the board is right there and
+ * seeing it change is how you choose. */
+.worldveil {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: var(--cream);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Fading at all is motion, so it is declared only where motion is welcome.
+ * Under `prefers-reduced-motion: reduce` the veil never becomes visible and
+ * worlds.js never schedules a phase — the swap is a cut, which is the correct
+ * reduced-motion answer rather than a degraded one. */
+@media (prefers-reduced-motion: no-preference) {
+  .worldveil {
+    /* The opacity fade is deliberately 40ms SHORTER than the half-period, so
+     * the veil is already solid for a beat before worlds.js changes the
+     * attribute. Run at the full 200ms the two finish together — measured at
+     * 0.99974 opaque on the frame of the swap, which is a hairline rather
+     * than a margin, and one slow frame would show the board changing
+     * through it. The colour keeps the full period: it is what tweens the
+     * old world's ground into the new one's, and it has nothing to hide. */
+    transition:
+      opacity calc(var(--swap-ms) - 40ms) linear,
+      background-color var(--swap-ms) linear;
+  }
+
+  :root[data-swap='out'] .worldveil {
+    opacity: 1;
+  }
+
+  /* The hazard the transition actually has, and it is the sprite.
+   *
+   * A pawn mid-walk is animating between `--art` and `--art-step`, and a world
+   * change swaps both tables under it. Freeze the gait for the duration of the
+   * fade and every character is pinned to its `--art` frame — a whole, valid
+   * pose in whichever world it is drawn from, so neither the frame under the
+   * veil nor the frame after it can be half a colonist and half a penguin.
+   *
+   * Only the *art* is frozen. The walk itself is a `left`/`top` transition and
+   * keeps running, so somebody crossing the room carries on crossing it. */
+  :root[data-swap] .pawn--walking .sprite::before {
+    animation: none;
+  }
+}
+
 /* --- World picker ---------------------------------------------------------- */
 
 /* Same `.modal` backdrop as hiring, and a narrower panel: this is one choice
@@ -4568,6 +4674,24 @@ a.btn {
 .worldcard--on .worldcard__blurb {
   color: var(--on-amber);
   opacity: 0.78;
+}
+
+/* Surprise me.
+ *
+ * A card, because it is an entry in the list of things you can pick — but
+ * outside the `radiogroup`, because it is not one of the options: it is a way
+ * of choosing one, and a radio that never stays selected would lie to a
+ * screen reader. Full width under the grid, dashed, so it reads as "and also"
+ * rather than as a tenth world. */
+.worldcard--random {
+  margin: 0 18px 14px;
+  border-style: dashed;
+  background: transparent;
+}
+
+.worldcard--random:hover {
+  border-color: var(--amber);
+  background: rgba(var(--amber-rgb), 0.07);
 }
 
 .worlds__foot {

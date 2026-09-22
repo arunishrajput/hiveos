@@ -1425,7 +1425,37 @@ export function CanvasPanel({
  * choosing on.
  */
 export function WorldModal({ onClose }) {
-  const { world, worlds, setWorld } = useWorld()
+  const { world, worlds, setWorld, surprise } = useWorld()
+  const cards = useRef([])
+  const index = worlds.findIndex((entry) => entry.id === world.id)
+
+  /* The radiogroup keyboard contract, which the cards did not honour before
+   * Phase 27: a group of radios is ONE tab stop, and the arrows move within
+   * it. Nine buttons each taking a tab stop meant nine presses to get past
+   * the picker, and the arrow keys — which is what a keyboard user reaches
+   * for in a radiogroup — did nothing at all.
+   *
+   * Selection follows focus, as it does in every native radio group, and
+   * selection here applies the world. So arrowing along the row flips the
+   * board from one world to the next, which is the mouse interaction's own
+   * argument ("seeing it change is how you decide") with a keyboard on it.
+   * The cross-fade is built to be retargeted mid-flight for exactly this. */
+  const move = (to) => {
+    const next = worlds[(to + worlds.length) % worlds.length]
+    setWorld(next.id)
+    cards.current[worlds.indexOf(next)]?.focus()
+  }
+
+  const onKeyDown = (event) => {
+    const { key } = event
+    if (key === 'ArrowRight' || key === 'ArrowDown') move(index + 1)
+    else if (key === 'ArrowLeft' || key === 'ArrowUp') move(index - 1)
+    else if (key === 'Home') move(0)
+    else if (key === 'End') move(worlds.length - 1)
+    else return
+    // Only once we know we handled it: arrowing must not also scroll the grid.
+    event.preventDefault()
+  }
 
   return (
     <div
@@ -1435,6 +1465,11 @@ export function WorldModal({ onClose }) {
       aria-labelledby="worlds-title"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
+      }}
+      /* Escape closes. The dialog is a costume rack — there is nothing to
+       * lose by leaving it, and the world you chose is already applied. */
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose()
       }}
     >
       <div className="worlds">
@@ -1449,13 +1484,21 @@ export function WorldModal({ onClose }) {
           </p>
         </header>
 
-        <div className="worldgrid" role="radiogroup" aria-label="World">
-          {worlds.map((entry) => (
+        <div className="worldgrid" role="radiogroup" aria-label="World" onKeyDown={onKeyDown}>
+          {worlds.map((entry, i) => (
             <button
               type="button"
               key={entry.id}
               role="radio"
               aria-checked={entry.id === world.id}
+              // One tab stop for the whole group; the arrows do the rest.
+              tabIndex={entry.id === world.id ? 0 : -1}
+              ref={(node) => {
+                cards.current[i] = node
+              }}
+              // Opening the rack with the current world already focused is
+              // what makes the arrows usable without hunting for them first.
+              autoFocus={entry.id === world.id}
               onClick={() => setWorld(entry.id)}
               className={`worldcard ${entry.id === world.id ? 'worldcard--on' : ''}`}
             >
@@ -1464,6 +1507,20 @@ export function WorldModal({ onClose }) {
             </button>
           ))}
         </div>
+
+        {/* Outside the radiogroup on purpose — see `.worldcard--random`. It
+            picks one of the other eight and leaves that world selected, so a
+            reload comes back to where it landed rather than rolling again. */}
+        <button
+          type="button"
+          className="worldcard worldcard--random"
+          onClick={surprise}
+        >
+          <span className="worldcard__name">Surprise me</span>
+          <span className="worldcard__blurb">
+            Somewhere else — any world but the one you are in.
+          </span>
+        </button>
 
         <footer className="worlds__foot">
           <button type="button" className="btn btn--ghost" onClick={onClose}>

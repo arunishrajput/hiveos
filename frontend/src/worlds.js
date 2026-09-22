@@ -35,7 +35,15 @@
  * an unknown stored value harmless rather than a blank board.
  */
 
-import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import { DESIGNS, DEFAULT_LAYERS, HAIR_COLOURS, compileSheets } from './sprites'
 
@@ -1709,15 +1717,75 @@ function savePaint(world) {
   }
 }
 
+/* Half of a world change, in milliseconds.
+ *
+ * MUST match `--swap-ms` in styles.css. This decides when `data-world`
+ * actually changes; that decides how long the veil takes to become opaque,
+ * and a disagreement means the board changes in front of the viewer instead
+ * of behind the fade. Same contract as WALK_MS/`.pawn` and
+ * ENVELOPE_MS/`.envelope` in components.jsx. */
+const SWAP_MS = 200
+
+/* Whether the change should be faded or cut.
+ *
+ * Read at the moment of the swap rather than cached, because the preference
+ * can be turned on while the page is open and the next swap has to honour it.
+ * A browser without `matchMedia` gets the fade, which is the same answer it
+ * gets for every other animation in the product. */
+function prefersMotion() {
+  try {
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return true
+  }
+}
+
+/* Pick a world at random that is not the one already showing.
+ *
+ * Drawn from the other eight rather than from all nine and retried, because
+ * "surprise me" that leaves you where you are is not a surprise, it is a
+ * broken button — and a retry loop has no upper bound on how many times it
+ * can draw the current world. */
+export function randomWorldId(currentId) {
+  const others = WORLDS.filter((entry) => entry.id !== currentId)
+  if (!others.length) return currentId
+  return others[Math.floor(Math.random() * others.length)].id
+}
+
 const WorldContext = createContext(null)
 
-/** The active world, plus the setter the picker calls. */
+/** The active world, plus the setters the picker calls. */
 export function useWorld() {
-  return useContext(WorldContext) ?? { world: PAPER_OFFICE, worlds: WORLDS, setWorld: () => {} }
+  return (
+    useContext(WorldContext) ?? {
+      world: PAPER_OFFICE,
+      worlds: WORLDS,
+      setWorld: () => {},
+      surprise: () => {},
+    }
+  )
 }
 
 export function WorldProvider({ children }) {
   const [worldId, setWorldId] = useState(loadWorldId)
+  /* Which half of the cross-fade is running: `out` is the veil rising over
+   * the world you are leaving, `in` is it falling over the one you arrived
+   * in, `null` is a settled board. */
+  const [phase, setPhase] = useState(null)
+  /* Where the fade is heading. A ref rather than state on purpose: clicking a
+   * second world while the first swap is still running has to retarget the
+   * *running* timer rather than start a competing one, and a ref is read at
+   * the moment the timer fires. That is what makes arrowing through the
+   * picker feel like flipping through worlds instead of queueing them. */
+  const bound = useRef(null)
+  /* `phase` again, readable from an event handler.
+   *
+   * `value` below is memoised on the world alone, deliberately: putting the
+   * phase in its dependencies would hand every consumer a new context object
+   * twice per swap and re-render the whole board mid-fade, which is exactly
+   * the work a fade exists to hide. So the one thing `setWorld` needs to know
+   * about the phase is mirrored into a ref instead. */
+  const phaseRef = useRef(null)
   const world = worldFor(worldId)
 
   useEffect(() => {
@@ -1745,18 +1813,77 @@ export function WorldProvider({ children }) {
     savePaint(world)
   }, [world])
 
-  const value = useMemo(
-    () => ({
+  /* The veil reads this, and nothing else does. Kept off the React tree and
+   * on `documentElement` for the same reason `data-world` is: the fade covers
+   * the whole page, including the parts a route is not rendering. */
+  useEffect(() => {
+    const root = document.documentElement
+    phaseRef.current = phase
+    if (phase) root.dataset.swap = phase
+    else delete root.dataset.swap
+  }, [phase])
+
+  /* The swap machine. Two ticks of SWAP_MS: the first ends by changing the
+   * world under an opaque veil, the second by putting the veil away.
+   *
+   * The cleanup matters. Choosing a third world during the second tick sets
+   * the phase back to `out`, which re-runs this effect, cancels the timer
+   * that was about to settle the board and restarts the fade — so a run of
+   * fast choices is one continuous dissolve rather than a stutter of them. */
+  useEffect(() => {
+    if (!phase) return undefined
+    const timer = window.setTimeout(() => {
+      if (phase === 'out') {
+        setWorldId(bound.current ?? DEFAULT_WORLD_ID)
+        setPhase('in')
+      } else {
+        setPhase(null)
+      }
+    }, SWAP_MS)
+    return () => window.clearTimeout(timer)
+  }, [phase])
+
+  const value = useMemo(() => {
+    const setWorld = (id) => {
+      const next = worldFor(id)
+      /* Picking the world already showing is a no-op, not a 400ms dissolve
+       * back to where you started. Guarded only on a settled board: choosing
+       * the current world *during* a fade to a different one is a genuine
+       * change of mind and has to turn the fade around. */
+      if (next.id === world.id && !phaseRef.current) return
+      /* Persist the world we are heading for, not the fact that we are
+       * fading towards it. A reload mid-fade lands on the new world with no
+       * fade, which is right: the choice is made, the animation is only how
+       * it was shown. */
+      saveWorldId(next.id)
+      if (!prefersMotion()) {
+        bound.current = null
+        setPhase(null)
+        setWorldId(next.id)
+        return
+      }
+      bound.current = next.id
+      setPhase('out')
+    }
+    return {
       world,
       worlds: WORLDS,
-      setWorld: (id) => {
-        const next = worldFor(id)
-        saveWorldId(next.id)
-        setWorldId(next.id)
-      },
-    }),
-    [world],
-  )
+      setWorld,
+      /* Somewhere else, and never here. `world.id` rather than `bound.current`
+       * so a second press during a fade is still measured against what is on
+       * screen — pressing it twice quickly must not be able to land you back
+       * where you started. */
+      surprise: () => setWorld(randomWorldId(world.id)),
+    }
+  }, [world])
 
-  return createElement(WorldContext.Provider, { value }, children)
+  return createElement(
+    WorldContext.Provider,
+    { value },
+    children,
+    /* Rendered here rather than in a route so it exists on the landing page
+     * and behind the entry gate too — the world applies to all three, so the
+     * fade has to as well. */
+    createElement('div', { className: 'worldveil', key: 'veil', 'aria-hidden': 'true' }),
+  )
 }

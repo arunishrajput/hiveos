@@ -221,6 +221,34 @@
   --sheet: #e4ebf7;
   /* `--bottle` in channels, for the beacon's own glow. */
   --beacon-rgb: 255, 217, 160;
+  /* A DENSER GROUND UNDER EVERY FLOOR CAPTION, and this is Phase 27's answer
+   * to the one defect its contrast matrix found in all eight worlds at once.
+   *
+   * At the 540 framing the desk's flex column overflows the top of its room,
+   * so `.desk__label` is drawn straddling the 2px border — and on a busy desk
+   * the label is `--cool` while `.room--busy` turns that border `--cool` too.
+   * Neither colour may move: both carry the busy state, which is the one thing
+   * a world may never reassign. The geometry cannot move either; it is the
+   * narrow layout's, and Paper Office is pixel-frozen at the same framing. So
+   * what gives is the third thing — the ground the glyph actually sits on.
+   *
+   * Paper Office's halos are a wash of `--floor`; these are a plate of it.
+   * Same colour, same offsets, more layers, and the composite under a stroke
+   * goes from part-transparent to effectively solid. Measured on rendered
+   * pixels rather than on tokens, that is what takes this world's `--cool`
+   * cell from under the bar to comfortably over it.
+   *
+   * In the world file rather than in `styles.css` because bare `:root` is
+   * Paper Office, and every world overriding in its own block is what keeps
+   * load order irrelevant and the default untouchable. */
+  --halo-plate:
+    0 1px 2px var(--floor),
+    0 0 1px var(--floor),
+    0 0 2px var(--floor),
+    0 0 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+  --halo-state: var(--halo-plate);
 }
 
 /* --- The ground plane ------------------------------------------------------
@@ -790,4 +818,42 @@
 
 :root[data-world='nightsky'] .drawer {
   background: rgba(var(--cream-rgb), 0.6);
+}
+
+/* --- The beacon's own beat -------------------------------------------------
+ *
+ * Phase 27. Every world drifts something through its air slot; four of them,
+ * this one included, had no beat of their own on any *object*, so the deck sat
+ * perfectly still while the reef swept its radar and the ruins guttered their
+ * torches. A beacon is the one thing on this deck that is obviously supposed
+ * to be doing something, so it is the one that does.
+ *
+ * WARM, AND THEREFORE ALLOWED TO PULSE. `--beacon-rgb` is the world's resting
+ * character, not a report — which is exactly what makes a slow breath safe
+ * here: a cool light that pulsed would be a second status indicator on a board
+ * whose whole argument is that there is precisely one. The halo alone moves;
+ * the lamp head itself does not change value, so nothing on the mast can be
+ * read as brightening or dimming with anything the office is doing.
+ *
+ * 5.2s and eased at both ends, which is slower than Cloud City's 2.4s beacon
+ * on purpose — two worlds flashing at the same rate would read as the same
+ * prop twice. Nothing moves, so there is no layout or paint cost beyond the
+ * one box-shadow. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='nightsky'] .cooler__bottle {
+    animation: nightsky-beacon 5.2s ease-in-out infinite alternate;
+  }
+
+  @keyframes nightsky-beacon {
+    from {
+      box-shadow:
+        inset 0 -3px 0 0 var(--bottle-base),
+        0 0 8px 1px rgba(var(--beacon-rgb), 0.18);
+    }
+    to {
+      box-shadow:
+        inset 0 -3px 0 0 var(--bottle-base),
+        0 0 15px 3px rgba(var(--beacon-rgb), 0.34);
+    }
+  }
 }

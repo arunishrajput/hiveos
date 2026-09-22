@@ -497,6 +497,19 @@
   --satchel: #443c33;
   --satchel-lid: #5b5044;
   --satchel-strap: #d8c7a2;
+  /* The plate of `--floor` every floor caption carries, replacing Paper
+   * Office's thinner wash of it. See `worlds/nightsky.css` for why — the
+   * busy nameplate straddles a border of its own colour at the 540 framing,
+   * and the ground under the glyph is the only one of the three things
+   * involved that is allowed to move. */
+  --halo-plate:
+    0 1px 2px var(--floor),
+    0 0 1px var(--floor),
+    0 0 2px var(--floor),
+    0 0 2px var(--floor),
+    0 0 3px var(--floor),
+    0 0 6px var(--floor);
+  --halo-state: var(--halo-plate);
 }
 
 /* --- The ground plane ------------------------------------------------------
@@ -1886,4 +1899,45 @@
   background: var(--satchel-strap);
   /* the buckle, which is the one mark that says "strap" rather than "stripe" */
   box-shadow: inset 0 calc(4px * var(--furn)) 0 calc(-2px * var(--furn)) var(--steel-dark);
+}
+
+/* --- Sand through the beam -------------------------------------------------
+ *
+ * Phase 27, and the fourth of the four worlds that had drift in the air slot
+ * and no beat of their own on any object.
+ *
+ * What moves is the raking pool the sun throws, and what it is meant to read
+ * as is the blown sand this world already carries crossing the beam — the same
+ * wind that runs `desert-blown` over the hardpan, seen where it passes through
+ * a light. Tying the two together is why this is a waver and not a shimmer:
+ * heat haze is a midday effect and the sun here is on the horizon.
+ *
+ * GEOMETRY ONLY, AND THAT IS NOT A STYLE CHOICE. Phase 25 measured this
+ * world's sun at 1.9deg from `--honey` and bought the entire licence for one
+ * warm wash by holding it at 0.38 saturation against honey's 0.98. A pool that
+ * reported by brightening would spend that licence immediately — a warm light
+ * on a board that means `queued` by warmth, pulsing. So the opacity, the
+ * colour and the saturation are all constant, and only the shape of the pool
+ * moves. The rule Phase 25 wrote for drawing this world's sun applies just as
+ * well to animating it: state the light as geometry, never as colour.
+ *
+ * `transform` restates `.fixture`'s own `translate(-50%, -50%)` at both ends,
+ * or the pool would jump to the corner on the first frame — a keyframe
+ * replaces the whole transform.
+ *
+ * 17s, slower than anything else in the world, because a pool of light that
+ * moved at a readable speed would become the thing you were watching. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='desert'] .fixture--daylight {
+    animation: desert-beam 17s ease-in-out infinite alternate;
+  }
+
+  @keyframes desert-beam {
+    from {
+      transform: translate(-50%, -50%) scale(1, 1);
+    }
+    to {
+      transform: translate(-50.8%, -50%) scale(1.04, 0.97);
+    }
+  }
 }

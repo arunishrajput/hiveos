@@ -16,49 +16,35 @@ This overrides anything further down in this file or in any other doc that still
 
 ---
 
-## ▶ The active work: the polish phase
+## ✅ The build plan is finished. Nothing is queued.
 
-**The project is live again as of 2026-09-21, on user decision.** With the hackathon closed, the user is building out the world/theme phases that time ran out on. All eight worlds have now shipped, and **one phase remains. "Start the next phase" means Phase 27.**
+**Phase 27 shipped on 2026-09-22 and it was the last one.** Every phase 0–27 is `COMPLETE`: the
+hackathon set, the nine-world set, and the polish pass that tied them together. **"Start the next
+phase" has nothing to take.** If you are asked to start one, say that plainly instead of
+inventing work — and check the phase board in `PROGRESS.md` first, because it is the record of
+what actually shipped.
 
-**All eight** worlds have shipped — **19 Night Watch**, **20 Enchanted Forest**, **21 Reef
-Station**, **22 Alien Colony**, **23 Cloud City**, **24 Arctic Base**, **25 Desert Outpost** and
-**26 Ancient Ruins** — alongside **Paper Office**, which is the Phase 12 default and is not a
-world phase. **One phase remains: 27**, fully specified in `BUILD_PLAN.md` → *Phases 18–27 — the
-worlds*.
+**Where the project stands.** Nine looks in the picker — Paper Office (the Phase 12 default, not
+a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic
+Base, Desert Outpost, Ancient Ruins. A CSS cross-fade carries the board between any two of them,
+Random World picks one you are not in, the picker is keyboard-correct, and all nine pass a
+36-cell contrast matrix measured on rendered pixels. Paper Office is still the default and still
+byte-for-byte unchanged.
 
-| Order | Phase | What it is | Files |
-|---|---|---|---|
-| 1 | **27** | World polish + Random World | `worlds.js`, `App.jsx`, **every world CSS file** |
+**There is real work available, and all of it needs the user to ask for it first.** Three defects
+this run turned up and deliberately did not fix are recorded under `PROGRESS.md` →
+*Known issues and discoveries*: a **last-agent dismissal race** in the backend (two
+`dismiss_agent` frames can empty a floor — a TOCTOU on a guard that should be a condition
+expression, the same shape PR #7 fixed for the budget ceiling), a **stale `CONN#` row** left by
+the Phase 24 session that keeps `ws_smoke.py` at 109/113, and the **waiting line crowding** at six
+or more queued. None is in any brief. Do not start on any of them uninvited.
 
-Check the phase board in `PROGRESS.md` for live status before assuming; it is the record of what
-actually shipped.
+**If a tenth world is ever wanted**, the route is in `PROGRESS.md` → *The route into a world
+phase*, and the contracts are in `BUILD_PLAN.md` → the `## Phases 18–27` intro: **the recolour
+test** and **the state-legibility contract**, both applied at every gate and neither inferable
+from the code. Read the four findings under each of Phases 19–27 before drawing anything.
 
-**Before starting Phase 27, read in this order:**
-
-1. `BUILD_PLAN.md` → the `## Phases 18–27` intro — the fixed scope, **the recolour test**, and
-   **the state-legibility contract**. Both are applied at every gate and a session will not infer
-   them.
-2. **The four findings under each of Phases 19–26**, same file — every shared-code trap found so
-   far, each with a fix already written in one of the eight world stylesheets to copy rather than
-   rediscover.
-3. The brief for Phase 27 itself, then the shared **Validation** block.
-
-**Phase 27 is different from every phase before it: it is the one allowed to touch shared code
-again, and it is the only one that has to hold all nine looks at once.** Three things from Phase
-26 are addressed to it directly and are the most concrete work it has:
-
-- **Its contrast matrix is 36 cells, and a token table is not the measurement.** Phase 26 passed
-  its eight-surface token table at 4.92:1 worst while two captions were failing on the actual
-  rendered pixels — a wash at 2.39:1, a screen glow at 3.41:1. Hide the text, screenshot, sample
-  every pixel inside each caption's own box, take the worst.
-- **A known base-geometry defect is waiting in all nine worlds.** A busy room's nameplate box
-  overlaps the 2px top border `.room--busy` turns `--cool`, while the label takes `--cool` too —
-  **1.00:1, and Paper Office measures the same.** No world file can fix it; Paper Office is
-  pixel-frozen. It is 27's to decide on.
-- **`--tile-size` is 44px at 540 and 52px at 960.** Every world sizes its shaped light off that
-  token believing it constant; it is constant across the two *narrow* demo framings only.
-
-**The traps that have already cost time, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed — and **check the scenery against all four, not just the one the brief names.** **Paper Office is the default and must stay byte-for-byte unchanged.** A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number — but it usually has to **read** it, because `.worldlayer--ground` is `inset: 0` and will otherwise paint the ground onto the sky. **Size anything shaped on the floor off `--tile-size`, never as a floor percentage** — but know that the token itself is 44px at 540 and 52px at 960, so check both. **On a bright world the whole lighting method inverts — you cannot add light to a white floor, so light is painted as the shadow it casts.** **End every shaped gradient layer in `transparent`** — a `radial-gradient`'s last colour fills its whole box, not just to the radius, and hides every layer under it. **A continuous surface may not tile**; a field of discrete objects may; and a surface can be both at once, so ask which *part* of it is periodic — and a line that crosses the whole floor is never a member of such a field, it is a ruled line, so **a mark that means "edge between two materials" has to be drawn as an edge and not as a stroke**, with its shapes overlapping or the rim reads as a spill. **Every value register a world adds costs a re-pitch of `--dim` and `--faint`** — and a *light* is a register too, not just a surface. **A gradient *angle* is a percentage in disguise** — a directional gradient inside a box whose aspect ratio changes between framings is a different shape at each. **A fixture that sits inside the wall band takes the band's lighting regime, not the world's.** **When the ambient light's own colour collides with a state hue, render the light as geometry — shadow, silhouette, rim — and never as colour.** Frontend only: no backend, no protocol, no schema, no new dependency.
+**The traps that cost time across the ten phases, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed — and **check the scenery against all four, not just the one the brief names.** **Paper Office is the default and must stay byte-for-byte unchanged**; it is also the *control* that tells a world's defect from the floor's, so when the frozen default fails a contrast cell identically, the cell is base geometry. **A contrast number is a claim about the pixels under the glyphs** — not the caption's box, which also contains its own borders and indicator dots, and not a token table, which cannot see a composite. A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number — but it usually has to **read** it, because `.worldlayer--ground` is `inset: 0` and will otherwise paint the ground onto the sky. **Size anything shaped on the floor off `--tile-size`, never as a floor percentage** — but know the token has three values: 44px below 900, 52px from 900, 62px from 1500. **On a bright world the whole lighting method inverts — you cannot add light to a white floor, so light is painted as the shadow it casts.** **End every shaped gradient layer in `transparent`** — a `radial-gradient`'s last colour fills its whole box, not just to the radius, and hides every layer under it. **A continuous surface may not tile**; a field of discrete objects may; and a surface can be both at once, so ask which *part* of it is periodic — and a line that crosses the whole floor is never a member of such a field, it is a ruled line, so **a mark that means "edge between two materials" has to be drawn as an edge and not as a stroke**, with its shapes overlapping or the rim reads as a spill. **Every value register a world adds costs a re-pitch of `--dim` and `--faint`** — and a *light* is a register too, not just a surface. **A gradient *angle* is a percentage in disguise** — a directional gradient inside a box whose aspect ratio changes between framings is a different shape at each. **A fixture that sits inside the wall band takes the band's lighting regime, not the world's.** **When the ambient light's own colour collides with a state hue, render the light as geometry — shadow, silhouette, rim — and never as colour.** A world phase is frontend only: no backend, no protocol, no schema, no new dependency.
 
 ---
 

@@ -531,21 +531,21 @@ there was a submittable deliverable at every point.
 
 ## Phases 18–27 — the worlds *(added 2026-09-20, user decision)*
 
-> ### ▶ These are the active phases as of 2026-09-22
+> ### ✅ This run is finished as of 2026-09-22
 >
-> The hackathon is over and submitted. **All eight worlds have shipped — 19 Night Watch, 20
-> Enchanted Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City, 24 Arctic Base, 25 Desert
-> Outpost and 26 Ancient Ruins** (Paper Office is the Phase 12 default, not a world phase).
+> The hackathon is over and submitted. **All ten phases have shipped** — 18 the foundation, 19
+> Night Watch, 20 Enchanted Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City, 24 Arctic
+> Base, 25 Desert Outpost, 26 Ancient Ruins and **27 the polish pass** (Paper Office is the
+> Phase 12 default, not a world phase).
 >
-> **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
-> **27, and it is the only one left.**
+> **There is no next phase here.** "Start the next phase" has nothing left to take in this
+> section; `PROGRESS.md`'s phase board is the live record and should be read before assuming
+> otherwise.
 >
-> 19–26 depended on 18 and on nothing else. **27 is genuinely last** — it depends on whichever
-> worlds actually shipped, and all eight did.
-> `PROGRESS.md`'s phase board is the live record of what is done; check it rather than assuming.
->
-> **No deadline applies any more. The gates are unchanged** — the recolour test, the
-> state-legibility contract and the shared Validation block still decide whether a phase is done.
+> **The gates that decided every one of them** — the recolour test, the state-legibility
+> contract and the shared Validation block — still apply to anything added later, and Phase 27's
+> finding 1 is now part of how the contract is measured: a contrast number is about the pixels
+> under the glyphs, and a token table is a floor rather than a measurement.
 
 **One board, many worlds.** HiveOS renders exactly one look — the paper office Phase 12 painted
 and Phase 17 put a shell around. These phases make the look pluggable: a picker in the title bar
@@ -1606,6 +1606,62 @@ pawn is walking and while a handoff is crossing, and confirm neither breaks.
 
 **Gate.** All nine worlds pass the contrast matrix, switching is smooth from any world to any
 other at any moment, and Paper Office is still the default.
+
+**Shipped 2026-09-22. Four things the plan got wrong, corrected in flight. There is no world
+after this one, so these are findings for whoever picks the project up rather than for a phase:**
+
+1. **THE CONTRACT SAYS "MEASURED, NOT EYEBALLED", AND THE MEASUREMENT ITSELF HAS TO BE DESIGNED —
+   THE FIRST TWO ATTEMPTS BOTH REPORTED 1.00:1 IN ALL NINE WORLDS.** Phase 26's method reads
+   "hide the text, screenshot, sample every pixel inside each caption's own box, take the worst",
+   and taken literally that is wrong in three ways at once. A caption's box contains things that
+   are not behind its glyphs: `.lamp--open` encloses a dot painted in `--safe`, so the lamp
+   measured 1.00:1 against itself; `.btn--danger` encloses its own `--alarm` border; and two
+   captions that overlap each measure the other's text. The fix is to stop guessing which pixels
+   are background and compute it. Photograph the same frame three times — every state-hue caption
+   forced white, forced black, forced transparent — and glyph coverage per pixel is
+   `(white − black) / 255` while the background is the transparent shot, text-shadow included.
+   Sample only the pixels over the stroke core. **A contrast number is a claim about the pixels
+   under the glyphs, and nothing else in the box is evidence for it.**
+2. **A STATE CAPTION CAN ONLY STAND WHERE THE SCHEDULER PUTS IT, AND SAMPLING A GRID OF THE FLOOR
+   INSTEAD MEASURES POSITIONS THE PRODUCT CANNOT PRODUCE.** The first rig walked probe pawns over
+   a 14-point grid on the reasonable-sounding grounds that the floor is freely walkable. It is —
+   but a freely-walked pawn reads `idle`, which is `--faint` and not a state hue at all.
+   `components.jsx` parks a *busy* person at `deskX + VISITOR_DX, deskY + seatDrop` and a *queued*
+   one on a numbered waiting spot, and those are the only places `working` and `queued #N` ever
+   appear. Four spots and five, not a grid. **Read the layout constants and measure where the
+   caption can actually be**; anywhere else is a number about a screenshot rather than about the
+   product.
+3. **PAPER OFFICE IS THE CONTROL, AND THAT IS WHAT SEPARATES A WORLD'S DEFECT FROM THE FLOOR'S.**
+   Four cells failed in every world at once, Paper Office included and worst of all — the overflow
+   waiting row's `queued #6` caption sits on the head of the pawn standing at `queued #1`, at
+   **1.00:1 on Paper Office** against 1.08–1.98 in the eight worlds. No re-tune can fix that,
+   because it is not a colour: with row one empty the same captions measure 4.68–8.63. A world is
+   pixel-frozen for exactly this reason — it is the one look in the set that cannot have caused
+   anything — so **if the frozen default fails a cell identically, the cell is base geometry and
+   the matrix is measuring the floor rather than the world.**
+4. **THE ONE REAL DEFECT HAD THREE MOVING PARTS AND ONLY THE THIRD COULD MOVE.** Phase 26 handed
+   this phase the busy nameplate straddling the `--cool` border `.room--busy` paints, and the two
+   obvious fixes are both closed: the colours may not move, because both carry the busy state and
+   a world may never reassign what a colour means; and the geometry may not move, because the
+   overflow is the narrow layout's and Paper Office is frozen at that framing. What was left was
+   the ground *under* the glyph. Paper Office's halo is a wash of `--floor` and a plate of it is
+   the same colour with more layers — `--halo-plate`/`--halo-state`, hoisted to tokens on bare
+   `:root` at Paper Office's exact values and thickened in each world's own block. It takes the
+   `--cool` cell from 2.84–4.38:1 to 6.22–9.14:1 across the eight worlds and leaves the default
+   byte-identical. **When two of the three things in a contrast failure are load-bearing, the
+   third one is the fix, and the third one is usually the background.**
+
+**Three notes that are not corrections.** The cross-fade is a **veil**, not two boards blended:
+the only true cross-fade would mean rendering the floor twice and dissolving between the copies,
+and nine worlds are each dominated by one ground colour, so fading through `--cream` is the same
+perceptual path without the ghosting of two floors overlaid. The veil's own `background-color`
+tweens from the old world's ground to the new one's while it is opaque, which is three fades in
+one element. Second: **the fade and the swap have to be deliberately out of step.** Run at the
+same 200ms the veil measured **0.99974** opaque on the frame the attribute changed — a hairline,
+not a margin — so the opacity transition is 40ms shorter than the half-period and the swap
+happens inside an opaque hold. Third: **`--tile-size` has three values, not two.** Phase 26 found
+44px at 540 and 52px at 960; the sweep adds **62px at 1500 and above**, and the 900 cliff is
+where 44 becomes 52. A world sizing shaped light off the token is drawing three different shapes.
 
 ---
 
