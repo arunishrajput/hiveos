@@ -15,10 +15,10 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Three real defects this run turned up and did **not** fix are open under *Known issues and discoveries*, and acting on any of them needs the user to ask |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 27 `COMPLETE` — deployed and verified 2026-09-22. **Nine looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins — the board wears any of them, and a cross-fade carries it between any two. Gates after Phase 27: `pytest` **112/112** · `ws_smoke.py` **109/113**, unchanged from its recorded score, the four failures the documented CONN# false positive and *proved* false again by scanning DynamoDB immediately after (the only two `CONN#` rows in the table were the suite's own `TEAM#alpha`/`dana` fixture and a stale row from the Phase 24 session) · **the full 36-cell contrast matrix measured on rendered pixels at both demo framings — all eight worlds ≥ 5.54:1 worst, against 10 failing cells before the phase** · a **45-cell responsive sweep** with zero overflow and zero console output · every animation gone under `prefers-reduced-motion` in all nine worlds · and Paper Office proven unchanged by a **150-element, 81,951-computed-field** diff against a built HEAD with **zero deltas**. |
+| **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Of the three defects Phase 27 recorded and did not fix, the **last-agent dismissal race is fixed and deployed (2026-09-23)**; the other two stay open under *Known issues and discoveries*, and acting on either needs the user to ask |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 27 `COMPLETE` — deployed and verified 2026-09-22. **Nine looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins — the board wears any of them, and a cross-fade carries it between any two. Gates after Phase 27: `pytest` **127/127** (112 at the time; +15 with the dismissal-race fix of 2026-09-23) · `ws_smoke.py` **109/113**, unchanged from its recorded score, the four failures the documented CONN# false positive and *proved* false again by scanning DynamoDB immediately after (the only two `CONN#` rows in the table were the suite's own `TEAM#alpha`/`dana` fixture and a stale row from the Phase 24 session) · **the full 36-cell contrast matrix measured on rendered pixels at both demo framings — all eight worlds ≥ 5.54:1 worst, against 10 failing cells before the phase** · a **45-cell responsive sweep** with zero overflow and zero console output · every animation gone under `prefers-reduced-motion` in all nine worlds · and Paper Office proven unchanged by a **150-element, 81,951-computed-field** diff against a built HEAD with **zero deltas**. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 42, 2026-09-22**: the Phase 27 polish build *plus* the handoff-inspector fix `5473dfa`, which job 41 predated by 35 minutes and therefore never carried. **`main`, the stack and the deployed frontend are all in step** — verified by hash, not by timestamp. The last backend change is **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 42, 2026-09-22**: the Phase 27 polish build *plus* the handoff-inspector fix `5473dfa`, which job 41 predated by 35 minutes and therefore never carried. **`main`, the stack and the deployed frontend are all in step** — verified by hash, not by timestamp. The last backend change is the **last-agent dismissal fix, deployed 2026-09-23** (router `CodeSha256 qsMjHT0Dcex47tf2ocFJSvL/RUUDKTpymP+nMJewP1s=`), which added a `TransactWriteItems` to `state.fire_agent` and one scoped `dynamodb:TransactWriteItems` statement to the router role. Before it, **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -3104,22 +3104,63 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
   step that has to be remembered, and a session that verifies deployment state by reading
   `PROGRESS.md` will get it wrong.
 
-- **⚠ OPEN — the last-agent guard is not atomic, so a floor can be emptied of every agent.**
-  Found by `ws_smoke.py` on 2026-09-22, during Phase 27's frontend-only gate run. Check 26 sends
-  two `dismiss_agent` frames back to back — `coder` then `researcher` — and expects the second to
-  be refused with "at least one agent". On one of three runs **both succeeded** and the harness
-  aborted: `alice: timed out waiting for 'error'; saw [agent_dismissed researcher,
-  agent_dismissed coder]`. The other two runs passed it, so it is a race rather than a
-  regression: each invocation reads the roster, sees two agents, and deletes — neither sees the
-  other's write. Classic TOCTOU on a guard that has to be a condition expression on the write
-  rather than a read followed by a write, which is exactly the shape PR #7 fixed for the budget
-  ceiling. **Not caused by and not fixable within Phase 27** — the world phases are frontend-only
-  by their brief and this phase touched no backend file. Recorded rather than fixed; it needs a
-  backend change and the user's say-so. Consequence if it fires in front of anyone: an empty
-  floor, which `ensure_team` repopulates on the next `$connect`, so it is recoverable rather than
-  destructive.
-- **⚠ OPEN — a stale `CONN#` row from the Phase 24 session is still in the table, and it is what
-  keeps `ws_smoke.py` at 109/113.** `TEAM#p24arctic` / `CONN#gbRBow8DXQAYKEiVrA==` / `claude`.
+- **✅ FIXED 2026-09-23 — the last-agent guard is atomic now, and a floor cannot be emptied.**
+  Found by `ws_smoke.py` on 2026-09-22: check 26 sends two `dismiss_agent` frames back to back —
+  `coder` then `researcher` — and expects the second to be refused. On one run in three **both
+  succeeded** and the harness aborted with `saw [agent_dismissed researcher, agent_dismissed
+  coder]`. A TOCTOU: each invocation read the roster, saw two desks, and deleted; neither saw the
+  other's write. Same shape PR #7 fixed for the budget ceiling.
+
+  **The correction is the same one: the rule moved into the write.** `len(roster(team)) <= 1` is
+  gone. `state.fire_agent` now deletes the desk with a **`TransactWriteItems`** carrying two
+  conditions evaluated at one serialization point — the target still exists and is not `BUSY`,
+  and a *witness* desk still exists. "Never the last desk" is a claim about **other rows**, which
+  no single-item condition expression can reach, so the condition names one of those rows and the
+  transaction makes the pair atomic. After any transaction that commits a desk remains, because
+  the witness was there when it committed and that transaction did not remove it. Folding `BUSY`
+  into the same write closed a second, smaller race for free. On a larger floor two dismissals of
+  *different* desks are both legal; the loser of that collision retries against a fresh roster
+  rather than being refused, which is what `FIRE_ATTEMPTS` and the jittered backoff are for.
+
+  **`dynamodb:TransactWriteItems` had to be granted explicitly.** SAM's managed
+  `DynamoDBCrudPolicy` grants the item actions a transaction is built from — `ConditionCheckItem`
+  included — but `aws iam simulate-principal-policy` reported the transaction action itself as
+  `implicitDeny` against the router role. One scoped statement in `template.yaml`; it now
+  simulates `allowed`.
+
+  **Verified where it matters: on the deployed stack.** 22 rounds of the real race over two
+  deploys — two `dismiss_agent` frames back to back on a fresh two-desk workspace each time —
+  **22/22 left exactly one desk standing**, with exactly one `agent_dismissed`, exactly one
+  refusal reading *a floor needs at least one agent*, and the survivor alternating between the
+  two desks run to run. `ws_smoke.py` **109/113**, its recorded score, check 26 included; the
+  four failures are the documented `CONN#` false positive, and the post-run scan found only the
+  suite's own `TEAM#alpha`/`dana` fixture rows. `pytest` **127/127**, up from 112: 15 new cases
+  in `tests/test_last_agent_dismissal_race.py`.
+
+  *Two lessons, both paid for in this run.* **First: a unit test can agree with the code and both
+  be wrong about the service.** The first deployed version passed wire-format `{"S": ...}` keys
+  to `table().meta.client` — which is the *resource's* client and carries the document
+  serializer, so every key was serialized twice. Every dismissal on the deployed stack was
+  cancelled with `ValidationError: The provided key element does not match the schema`, while all
+  15 unit tests passed against a fake written to expect the same broken shape. Only the live
+  gate caught it. The fake now asserts the format that was measured against real DynamoDB, and
+  fails loudly on the wire-format shape. **Second: diagnose from logs, not from plausibility.**
+  The live symptom — both frames refused, nothing dismissed — was first read as a retry livelock
+  and "fixed" with a backoff that changed nothing, because the actual cause was the serialization
+  bug above. One `filter-log-events` call said `ValidationError` outright. The backoff stayed
+  only because a later, honest measurement found a genuine `TransactionConflict` cancelling
+  **both** transactions on one round in twelve — so it earns its place on evidence rather than on
+  the guess that introduced it.
+
+- **⚠ OPEN (narrowed 2026-09-23) — `ws_smoke.py` sits at 109/113 on a whole-table `CONN#` scan.**
+  **The Phase 24 row named below is gone** — a scan taken straight after this run found only
+  `TEAM#alpha`/`dana`, the suite's own fixture racing its disconnect cleanup, so nothing is left
+  to delete and the decision recorded below is moot. What remains is the check's design, which is
+  the real reason for the four failures: it scans the whole table rather than the team under test,
+  so any row from any browser or any concurrent run fails all four. Kept open as that, not as a
+  stray row. The original entry follows.
+
+  ~~A stale `CONN#` row from the Phase 24 session is still in the table.~~ `TEAM#p24arctic` / `CONN#gbRBow8DXQAYKEiVrA==` / `claude`.
   The four "no `CONN#` rows leak" checks scan the whole table, not the team under test, so any
   row left by any browser fails all four of them — which is precisely the "documented false
   positive" every phase note since Phase 19 has been carrying. Two rows exist today: this one and

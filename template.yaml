@@ -136,6 +136,18 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref StateTable
+        # `dismiss_agent` enforces "never the last desk" with a
+        # TransactWriteItems — the rule is about *other* rows, so no
+        # single-item condition can reach it (state.fire_agent). The managed
+        # DynamoDBCrudPolicy grants the item actions the transaction is built
+        # from, ConditionCheckItem included, but not the transaction itself:
+        # `aws iam simulate-principal-policy` reports dynamodb:TransactWriteItems
+        # as implicitDeny against this role. Granted explicitly rather than
+        # left to depend on which of the two authorization models applies.
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:TransactWriteItems
+              Resource: !GetAtt StateTable.Arn
         - SQSSendMessagePolicy:
             QueueName: !GetAtt TaskQueue.QueueName
         # Without this every post_to_connection fails 403 AccessDeniedException.

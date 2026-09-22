@@ -153,6 +153,25 @@ holding a desk that no longer exists, and its release would write the row back
 as a nameless ghost), and never the last desk (a floor with no desks accepts
 tasks it can never dispatch).
 
+**Both rules are enforced by the write, not by a read that precedes it.**
+`state.fire_agent` deletes the desk with a `TransactWriteItems` that carries
+two conditions evaluated at one serialization point: the target still exists
+and is not `BUSY`, and some *other* desk — the witness — still exists. The
+last-desk rule is a statement about rows other than the one being written, so
+no single-item condition expression can reach it; naming a witness row is what
+makes it expressible. After any transaction that commits, a desk remains,
+because the witness was there when it committed and the transaction did not
+remove it.
+
+Two frames that would between them empty a floor of two necessarily name each
+other as witness, so DynamoDB serializes them and the loser is refused with
+`a floor needs at least one agent`. Two frames dismissing different desks on a
+larger floor are both legal; the loser of that collision retries against a
+fresh roster rather than being refused. A dismissal that loses its witness
+three times in a row gives up with `the floor changed while that desk was
+being dismissed — try again`, which is a "retry", never a "that was refused":
+the floor is intact and unchanged when it is returned.
+
 **A dismissal is permanent**, including for the two seeded desks — see *The
 starting roster* above for the bootstrap rule that makes that true.
 
@@ -493,7 +512,7 @@ Both are optional. A missing `user_id` becomes `guest-<first 6 chars of connecti
 | `send_message` | `{text}` | Broadcast to team chat as `chat_message` |
 | `move_avatar` | `{x, y}` | Update `CONN#` row, broadcast `avatar_moved` |
 | `spawn_agent` | `{name, role, tagline, persona, character, project}` | Hire a desk onto this floor. **Any member may** — see *Hiring is not an admin action*. Every field is truncated server-side; refused with an error once the floor holds `MAX_AGENTS`. Broadcasts `agent_spawned` |
-| `dismiss_agent` | `{agent_type}` | Take a desk off the floor. Refused while it is `BUSY`, and refused for the last desk. Broadcasts `agent_dismissed` |
+| `dismiss_agent` | `{agent_type}` | Take a desk off the floor. Refused while it is `BUSY`, and refused for the last desk — both **atomically**, see *The agent roster*. Broadcasts `agent_dismissed` |
 
 **`action` must be a string.** A frame without one — or carrying a number, a
 list or `null` — is answered `error: "frame must carry a string action"`. It

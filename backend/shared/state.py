@@ -8,9 +8,11 @@ Query away — which is exactly what `state_snapshot` needs.
 import hashlib
 import hmac
 import json
+import random
 import secrets
 import os
 import re
+import time
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -907,6 +909,135 @@ def hire_agent(team, fields):
     return item
 
 
+# How many times a dismissal re-picks its witness before giving up. A retry
+# only happens when *another* dismissal landed between this one's roster read
+# and its write, so each attempt needs a fresh roster. The bound is what stops
+# a pathological interleaving from holding a Lambda open.
+FIRE_ATTEMPTS = 4
+
+# Base for the backoff between those attempts, in seconds, and it is *jittered*
+# rather than fixed. Two dismissals racing on a floor of two name each other as
+# witness, so their transactions overlap on both rows, and DynamoDB does not
+# always let one of them through: measured against the live stack it cancelled
+# **both** with `TransactionConflict` on one round in twelve. Retrying after an
+# identical delay would just reproduce that, so each attempt waits a uniform
+# draw from a widening window — full jitter, which is what breaks the symmetry.
+# The uncontended path never sleeps at all.
+FIRE_BACKOFF_SECONDS = 0.05
+
+# What `_fire_witnessed` saw. Named rather than boolean because the caller does
+# something different with each, and "False" would collapse three distinct
+# reasons — one of which is retryable and two of which are not.
+FIRED = "fired"
+TARGET_GONE = "target"
+WITNESS_GONE = "witness"
+CONFLICT = "conflict"
+
+
+def _other_desk(team, slot_id):
+    """Some desk on the floor that is not this one, or None if there is none.
+
+    The *witness* for a dismissal: the desk whose continued existence is what
+    makes removing `slot_id` safe. Roster order, so the choice is deterministic
+    and two dismissals of different desks usually pick the same witness and
+    therefore do not collide with each other.
+    """
+    for desk in roster(team):
+        other = desk.get("slot_id")
+        if other and other != slot_id:
+            return other
+    return None
+
+
+def _fire_witnessed(team, slot_id, witness):
+    """Delete one desk, but only while another one is still there.
+
+    One `TransactWriteItems`, so DynamoDB evaluates both halves at a single
+    serialization point:
+
+    * **Delete** the target, on condition it still exists and is not `BUSY`.
+    * **ConditionCheck** the witness, on condition it still exists.
+
+    The second half is the whole fix. "Never the last desk" is a statement
+    about *other rows*, which no single-item condition expression can reach —
+    so the condition names one of those rows explicitly and the transaction
+    makes the pair atomic. After any transaction that commits, at least one
+    desk remains: the witness existed at the serialization point and this
+    transaction did not delete it. Two dismissals that would between them empty
+    a floor of two necessarily name each other as witness, so their
+    transactions overlap: usually one commits and the other's check fails
+    against a row the winner has already removed, and sometimes DynamoDB
+    cancels both as a `TransactionConflict` — which is a retry, not an answer,
+    and is what `FIRE_BACKOFF_SECONDS` is for.
+
+    Folding the `BUSY` test into the same write closes the smaller race for
+    free: a desk that goes `BUSY` between the read above and this write is no
+    longer dismissed out from under its runner.
+    """
+    handle = table()
+    # `handle.meta.client` is the *resource's* client, so it carries the
+    # document-type serializer: keys and values go in as plain Python and come
+    # back the same way, exactly as `put_item` and `delete_item` take them
+    # elsewhere in this module. Handing it wire-format `{"S": ...}` instead
+    # serializes twice and every transaction is cancelled with
+    # `ValidationError: The provided key element does not match the schema` —
+    # which is what the first deployed version of this fix did, on every
+    # dismissal, while the unit tests went on passing against a fake that had
+    # been written to agree with it.
+    try:
+        handle.meta.client.transact_write_items(
+            TransactItems=[
+                {
+                    "Delete": {
+                        "TableName": handle.name,
+                        "Key": {"PK": team_pk(team), "SK": f"AGENT#{slot_id}"},
+                        # `attribute_not_exists(#status)` because a row written
+                        # before the roster became data carries the runtime
+                        # fields only, and DynamoDB evaluates `<>` against a
+                        # missing attribute as false — which would refuse to
+                        # dismiss exactly those desks.
+                        "ConditionExpression": (
+                            "attribute_exists(PK) AND "
+                            "(attribute_not_exists(#status) OR #status <> :busy)"
+                        ),
+                        "ExpressionAttributeNames": {"#status": "status"},
+                        "ExpressionAttributeValues": {":busy": "BUSY"},
+                    }
+                },
+                {
+                    "ConditionCheck": {
+                        "TableName": handle.name,
+                        "Key": {"PK": team_pk(team), "SK": f"AGENT#{witness}"},
+                        "ConditionExpression": "attribute_exists(PK)",
+                    }
+                },
+            ]
+        )
+    except ClientError as exc:
+        # Only a cancelled transaction is an answer. Throttling and every other
+        # failure must raise, for the reason `reserve_budget` spells out: a
+        # refusal invented out of an infrastructure error tells a room a rule
+        # stopped it when nothing did.
+        if exc.response["Error"]["Code"] != "TransactionCanceledException":
+            raise
+        # `CancellationReasons` is positional — one entry per item, in the
+        # order they were sent — so which half lost is readable off the index.
+        codes = [
+            reason.get("Code")
+            for reason in (exc.response.get("CancellationReasons") or [])
+        ]
+        if codes[:1] == ["ConditionalCheckFailed"]:
+            return TARGET_GONE
+        if codes[1:2] == ["ConditionalCheckFailed"]:
+            return WITNESS_GONE
+        # Printed because the difference between "somebody beat me to it" and
+        # "DynamoDB cancelled us both" is invisible from the outside and is
+        # exactly what had to be worked out from table state the first time.
+        print(f"[state] dismissal transaction cancelled: {codes}")
+        return CONFLICT
+    return FIRED
+
+
 def fire_agent(team, slot_id):
     """Take a desk off the floor. Returns the reason it could not, or None.
 
@@ -918,18 +1049,51 @@ def fire_agent(team, slot_id):
     * **Never the last one.** A floor with no desks accepts tasks it can never
       dispatch — every claim fails, everything queues, and nothing ever frees a
       slot to drain it.
+
+    Neither rule is decided by the reads below. They are decided by the write,
+    in `_fire_witnessed`, and the reads exist only to choose a witness and to
+    word the refusal. `len(roster(team)) <= 1` used to be the guard, and it was
+    a TOCTOU: two `dismiss_agent` frames arriving together each read a roster of
+    two, each saw one to spare, and each deleted — emptying a floor that both
+    invocations believed they were leaving occupied. `ws_smoke.py` caught it on
+    one run in three. Same shape as the budget ceiling before PR #7, and the
+    same correction: the rule has to be part of the write.
     """
     row = agent_row(team, slot_id)
     if not row:
         return "no such desk"
     if row.get("status") == "BUSY":
         return "that desk is working — halt it first"
-    if len(roster(team)) <= 1:
-        return "a floor needs at least one agent"
 
-    table().delete_item(Key={"PK": team_pk(team), "SK": f"AGENT#{slot_id}"})
-    print(f"[state] fired slot={slot_id} from {clean_team(team)}")
-    return None
+    for attempt in range(FIRE_ATTEMPTS):
+        witness = _other_desk(team, slot_id)
+        if witness is None:
+            return "a floor needs at least one agent"
+
+        outcome = _fire_witnessed(team, slot_id, witness)
+        if outcome == FIRED:
+            print(f"[state] fired slot={slot_id} from {clean_team(team)}")
+            return None
+        if outcome == TARGET_GONE:
+            # Somebody else got to this desk, or it started working, between
+            # the read above and the write. Re-read to say which.
+            row = agent_row(team, slot_id)
+            if not row:
+                return "no such desk"
+            return "that desk is working — halt it first"
+        if outcome == CONFLICT:
+            # Both transactions were cancelled, so both sides are about to
+            # retry. Sleep a random slice of a widening window so they do not
+            # retry together a second time.
+            time.sleep(random.uniform(0, FIRE_BACKOFF_SECONDS * (2 ** attempt)))
+        # WITNESS_GONE needs no wait: somebody committed, so the fresh roster
+        # read at the top of the loop already has the answer.
+
+    # Only reachable if dismissals kept landing throughout. Say what is true
+    # now rather than guessing which rule applies.
+    if _other_desk(team, slot_id) is None:
+        return "a floor needs at least one agent"
+    return "the floor changed while that desk was being dismissed — try again"
 
 
 # `slot_holder` was here and is now `agent_row` above.
