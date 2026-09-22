@@ -941,25 +941,104 @@ function roomsFrom(agents) {
  * and the front of the queue is dispatched, the walk from the waiting spot to
  * the desk crosses the room in full view. That walk is the scheduler, visible.
  */
-/* WAIT_X0 is 38 rather than the area's own left edge because the first spot at
- * 30 put somebody 5px under the "WAITING AREA" caption, and the two read as one
- * smudge at recording size. Measured against the rendered boxes at 640px, not
- * eyeballed. The caption then moved to the top *right* — the far end of the
- * line — which is the half of the fix that holds at every floor width; see
- * `.waiting__label` in styles.css. */
-const WAIT_X0 = 38
-const WAIT_DX = 9
+/* The line is one row, and it grows by tightening rather than by wrapping.
+ *
+ * It used to wrap: `WAIT_PER_ROW` 5, with `WAIT_DY` −12 stacking the overflow
+ * upward. That could not work at any framing, which measuring the rendered
+ * boxes made plain. At the 540 demo framing the floor is 516×260 and a pawn —
+ * sprite, name, state caption — is **75px tall, 29% of the floor**. The
+ * waiting rug is 32% tall. One row fills it. The second row landed 30px above
+ * the first, so the sixth person's `queued #6` sat across the first person's
+ * head: **1.00:1 on Paper Office**, occlusion rather than colour. And there
+ * was nowhere for a real second row to go — clearing a 29%-tall pawn would put
+ * it at 51–65%, and the rooms end at 61.6%.
+ *
+ * So: no second row, and the line tightens as it grows.
+ *
+ * **The spacing is in pixels, and that is the whole point.** Everything that
+ * can collide here is a fixed pixel size: the sprite is `9 * --px-n` px wide,
+ * and both captions are 9px type. None of it tracks the floor, which is
+ * **366px wide on a 390 phone, 516px at the 540 framing, and 995px at 1440**
+ * — while the caption stays 53px at every one of them and the sprite grows
+ * only 36px → 45px. A pitch expressed as a percentage of that box is
+ * therefore a different clearance at each width: the old 9% was 46px at 540,
+ * under the 53px `queued #N` it had to clear — captions overlapped from
+ * *three* queued there, well before the row ever wrapped — and a roomy 90px
+ * at 1440. Percentages are right for the room plan, which is a composition;
+ * they are wrong for clearances between glyphs, which are not.
+ *
+ * Past the point where `queued #N` no longer fits, the caption goes compact —
+ * `#6` — rather than the line wrapping. `waitLayout` decides the pitch and the
+ * caption together, from the same measurement, so the copy can never be wider
+ * than the space allotted to it. The word `queued` is what the compact form
+ * gives up; it is still spelled out on the member bar, and the ochre and the
+ * rug both still say waiting.
+ */
+/* Floor percent — the line's preferred width, centred on WAIT_MID. 28%–72%,
+ * inside the rug's 21%–79% with room for the end captions to hang over. */
+const WAIT_SPAN = 44
+const WAIT_MID = 50
 const WAIT_Y0 = 80
-const WAIT_PER_ROW = 5
-/* Overflow rows stack *upward*, towards the rooms. Downward would put the
- * sixth person's name label through the bottom edge of the floor. */
-const WAIT_DY = -12
+/* How much of the floor's own width the person at each end of the line keeps
+ * clear, in pixels — half the widest thing a pawn draws, plus air. The line
+ * stops widening here and starts overlapping instead, which is the milder of
+ * the two failures: a crowded line is still legible, a person drawn past the
+ * edge of the floor box is clipped.
+ *
+ * In pixels and not a percentage of the span for the reason the whole of this
+ * section is: a pawn is the same size on a 358px floor as on a 928px one, so
+ * a percentage margin is a different clearance at each. A 92% span looked
+ * right and put two people off the left edge of a 390px phone at ten queued —
+ * their *centres* were inside the floor and their sprites were not. */
+const WAIT_EDGE_PX = 32
 
-function waitSpot(position) {
+/* Pixels, measured on the rendered boxes at both demo framings.
+ * `queued #12` is 53px; `#12` is 20px; the sprite is 36px at `--px-n` 4 and
+ * grows with it. `WAIT_GAP_PX` is the air between two of them. */
+const WAIT_CAPTION_PX = 53
+const WAIT_COMPACT_PX = 20
+const WAIT_GAP_PX = 5
+
+/* The sprite's rendered width. `--px-n` is the one number that scales the
+ * character (see `.sprite` in styles.css, which sizes it `9 * --px-n`), so
+ * reading it is how this stays true when a wider layout grows the cast. */
+function spriteWidth(el) {
+  const n = Number(getComputedStyle(el).getPropertyValue('--px-n')) || 4
+  return 9 * n
+}
+
+/* How far apart the waiting spots stand, and whether the long caption fits.
+ *
+ * Returns pixels. One function for both answers on purpose: the caption's
+ * length is a function of the space, so deciding them apart is how they would
+ * come to disagree.
+ */
+function waitLayout(total, floorWidth, sprite) {
+  const longPitch = WAIT_CAPTION_PX + WAIT_GAP_PX
+  const compactPitch = Math.max(sprite, WAIT_COMPACT_PX) + WAIT_GAP_PX
+  if (total <= 1 || !floorWidth) return { pitch: longPitch, compact: false }
+
+  // What the preferred span would give this many people, and what the hard
+  // span would — the second only matters once the first is already too tight.
+  const wanted = (floorWidth * (WAIT_SPAN / 100)) / (total - 1)
+  const mostItMaySpread =
+    Math.max(0, floorWidth - WAIT_EDGE_PX * 2) / (total - 1)
+
+  const pitch = Math.max(
+    Math.min(longPitch, wanted),
+    Math.min(compactPitch, mostItMaySpread),
+  )
+  return { pitch, compact: pitch < longPitch }
+}
+
+/* One spot on the line, as a floor percentage — because that is the
+ * coordinate space every pawn is positioned in and the walk animates through.
+ * The pitch that produced it was pixels; this is the last step. */
+function waitSpot(position, total, pitch, floorWidth) {
   const i = Math.max(0, position - 1)
-  const row = Math.floor(i / WAIT_PER_ROW)
-  const col = i % WAIT_PER_ROW
-  return { x: WAIT_X0 + col * WAIT_DX, y: WAIT_Y0 + row * WAIT_DY }
+  if (!floorWidth) return { x: WAIT_MID, y: WAIT_Y0 }
+  const fromCentre = i - (Math.max(1, total) - 1) / 2
+  return { x: WAIT_MID + ((fromCentre * pitch) / floorWidth) * 100, y: WAIT_Y0 }
 }
 
 /* `HOT_DESKS` was here, and is now `OPEN_DESKS` above.
@@ -1096,6 +1175,27 @@ export function CanvasPanel({
   const rooms = roomsFrom(agents)
   const queuedBy = new Map(queue.map((entry) => [entry.user_id, entry.queue_position]))
 
+  /* The waiting line is spaced in pixels (see `waitLayout`), so it needs the
+   * floor's real width rather than its percentage one. Observed rather than
+   * read once: the floor is fluid — 366px on a phone, 995px at 1440 — and it
+   * resizes without this component remounting. */
+  const floorRef = useRef(null)
+  const [floorBox, setFloorBox] = useState({ width: 0, sprite: 36 })
+  useEffect(() => {
+    const el = floorRef.current
+    if (!el) return undefined
+    const read = () =>
+      setFloorBox({ width: el.getBoundingClientRect().width, sprite: spriteWidth(el) })
+    read()
+    if (typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(read)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const line = waitLayout(queue.length, floorBox.width, floorBox.sprite)
+  const compactQueue = line.compact
+
   /* The envelope, if one is in flight. Resolved against the *room plan* rather
    * than the agent list, so a handoff naming a desk this floor does not draw —
    * a third agent with no room yet — simply shows nothing instead of flying an
@@ -1135,7 +1235,9 @@ export function CanvasPanel({
   const placed = members.map((member, index) => {
     const desk = seatOf.get(member.user_id)
     const position = desk ? null : queuedBy.get(member.user_id)
-    const waiting = position ? waitSpot(position) : null
+    const waiting = position
+      ? waitSpot(position, queue.length, line.pitch, floorBox.width)
+      : null
     return {
       id: member.user_id,
       member,
@@ -1193,6 +1295,7 @@ export function CanvasPanel({
       </div>
 
       <div
+        ref={floorRef}
         className={`floor ${interactive ? '' : 'floor--still'}`}
         onClick={interactive ? move : undefined}
         onKeyDown={interactive ? nudge : undefined}
@@ -1353,6 +1456,8 @@ export function CanvasPanel({
           const mine = id === me
           const busy = busyUsers.has(id)
           const position = queuedBy.get(id)
+          // Compact past the pitch the long form needs — see `waitSpot`.
+          const compact = compactQueue && Boolean(position)
           const isWalking = walking.has(id)
           const look = lookFor(member.avatar, id, world)
           // Standing, not seated — the chair belongs to the agent. A visitor
@@ -1385,7 +1490,13 @@ export function CanvasPanel({
                 {mine ? 'you' : id}
               </span>
               <span className="pawn__state">
-                {busy ? 'working' : position ? `queued #${position}` : 'idle'}
+                {busy
+                  ? 'working'
+                  : position
+                    ? compact
+                      ? `#${position}`
+                      : `queued #${position}`
+                    : 'idle'}
               </span>
             </div>
           )

@@ -15,10 +15,10 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Of the three defects Phase 27 recorded and did not fix, the **last-agent dismissal race is fixed and deployed (2026-09-23)**; the other two stay open under *Known issues and discoveries*, and acting on either needs the user to ask |
+| **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Of the three defects Phase 27 recorded and did not fix, **two are now fixed and deployed (2026-09-23)** — the last-agent dismissal race and the waiting-line crowding. The third, the whole-table `CONN#` scan that holds `ws_smoke.py` at 109/113, stays open under *Known issues and discoveries* |
 | **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 27 `COMPLETE` — deployed and verified 2026-09-22. **Nine looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins — the board wears any of them, and a cross-fade carries it between any two. Gates after Phase 27: `pytest` **127/127** (112 at the time; +15 with the dismissal-race fix of 2026-09-23) · `ws_smoke.py` **109/113**, unchanged from its recorded score, the four failures the documented CONN# false positive and *proved* false again by scanning DynamoDB immediately after (the only two `CONN#` rows in the table were the suite's own `TEAM#alpha`/`dana` fixture and a stale row from the Phase 24 session) · **the full 36-cell contrast matrix measured on rendered pixels at both demo framings — all eight worlds ≥ 5.54:1 worst, against 10 failing cells before the phase** · a **45-cell responsive sweep** with zero overflow and zero console output · every animation gone under `prefers-reduced-motion` in all nine worlds · and Paper Office proven unchanged by a **150-element, 81,951-computed-field** diff against a built HEAD with **zero deltas**. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 42, 2026-09-22**: the Phase 27 polish build *plus* the handoff-inspector fix `5473dfa`, which job 41 predated by 35 minutes and therefore never carried. **`main`, the stack and the deployed frontend are all in step** — verified by hash, not by timestamp. The last backend change is the **last-agent dismissal fix, deployed 2026-09-23** (router `CodeSha256 qsMjHT0Dcex47tf2ocFJSvL/RUUDKTpymP+nMJewP1s=`), which added a `TransactWriteItems` to `state.fire_agent` and one scoped `dynamodb:TransactWriteItems` statement to the router role. Before it, **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 43, 2026-09-23**: the Phase 27 polish build plus the handoff-inspector fix (job 42) and the waiting-line fix. **`main`, the stack and the deployed frontend are all in step** — verified by hash, not by timestamp. The last backend change is the **last-agent dismissal fix, deployed 2026-09-23** (router `CodeSha256 qsMjHT0Dcex47tf2ocFJSvL/RUUDKTpymP+nMJewP1s=`), which added a `TransactWriteItems` to `state.fire_agent` and one scoped `dynamodb:TransactWriteItems` statement to the router role. Before it, **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -3169,17 +3169,58 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
   `aws dynamodb delete-item` call, but it is a destructive write to live shared state and nobody
   asked for it.** It also means that workspace shows a phantom member. Left for the user to
   decide.
-- **⚠ OPEN — the waiting line crowds at six or more queued, and Paper Office is the worst case.**
-  Found by Phase 27's contrast rig. `WAIT_PER_ROW` is 5 and `WAIT_DY` is −12, so the overflow row
-  sits 12% of the floor above the first — which at the 540 framing is 31px against a 40px
-  character. Row two's `queued #N` caption lands on the head of the pawn standing in row one:
-  **1.00:1 on Paper Office**, 1.08–1.98 across the eight worlds. With row one empty the same
-  captions measure 4.68–8.63, so it is occlusion and not colour. The captions also run into each
-  other horizontally at 540 — `WAIT_DX` is 9% ≈ 46px against a caption wider than that — which is
-  visible with five queued, not six. **Base geometry in `components.jsx`, identical in all nine
-  worlds, and therefore excluded from the 36-cell matrix: a defect the pixel-frozen default shares
-  exactly is not something a world did.** Not in Phase 27's brief and it moves the floor layout
-  the demo was framed against, so it is the user's call rather than a session's.
+- **✅ FIXED 2026-09-23 — the waiting line no longer crowds, and it never wrapped correctly.**
+  Recorded by Phase 27 as a six-or-more problem. Measured against the rendered boxes in the real
+  `.app` shell it starts earlier and is worse than recorded: at the **540 framing (floor 516×260)**
+  the `queued #N` captions overlapped each other from **three** queued, not five, and from six the
+  overflow row's caption sat across the first row's heads — 1.00:1 on Paper Office, occlusion
+  rather than colour. At twelve queued the before-state measured **16 caption-on-sprite, 9
+  caption-on-caption and 7 sprite-on-sprite** collisions.
+
+  **The second row was never geometrically possible.** A pawn — sprite, name, caption — is 75px
+  tall, 29% of a 260px floor, and the waiting rug is 32% tall: one row fills it. Clearing a
+  29%-tall pawn would put row two at 51–65% of the floor, and the rooms end at 61.6%. `WAIT_DY`
+  −12 was not mis-tuned, it had nowhere to go.
+
+  **So the line is one row that tightens as it grows, and the spacing is in pixels.** That is the
+  substance of the fix. Everything that collides here is a fixed pixel size — the sprite is
+  `9 * --px-n`, both captions are 9px type — and none of it tracks the floor, which measures
+  **366px wide on a 390 phone, 516px at 540, 515px at 960 and 995px at 1440** while the caption
+  stays 53px throughout and the sprite grows only 36 → 45px. The old 9% pitch was therefore 46px
+  at 540 and 90px at 1440: the same number meaning two different clearances. `waitLayout` now
+  derives the pitch from those pixel widths and the measured floor (a `ResizeObserver` on
+  `.floor`), and decides the caption in the same breath — past the point `queued #N` fits, every
+  waiting pawn reads `#N` instead, so the copy can never be wider than the space allotted to it.
+  The line is centred on the rug rather than anchored left, which is what lets it stay inside the
+  rug symmetrically at every width. **This is the `--tile-size` lesson in another key**: size a
+  thing on the floor off what it has to clear, never off a percentage of a box whose width is not
+  a constant multiple of it.
+
+  **Measured after, in the real shell, at four widths × up to twenty queued:**
+
+  | viewport | floor | `--px-n` | caption collisions | sprites touch from | off the floor |
+  |---|---|---|---|---|---|
+  | 1440 | 995×850 | 5 | **none through 16** | never | none |
+  | 960 (demo) | 515×850 | 5 | **none through 20** | 12 | none |
+  | 540 (demo) | 516×260 | 4 | **none through 20** | 16 | none |
+  | 390 phone | 366×260 | 4 | **none through 12** | 10 | none |
+
+  Nobody is ever drawn outside the floor box at any width or queue length, and there is no
+  horizontal scroll. Sprites touching at the far end is the deliberate, bounded degradation:
+  `WAIT_EDGE_PX` stops the line widening before anyone would be clipped, and past that people
+  stand closer together — a crowded line is legible, a person drawn off the floor is not. The
+  captions, which are what the defect was about, never collide at any measured width or length.
+
+  *Two lessons from the harness rather than the fix.* **A measurement rig that does not render
+  the product's own shell measures a floor the product never draws.** The first rig mounted
+  `CanvasPanel` in a bare flex box; `.app .floor` is `height: auto; flex: 1` and `--px-n: 5`, so
+  outside `.app` the floor collapsed to 2px tall at 1440 and stayed at `--px-n` 4 everywhere.
+  Every number taken that way was wrong, including a confident "the floor is 928px at 960" — it
+  is 515px, because the inspector column takes the rest. Re-measured inside a real `.app`
+  wrapper. **And a clamp expressed as a percentage has the same bug as the pitch it was guarding:**
+  a 92%-of-floor span put two people off the left edge of a 390 phone at ten queued, because their
+  *centres* were inside the floor and their sprites were not. It is `WAIT_EDGE_PX` now.
+
 - **A clean textual merge is not a clean semantic merge, and the token meter is where that bit.**
   Bug F (PR #9) made `history.record` raise instead of swallowing, so `_reply` could now fail
   *after* `state.add_tokens` had already settled the task. Its rollback backed out
@@ -3484,7 +3525,7 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered. **DLQ now has recovery tooling** (`scripts/recover_dlq.py`, `backend/shared/dlq.py`) — `--inspect` verified against the live queue 2026-09-22. Export `hiveos-DeadLetterQueueUrl` exists; `DLQ_URL` is on the runner's environment |
 | Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens, the PR #7 budget-ceiling reservation, **and bugs F/E/H/G** (deployed **2026-09-22 06:01 UTC**, `CodeSha256 KWn/4lZ+4KXjKM60ydKMmS8WJ1f8FfCST99V5ljpV8g=`). `DLQ_URL` present in its environment |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
-| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 42** (2026-09-22), the Phase 27 polish build plus the handoff-inspector fix. Live bundle `index-BBFAQh6W.js`, SHA-256 `8a312c6e…858e58`, **byte-identical** to a local build of `main`; the CSS is still `index-CXyWO1wF.css`, the same hash job 41 served, so all nine worlds and the pixel-frozen default are untouched by the deploy |
+| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 43** (2026-09-23), the Phase 27 polish build plus the handoff-inspector fix (job 42) and the waiting-line fix. Live bundle `index-DW47HLVr.js`, matching the local build of `main`; the CSS is still `index-CXyWO1wF.css`, the same hash job 41 served, so all nine worlds and the pixel-frozen default are untouched by both deploys |
 | Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins** — all nine read back from the live picker |
 | Demo video | ✅ **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, `playabilityStatus: OK` on an unauthenticated fetch |
 
