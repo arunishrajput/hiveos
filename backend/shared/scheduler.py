@@ -143,7 +143,7 @@ def claim_any(team, preferred, user_id, order=None):
     return None
 
 
-def set_idle(team, slot_id, expected_holder):
+def set_idle(team, slot_id, expected_holder, release_admission=True):
     """Free one slot, but only if `expected_holder` is still the one in it.
 
     False means somebody else is, and the caller must not treat the desk as
@@ -171,6 +171,8 @@ def set_idle(team, slot_id, expected_holder):
             },
         )
         print(f"[scheduler] released slot={slot_id}")
+        if expected_holder and release_admission:
+            state.release_user_admission(team, expected_holder)
         return True
     except ClientError as error:
         if _is_conditional_failure(error):
@@ -269,6 +271,8 @@ def requeue(team, item):
     back of the line for losing a race they never saw.
     """
     state.table().put_item(Item=item)
+    if item.get("user_id"):
+        state.set_user_admission(team, item["user_id"], item.get("task_id"))
     print(f"[scheduler] requeued {item['SK']} — no slot was free after all")
 
 
@@ -353,7 +357,7 @@ def broadcast_queue(team):
 # --- The release path ------------------------------------------------------
 
 
-def release_and_dispatch(team, slot_id, expected_holder):
+def release_and_dispatch(team, slot_id, expected_holder, release_admission=True):
     """Free a slot, then start the next waiting task. Returns the slot used.
 
     This runs in the Agent Runner's finally block, so it must work even when
@@ -366,8 +370,12 @@ def release_and_dispatch(team, slot_id, expected_holder):
     free, the IDLE frame would be false, and whoever actually freed it already
     dispatched whatever was next.
     """
-    if not set_idle(team, slot_id, expected_holder):
-        return None
+    if not release_admission:
+        if not set_idle(team, slot_id, expected_holder, release_admission=False):
+            return None
+    else:
+        if not set_idle(team, slot_id, expected_holder):
+            return None
     broadcast_slot(team, slot_id, "IDLE", None)
     return dispatch_next(team)
 
@@ -554,6 +562,7 @@ def hand_off(team, task, target_slot, note):
     )
 
     if claimed:
+        state.set_user_admission(team, user_id, task_id)
         broadcast_slot(team, target_slot, "BUSY", user_id)
         dispatch(
             team,
@@ -582,6 +591,7 @@ def hand_off(team, task, target_slot, note):
         hops=hops,
         handoff_from=from_slot,
     )
+    state.set_user_admission(team, user_id, task_id)
     broadcast_queue(team)
     print(f"[scheduler] handoff {from_slot} -> {target_slot} queued")
 

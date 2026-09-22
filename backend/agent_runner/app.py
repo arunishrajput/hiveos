@@ -188,19 +188,21 @@ def _handle(task):
         # person in the queue. Naming the holder we expect makes the write
         # conditional, so a stale runner returns False and changes nothing
         # rather than ending a stranger's task.
-        scheduler.release_and_dispatch(team, slot_id, expected_holder=user_id)
-
-        # After the release, never before. A handoff is a scheduling request,
-        # so it has to compete for a desk on the same terms as everyone in the
-        # queue — dispatching it while this task still held a slot would let one
-        # chain occupy both desks at once, which is the monopoly the product
-        # exists to prevent.
         #
-        # Reached from the failure path too, and deliberately: if the model
-        # genuinely decided to hand the work on and the reply then failed, the
-        # answer the user is waiting for is the *second* leg's.
+        # If this task hands off to another desk, admission must not be released
+        # during the slot release; doing so creates a gap where the same user could
+        # claim a third agent concurrently before the handoff is claimed/queued.
         if handoff:
-            scheduler.hand_off(team, task, handoff["target"], handoff["note"])
+            scheduler.release_and_dispatch(
+                team, slot_id, expected_holder=user_id, release_admission=False
+            )
+            try:
+                scheduler.hand_off(team, task, handoff["target"], handoff["note"])
+            except Exception:
+                traceback.print_exc()
+                state.release_user_admission(team, user_id)
+        else:
+            scheduler.release_and_dispatch(team, slot_id, expected_holder=user_id)
 
     print(f"[runner] done slot={slot_id} user={user_id}")
 

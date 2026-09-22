@@ -76,8 +76,9 @@ def ttl_after(seconds):
     uses, because TTL is the one field DynamoDB itself reads and that is the
     only format it accepts.
 
-    Only `IDEMPOTENCY#` rows carry this. Every other row in the table is state
-    somebody can still read, so nothing else should ever expire.
+    Used by ephemeral rows (`IDEMPOTENCY#` redelivery guards and `ACTIVE#`
+    admission safety records). Persistent rows omit `expires_at` so they are
+    never swept by DynamoDB TTL.
     """
     return int(datetime.now(timezone.utc).timestamp()) + int(seconds)
 
@@ -224,6 +225,94 @@ def connection_user(team, connection_id):
         ProjectionExpression="user_id",
     )
     return (response.get("Item") or {}).get("user_id")
+
+
+USER_ADMISSION_TTL_SECONDS = 3600  # 1 hour — matches TaskQueue MessageRetentionPeriod
+
+
+def is_user_active(team, user_id):
+    """Check if the user has an active admission record."""
+    if not user_id:
+        return False
+    item = table().get_item(
+        Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
+    ).get("Item")
+    if not item:
+        return False
+    exp = item.get("expires_at")
+    if exp is not None:
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        if int(exp) < now_ts:
+            return False
+    return True
+
+
+def acquire_user_admission(team, user_id, task_id):
+    """Atomically admit a user for a task, guaranteeing at most one running or queued task.
+
+    Returns True if admission was granted, False if the user already has an active
+    task or admission record.
+    """
+    if not user_id:
+        return False
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    try:
+        table().put_item(
+            Item={
+                "PK": team_pk(team),
+                "SK": f"ACTIVE#{user_id}",
+                "user_id": user_id,
+                "task_id": task_id,
+                "claimed_at": now_iso(),
+                "expires_at": ttl_after(USER_ADMISSION_TTL_SECONDS),
+            },
+            ConditionExpression="attribute_not_exists(SK) OR expires_at < :now",
+            ExpressionAttributeValues={":now": now_ts},
+        )
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return False
+        raise
+
+    # Double check if user is already holding a desk or in queue (e.g. reconnect or legacy state)
+    for item in query_team(team):
+        sk = item.get("SK", "")
+        if sk.startswith("AGENT#") and item.get("current_user") == user_id:
+            release_user_admission(team, user_id)
+            return False
+        if sk.startswith("QUEUE#") and item.get("user_id") == user_id:
+            release_user_admission(team, user_id)
+            return False
+
+    return True
+
+
+def release_user_admission(team, user_id):
+    """Free a user's active admission record."""
+    if not user_id:
+        return
+    try:
+        table().delete_item(
+            Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
+        )
+    except Exception as exc:
+        print(f"[state] failed to release user admission for {user_id}: {exc}")
+
+
+def set_user_admission(team, user_id, task_id):
+    """Set or refresh a user's active admission record (e.g. across handoff or requeue)."""
+    if not user_id:
+        return
+    table().put_item(
+        Item={
+            "PK": team_pk(team),
+            "SK": f"ACTIVE#{user_id}",
+            "user_id": user_id,
+            "task_id": task_id,
+            "claimed_at": now_iso(),
+            "expires_at": ttl_after(USER_ADMISSION_TTL_SECONDS),
+        }
+    )
 
 
 
