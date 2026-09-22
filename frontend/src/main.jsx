@@ -31,6 +31,7 @@ import './worlds/underwater.css'
 import './worlds/alien.css'
 import './worlds/cloudcity.css'
 import './worlds/arctic.css'
+import './worlds/desert.css'
 
 import App from './App'
 

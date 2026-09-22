@@ -1,0 +1,1889 @@
+/* Desert Outpost — the office as a research station in the dunes.
+ *
+ * The same floor, the same rooms, the same scheduler, an hour before sunset in
+ * open sand. Adobe outposts standing under shade canopies, a solar array and
+ * an inverter on the back wall of each, water in a barrel, a caravan track
+ * across the middle of the floor, and a dune ridge along the back with the sun
+ * going down behind it.
+ *
+ * ---
+ *
+ * TWO RULES, AND THIS FILE IS SUBORDINATE TO BOTH.
+ *
+ * 1. A world may never change what anything means. `--cool` is still activity,
+ *    `--honey` is still queued/warn, `--safe` is still a healthy budget,
+ *    `--alarm` is still over it. Every one is re-tuned for this world's
+ *    surfaces and none is reassigned. The words — `working`, `idle`,
+ *    `queued #N`, `HALT`, `WAITING AREA` — are untouched; this file contains
+ *    no `content` that carries a word.
+ *
+ * 2. Warmth decorates and never reports; cool reports and never decorates.
+ *
+ * ---
+ *
+ * THIS IS THE WORLD MADE OF `--honey`, AND THAT IS THE ONE PROBLEM EVERYTHING
+ * BELOW IS ARRANGED AROUND.
+ *
+ * Reef Station had to keep a blue busy state legible in a blue world. This is
+ * the same shape of problem in the warn hue, and it is worse for two reasons.
+ * The first is coverage: the reef's blue was the water column, which is the
+ * band; here the ochre is the FLOOR — the largest surface in the product, the
+ * one every pawn stands on and every small caption sits over. The second is
+ * that `--honey` is doing two jobs at once, `queued #N` under a waiting person
+ * and the 50-80% band of the budget meter, so it has to survive both on the
+ * sand and in the chrome.
+ *
+ * It is resolved on the two axes a hue collision leaves open, because the hue
+ * axis is the one that is spent:
+ *
+ *    VALUE. `--honey` is at value 0.42 against sand at 0.94 — a 7.31:1
+ *    contrast on the corridor and 4.92:1 on the darkest surface in the world.
+ *    It is not a lighter or darker version of the ground, it is three and a
+ *    half times darker.
+ *
+ *    SATURATION. `--honey` is at 0.98 where the sand is 0.28 and every neutral
+ *    surface is under 0.16. Sand is a tint; honey is a pigment.
+ *
+ * The hue gap is 14.5deg and is deliberately not asked to carry anything. The
+ * guarantee that actually holds is the one that has held in every world since
+ * Phase 19: AMBER IS ONLY EVER A FILL AND HONEY IS ONLY EVER A WORD. A sand
+ * floor cannot be confused with a word, because it never is one.
+ *
+ * ---
+ *
+ * A BRIGHT WORLD, SO CLOUD CITY'S RULES AND NOT NIGHT WATCH'S. There is no
+ * headroom above a sunlit dune: the corridor is value 0.94 and the panel
+ * surface 0.99, so nothing here reports by getting brighter and no soft pale
+ * halo is visible on the surface it is meant to be lighting. The four state
+ * hues are deep (0.31-0.55) and saturated (0.86-0.98), and every piece of
+ * relief on the sand — a ripple crest, the lip of a scoured pan, the berm at
+ * the foot of the ridge, the drift against an outpost wall — IS PAINTED AS THE
+ * SHADOW IT CASTS rather than as the light it catches.
+ *
+ * Phase 19's findings 2 and 3 therefore do not apply at all, exactly as they
+ * did not in the harbour and on the ice: `--ink` still means "the mark on the
+ * page" AND "a dark colour" at the same time, and `--paper` is still a pale
+ * sheet. There is no `.modal`, no `.drawer` and no `.sprite::before` rule
+ * anywhere in this file, and their absence is the load-bearing difference
+ * between a light world and a dark one.
+ *
+ * THE SUN IS PAINTED AS SHADOW FOR A SECOND REASON HERE, AND IT IS THE BETTER
+ * ONE. Low raking sunlight is, as a colour, `--honey`: measured, the light this
+ * world throws sits 1.9deg from the warn hue. A world that painted its sun as
+ * light would be putting the warn colour across the whole floor. A world that
+ * paints its sun as the long shadows it is interrupted by never has to have the
+ * argument. So the ground slot carries shadows and not light, the dunes along
+ * the back are dark masses with lit crests rather than lit masses, and the one
+ * place a warm wash survives — `.fixture--daylight` — is held at 0.38
+ * saturation against honey's 0.98, which is a wider gap than the 2.4x the
+ * cabin hearth shipped with at Phase 24.
+ *
+ * ---
+ *
+ * TWO REGISTERS, AND A THIRD THING THAT IS NOT ONE.
+ *
+ *    OPEN SAND, value 0.88-0.94. The corridor, the scoured pan, the caravan
+ *    track. Cloud City's rules throughout.
+ *
+ *    CANOPY SHADE, value 0.83 idle and 0.76 with the inverter lit. This is the
+ *    inside of an outpost, and it is 1.36:1 below the sand outside — which is
+ *    very nearly the 1.32:1 a polar cabin sits below its snow, and it buys the
+ *    same thing. See the note on the two lights below.
+ *
+ *    AND THE BAND, which is dark, and which is NOT a register because nothing
+ *    that carries a word is ever in it. The dunes along the back of the floor
+ *    are lit from behind, so they are dark masses against a bright sky. This
+ *    makes Desert Outpost the second world split at `--walk-top`, and it
+ *    registers as `light` for the reason Arctic Base does: all eight surfaces a
+ *    word can land on are in the bright half, and the band is not walkable.
+ *
+ * WHAT THE SECOND REGISTER COSTS, which is Phase 24's finding 2 arriving
+ * exactly as predicted: the small type has to clear the DARKEST surface, not
+ * the page. `--faint` carries `.desk__role` under every nameplate and that
+ * nameplate is inside an outpost, so it was pitched against the lit deck at
+ * value 0.76 and clears 4.71:1 there. Pulling it down walked it into `--dim`,
+ * so `--dim` came down with it; the pair is held 1.47:1 apart against the
+ * 1.39-1.43 Paper Office, the harbour and the ice all hold. A value range costs
+ * you the dim/faint distinction unless you widen it on purpose.
+ *
+ * ---
+ *
+ * THE TWO LIGHTS, AND THEY MOVE IN OPPOSITE DIRECTIONS, WHICH IS ARCTIC BASE'S
+ * PRIZE COLLECTED IN A DIFFERENT CLIMATE.
+ *
+ * A shade canopy is not a solid roof — it is a stretched cloth with a gap in
+ * it, and through that gap the low sun drops a hard bright bar onto the deck.
+ * That bar is the world being warm. It means NOTHING, it is present whether the
+ * agent is working or not, and it is carried through `.room--busy` unchanged.
+ *
+ * On the back wall, the charge controller for the solar array is a dead dark
+ * panel until the agent goes BUSY, and then it lights cool and washes the deck
+ * beside it. That is the state, and the wash goes DOWN in value against the
+ * deck while the sun bar goes UP. A viewer at 540px on a compressed recording
+ * never has to tell warm from cool — only lighter from darker, in one frame,
+ * side by side.
+ *
+ * ---
+ *
+ * EVERY PROP WAS CHECKED AGAINST ALL FOUR MEANINGS AND NOT AGAINST THE ONE THE
+ * BRIEF NAMES, which is Phase 21's rule and Phase 24's warning that a bright
+ * world collides systematically rather than incidentally. The five that would
+ * have shipped as state hues in costume:
+ *
+ *    A CACTUS IS GREEN, and `--safe` is the budget jade. `--foliage` here is
+ *    the glaucous blue-grey of agave and saltbush — which is what desert
+ *    succulents actually are — at 47.0deg from the jade and 5.4x less
+ *    saturated.
+ *    A COURIER'S SATCHEL IS TAN LEATHER, which is honey with the saturation
+ *    turned down. It is oiled near-black here at 0.25 saturation.
+ *    A WATER BARREL IS BLUE PLASTIC in every photograph of a modern field camp,
+ *    and a blue drum standing permanently in the corridor of a board whose busy
+ *    state is cyan is the harbour's windsock again. It is a banded wooden cask.
+ *    A ROUTE MARKER IS RED OR ORANGE, for the same reason a crevasse flag is:
+ *    those are the colours that stand out. The track posts are weathered timber
+ *    and the rope is undyed.
+ *    A SOLAR PANEL IS BLUE-BLACK. Real modules are also graphite, and graphite
+ *    is what these are, because a dark blue rectangle on the back wall of every
+ *    outpost is a cool-hued object sitting where the cool-hued STATE lives.
+ *
+ * Measured rather than argued: `--cool` 4.94:1 · `--safe` 4.85:1 ·
+ * `--honey` 4.92:1 · `--alarm` 4.90:1, worst case each across all eight of
+ * this world's surfaces, and `--screen-on` 3.30:1 as an indicator.
+ *
+ * ---
+ *
+ * HOW IT ATTACHES. `:root[data-world="desert"]` outranks bare `:root` on
+ * specificity, so this file can be imported in any order and needs no
+ * `!important`. Two halves below: the token block, which repaints every surface
+ * in the product including the chrome and the landing page; and the scoped
+ * rules, which re-dress the objects on the floor. A world that stopped at the
+ * first half would be a colour scheme, which is the one thing a world is not
+ * allowed to be.
+ *
+ * A NOTE ON SPECIFICITY AND STATE. Every scoped rule here is (0,3,0) or more,
+ * which beats a base *state* rule like `.desk--busy .desk__monitor` at (0,2,0).
+ * So any base property this file touches that a state rule also sets has to be
+ * restated at the state's own scoped specificity, or the state silently stops
+ * painting. `.room--busy`, `.room--busy::before` and `.desk--busy
+ * .desk__monitor` below exist for that reason as much as for the art.
+ */
+
+:root[data-world='desert'] {
+  /* A light room. All eight surfaces a word can land on are in the bright
+   * half; the dune band carries no word and is not walkable. The pre-paint
+   * script in index.html replays `hiveos.world.paint`, so a cold load lands on
+   * this world's own sand rather than on Paper Office's cream. Inherited from
+   * Phase 19 — this world adds nothing to index.html. */
+  color-scheme: light;
+
+  /* --- Surfaces ---------------------------------------------------------- *
+   *
+   * Sun-bleached plaster, close together, separated by hairlines rather than
+   * by contrast — Paper Office's construction pushed further into the ochre
+   * and held under 0.16 saturation so the page can never be mistaken for the
+   * pigment the warn state is made of. `--sand` is the raised surface and is a
+   * shade DOWN from the page, exactly as it is on cream. */
+  --cream: #f8eddc;
+  --paper: #fdf8ef;
+  --sand: #f1e2ca;
+
+  /* `--ink` is "the mark on the page", and here it means both of the things it
+   * means in Paper Office at once: maximum contrast AND a dark colour. That is
+   * why this world needs none of the three overrides Phase 19 found every dark
+   * world needs. A deep umber rather than Paper Office's near-black violet —
+   * the darkest thing in a desert is wet shade, not soot. */
+  --ink: #26170c;
+  --rule: #dcc9a4;
+  --rule-soft: #e9dcc0;
+  --rule-strong: #c8ae82;
+
+  /* Both pulled below the harbour's and the ice's, and the reason is the
+   * canopy shade rather than the brightness of the page — see the note at the
+   * top. `--faint` carries `.pawn__state` when a person is idle, `.desk__role`
+   * under every nameplate and the `WAITING AREA` caption, and the nameplate one
+   * sits on a shaded outpost deck that may also be lit cool. It clears 4.71:1
+   * there; `--dim` clears 6.92:1 and the two stay 1.47:1 apart. */
+  --dim: #3a2f1e;
+  --faint: #544425;
+
+  /* Brand, still fills only — and this is the world where that rule is load-
+   * bearing rather than tidy, because the brand fill and the ground are the
+   * same family of colour. What keeps the quota strip the loudest object on
+   * screen is not hue: it is that amber is a hard-edged saturated rectangle at
+   * 0.88 saturation and the page around it is a tint at 0.11. It reads 1.70:1
+   * against the page where Paper Office manages 1.43:1, and 1.52:1 against its
+   * own empty track. Its dark label clears 9.37:1. */
+  --amber: #f2ac1e;
+  --amber-deep: #d4900f;
+  --on-amber: #1b1305;
+
+  /* --- State ------------------------------------------------------------- *
+   *
+   * Deepened until each one carries a word on open sand AND on a lit outpost
+   * deck. Measured against all eight of this world's surfaces, worst case
+   * 4.85:1 — the table is in PROGRESS.md. The binding surface every single time
+   * is the lit deck, which is the darkest thing in the bright half.
+   *
+   * HONEY vs THE WHOLE WORLD. The note at the top of the file is about this
+   * line. Value 0.42 and saturation 0.98 against a floor at 0.94 and 0.28;
+   * 7.31:1 on the corridor, 4.92:1 at worst. The 14.5deg hue gap to the sand
+   * is not asked to carry the separation and could not.
+   *
+   * HONEY vs AMBER. Phase 19's finding 4 was that a dark ground cannot separate
+   * them by value, so the dark worlds bought a 15-19deg hue gap instead. A
+   * bright world gets the value separation back — honey at 0.42 against amber
+   * at 0.95, which is 5.01:1 apart where Paper Office manages 2.29:1 — so the
+   * hue gap stays small (11.0deg) and the guarantee underneath is the one that
+   * always held.
+   *
+   * COOL vs SAFE. 195.0deg against 148.7deg, a 46.3deg gap where Paper Office
+   * has 43deg. These are the two saturated marks a reader has to tell apart at
+   * a glance and neither is anywhere near this world's own hue.
+   *
+   * ALARM is held 24.6deg from honey, which is the tightest pair on the board
+   * and the same distance Arctic Base shipped. Both are words, never fills,
+   * and they never appear in the same place: alarm is the budget meter past
+   * 80% and the HALT control, honey is a queue position. */
+  --cool: #07495f;
+  --safe: #0a4f2b;
+  --honey: #6b3502;
+  --alarm: #85190f;
+
+  /* Channels. Each is exactly the token it is named after — keep them in step,
+   * the base stylesheet builds every alpha variant out of these. */
+  --ink-rgb: 38, 23, 12;
+  --cream-rgb: 248, 237, 220;
+  --paper-rgb: 253, 248, 239;
+  --amber-rgb: 242, 172, 30;
+  --cool-rgb: 7, 73, 95;
+  --alarm-rgb: 133, 25, 15;
+
+  /* The quota strip's empty track. Greyer than the page on purpose: the amber
+   * fill has to be findable against the thing it is filling, and on a warm
+   * board the only axis left for that is saturation. */
+  --tick: #e9e2d1;
+
+  /* --- The sand ---------------------------------------------------------- *
+   *
+   * `--tile` is Phase 22's finding 4 for the fifth time and the fifth different
+   * answer. The token means "the other ground colour", not "lighter than the
+   * floor": a crater is darker than its regolith, deck plating greyer than its
+   * sand, a gap in a sky harbour brighter than the stone over it, bare glacier
+   * ice denser and bluer than the snow on top of it. The other ground colour in
+   * a dune field is where the wind has stripped the loose sand away and left
+   * the baked pan underneath — so it is DULLER rather than darker, 0.20
+   * saturation against the corridor's 0.28 at almost the same value. Ask what
+   * is actually on the other side before picking its value; here the answer was
+   * underneath again, and the difference is a change of material rather than a
+   * change of light. */
+  --floor: #efddad;
+  --tile: #e0d5b4;
+
+  /* Under a shade canopy: the second register, and the thing this world's
+   * lighting argument rests on. Held 1.36:1 below the sand outside — enough
+   * that an outpost reads as a building without the deck getting dark enough
+   * to swallow a `--faint` caption. */
+  --room-floor: #d4bd93;
+  /* And the same deck with the inverter lit. 1.10:1 DOWN and the warmth gone
+   * out of it entirely: on cream "lit" means lighter, and on a bright world it
+   * means the colour arrives. Note that this is the cool half of the pair going
+   * down; the warm half, which is the sun bar in `.room`'s own background and
+   * is not a token, goes up. */
+  --room-floor-busy: #a8bbbc;
+
+  /* Field stations. Weathered ply and steel rather than laminate, and
+   * deliberately the darkest large object on the floor: a desk is the one piece
+   * of furniture a person has to find at a glance, and on sand the way to be
+   * found is to be dark. */
+  --desk: #7d6f5c;
+  --desk-edge: #453c2f;
+  --desk-edge-rgb: 69, 60, 47;
+  --desk-top: #97886f;
+
+  /* The handoff is a courier satchel here, so `--envelope-edge` stops being the
+   * hairline round a piece of paper and becomes the welt round a leather flap.
+   * Same token, same rules in the base stylesheet, a different object — which
+   * is the whole reason these are named for the thing and not for the colour. */
+  --envelope-edge: #6a563c;
+  --envelope-contact-rgb: 74, 52, 30;
+
+  /* A shaded readout, dark and lit. `--screen-on` is still DARKER than every
+   * surface it sits on — see the note at the top of the file — and the two are
+   * 1.6deg apart in hue at 0.37 against 0.50 in value, which is the "one hue,
+   * two weights" relationship every world has, in the only range a bright world
+   * leaves for it. It clears 3.30:1 as an indicator on all eight surfaces. */
+  --screen-off: #33302a;
+  --screen-on: #0b657f;
+  --screen-on-rgb: 11, 101, 127;
+
+  /* Succulent grey-green, where the foliage was — and this is the Forest's
+   * non-negotiable arriving in the world least able to ignore it, because a
+   * desert is exactly where somebody draws a bright green cactus. Agave,
+   * saltbush and prickly pear are glaucous: a waxy blue-grey with almost no
+   * chroma in it. Held 47.0deg from `--safe` at 5.4x less saturation, which is
+   * a wider gap than Paper Office's own 24deg and 2.4x. */
+  --foliage: #7d8d76;
+
+  /* Objects. Named for what they ARE, which is what lets a whiteboard become a
+   * route map and a water cooler become a barrel without the token names going
+   * wrong. */
+  --mug: #eee6d6; /* the enamel mug on the field station */
+  --board-face: #f6eedc; /* the route map's canvas */
+  --board-frame: #6b5334; /* the batten it is tacked to */
+  --bottle: #cfe2e6; /* the water standing in the open barrel */
+  --bottle-base: #9cbcc4; /* and the shaded side of it */
+  --cooler-body: #7a5f3e; /* the cask itself */
+  --glass-sky: #efe3c9; /* a shutter slat with the low sun on it */
+
+  /* --- The cast ---------------------------------------------------------- *
+   *
+   * The robe is per-character and arrives inline from `lookFor`; these are the
+   * four layers every traveller and every desert animal shares. See CARAVAN and
+   * DESERT_FAUNA in worlds.js for the art the letters map onto.
+   *
+   * `--sp-shirt` is the robe body and the animal's back, and it has to hold its
+   * own silhouette against sand in two directions: 9.75:1 on the corridor and
+   * 6.55:1 inside a lit outpost.
+   *
+   * `--sp-accent` IS THE ONE THAT HAD TO BE ARGUED. It is the headwrap's tail
+   * on a traveller, the ear linings on a fennec and the dorsal banding on a
+   * lizard — a small mark riding permanently on every character on the board.
+   * Every colour a desert hands you for that job is a state hue: sand, ochre,
+   * terracotta and rust are `--honey`, and the high-visibility orange of real
+   * field kit is `--alarm`. It is madder rose here, which is what undyed wool
+   * dyed with madder root and then bleached by a year of sun actually goes,
+   * and which is 64.9deg from honey, 40.9deg from alarm, 129.2deg from cool and
+   * 175.5deg from safe. Sixth world running that the prop with the obvious
+   * real-world colour turned out to be a state hue in costume. */
+  --sp-skin: #d9a879;
+  --sp-shirt: #3c3a42;
+  --sp-accent: #74405f;
+  --sp-detail: #1d1710;
+
+  /* Structure. `--wall` is read only by the base `.floor` recipe, which this
+   * file replaces wholesale; it is kept honest at the band's own mid-sky so
+   * nothing downstream is surprised. `--wall-trim` is the outpost's adobe wall
+   * seen from above, and it is the darkest line on the floor — on sand an edge
+   * is the only thing that says a wall is a wall. */
+  --wall: #e8ab6b;
+  --wall-trim: #8a6b45;
+
+  /* The caravan track the queue waits on. Measured rather than picked: a queued
+   * member's `queued #N` is `--honey` and stands on this, so it is a surface a
+   * word lands on — 6.65:1 for honey and 6.37:1 for the `WAITING AREA` caption
+   * in `--faint`. */
+  --rug: #e6d3a2;
+  --rug-edge-rgb: 176, 146, 96;
+  --chair: #6a5f4e; /* the field station's canvas stool */
+  --glass: #d9c69f; /* a shutter slat in its own shadow */
+
+  /* SHADOWS GO VIOLET, and on sand that is not a stylistic choice. A shadow at
+   * low sun is lit by the sky dome and by nothing else, and the sky dome
+   * opposite a setting sun is blue — which is why the shadows in every
+   * photograph of a dune at evening are unmistakably cool against a ground that
+   * is unmistakably warm. They also do more work here than anywhere but the
+   * harbour and the ice: on a surface at value 0.94 a shadow is the only mark
+   * available to say that something is above it. */
+  --shadow-rgb: 110, 84, 112;
+  --shadow: rgba(var(--shadow-rgb), 0.26);
+  /* Deliberately a different colour from `--shadow`: the darkening at the edge
+   * of this floor is heat haze thickening with distance, not an object blocking
+   * light. Gentle, because a heavy vignette on a bright world reads as a dirty
+   * lens. */
+  --vignette-rgb: 168, 128, 72;
+  --sheen-rgb: 255, 255, 255;
+
+  /* `.btn--ink` is a dark button with pale text here, as in Paper Office, so
+   * its hover lifts rather than settling down. */
+  --ink-hover: #3a2716;
+  --engage-flash: #cfe0e6;
+
+  /* --- World-local ------------------------------------------------------- *
+   *
+   * Nothing outside this file reads these. They exist because a dune ridge, a
+   * shade canopy, a solar array, a wind ripple, a scoured pan, a caravan post
+   * and a courier satchel are objects the paper office does not have, and
+   * inventing a shared token for them would put Paper Office's stylesheet in
+   * the business of describing a world it is not.
+   */
+
+  /* The band's sky. Three stops from the dusty top of the sky down to the glare
+   * sitting on the horizon. None of these is one of the eight surfaces and none
+   * may ever be: the band is not walkable and carries no word — the same
+   * standing Reef Station's `--water-lit`, the harbour's `--sky-high` and the
+   * ice's `--sky-deep` have. */
+  --sky-high: #c98a5e;
+  --sky-mid: #e8ab6b;
+  --sky-low: #ffd79c;
+
+  /* THE SUN IS IN THE BAND AND ITS LIGHT IS ON THE FLOOR, WHICH IS THE THIRD
+   * DIFFERENT ANSWER TO PHASE 22'S FINDING 2.
+   *
+   * That finding is that a world may not put a celestial object on
+   * `.fixture--daylight`, because the fixture sits at (17%, 46%) — the middle
+   * of the sand — and a sun rendered there is a sun lying on the ground. The
+   * harbour moved its sun into the sky slot. The ice did not have to solve it
+   * at all, because at midwinter the sun is already down. Here the sun is the
+   * whole point of the world and it is genuinely visible, so it is painted into
+   * the BAND, which is the only part of this floor that is sky — and the
+   * fixture keeps its actual role, which is the pool of light the sun throws
+   * across the sand in a fixed place.
+   *
+   * `--sun-rgb` is the light and it is the most carefully held colour in the
+   * file: 1.9deg from `--honey`, at 0.38 saturation against honey's 0.98. That
+   * is a 2.6x gap where the polar cabin's hearth shipped with 2.4x at 3.5deg,
+   * and it is the whole reason this world paints shadow rather than light
+   * nearly everywhere else. A light is not a word. */
+  --sun-disc: #fff4da;
+  --sun-rgb: 255, 202, 158;
+
+  /* The dunes across the back of the floor, and the far one behind them. DARK,
+   * because the sun is behind them — which is what a dune at low sun actually
+   * is, and which is also the only way a mass in a bright band reads at all.
+   * The crest is the lit rim along the top of each, and it is the one line in
+   * this world allowed to be brighter than the sky it sits against. */
+  --ridge: #6d4a2c;
+  --ridge-far: #8f6339;
+  --ridge-lit: #ffd9a0;
+  /* The shadow the near dune throws forward onto the floor. This is the
+   * baseboard's job — the single line that turns a plan view into a room — and
+   * on a bright world it is a dark line rather than a light one, for the same
+   * reason everything else here is. */
+  --dune-shadow: #7e5c46;
+
+  --ripple-lit-rgb: 255, 246, 222; /* the lit crest of a wind ripple */
+  --ripple-shade-rgb: 176, 138, 88; /* and the trough behind it */
+  --pan-rim-rgb: 160, 132, 92; /* the hard edge where the sand stops */
+  --dust-rgb: 226, 200, 156; /* what is hanging in the air */
+  --track-rgb: 186, 156, 106; /* sand compacted where people have walked */
+
+  /* The outpost. Adobe walls, a stretched canopy over the deck, and the array
+   * on the back wall. `--canopy-shade-rgb` is the shadow the canopy battens
+   * throw, which is how the canopy is drawn — from above you cannot see a roof,
+   * only what it does to the floor. */
+  --adobe: #cfa471;
+  --adobe-rgb: 207, 164, 113;
+  --adobe-dark: #8a6b45;
+  --canopy-shade-rgb: 120, 90, 60;
+  --door: #6b5334; /* the plank door in an outpost wall */
+
+  /* The solar array, and it is GRAPHITE rather than blue-black. Real modules
+   * come in both, and a dark blue rectangle standing on the back wall of every
+   * outpost would be a permanent cool-hued object in the exact place the cool-
+   * hued STATE lives — see the prop check at the top. Held at 0.10 saturation
+   * against `--cool`'s 0.93. */
+  --array: #39352f;
+  --array-frame: #9aa3a8;
+  --array-rule: #5c5850;
+
+  /* The caravan track's furniture. Weathered timber and undyed rope, for the
+   * reason the polar route flags are black: a marker is red or orange
+   * everywhere in the world precisely because those stand out, which is the
+   * same job this board has already spent those colours on. */
+  --post: #6b5334;
+  --rope: #cbb083;
+  --cairn: #a58a63;
+
+  --steel: #9aa3a8; /* fittings: frames, hoops, brackets, the tap */
+  --steel-rgb: 154, 163, 168;
+  --steel-dark: #4e565b;
+  --timber: #8a6b45; /* battens, posts, the barrel's staves */
+  --timber-dark: #5b4529;
+  --spine: #e4dcc4; /* a cactus spine, and the only near-white on the floor */
+  --spine-rgb: 228, 220, 196;
+
+  /* The courier satchel, and see the note at the bottom of the file. Oiled
+   * near-black at 0.25 saturation, which is the whole decision. */
+  --satchel: #443c33;
+  --satchel-lid: #5b5044;
+  --satchel-strap: #d8c7a2;
+}
+
+/* --- The ground plane ------------------------------------------------------
+ *
+ * Structure, not colour. Paper Office's recipe is a wall band over two offset
+ * 45deg checkers; this is a low sun and two dune ridges over an open sand
+ * sheet with the baked pan showing through it.
+ *
+ * THREE TEXTURES, AND EACH ONE ANSWERS A DIFFERENT ONE OF THE THREE RULES THE
+ * EARLIER WORLDS HAD TO SEPARATE.
+ *
+ *   THE RIPPLES MAY TILE, AND MUST. This is Reef Station's finding 3 in the
+ *   same material it was found in — its seabed and this dune field are both
+ *   sand, and sand ripples are genuinely periodic, which is what makes them
+ *   ripples. So two repeating families at 176deg and 4deg with periods sharing
+ *   no useful factor, which beat against each other and never present the same
+ *   arrangement twice across the floor.
+ *
+ *   EACH RIPPLE IS AN ASYMMETRIC PAIR, which is Arctic Base's sastrugi lesson
+ *   taken as given: one thin pixel of lit crest against four of shadow behind
+ *   it, because on a surface at value 0.94 the highlight has almost nowhere to
+ *   go and the shadow has the whole range.
+ *
+ *   THE CREST WAS DRAWN TWICE AS BRIGHT ON THE FIRST PASS AND THE FLOOR READ AS
+ *   GRAIN. A 1px line at 0.42 alpha running the full width of the floor is not
+ *   a ripple, it is a scratch — and a field of them is planed timber. The
+ *   correction is the bright world's own rule applied to its own ground: the
+ *   crest came down to 0.13 and the trough went UP, so what the eye actually
+ *   gets is the shadow. It also means the DRIFTS have to be strong enough to
+ *   modulate the field, because a ripple texture of even weight from edge to
+ *   edge is corduroy however faint each line is — the three of them carry a
+ *   third more contrast than the first pass for exactly that reason.
+ *
+ *   THE SAND ITSELF MAY NOT TILE. Drifted sand is a continuous variation in
+ *   colour, and Phase 20's finding is that any periodicity in one of those
+ *   reads as a rendering artefact. So the drift shading and the scoured pans
+ *   are six large shapes at hand-picked positions with `background-repeat:
+ *   no-repeat`, sized off `--tile-size` and never as floor percentages — the
+ *   floor is 516x260 at the 540 framing and 515x622 at 960, so a percentage
+ *   radius is a different shape at each. Eight of them: three carrying the
+ *   drift shading and five making the two scoured pans.
+ *
+ *   AND THE PANS END ON A HARD RIM RATHER THAN FADING OUT, which is Phase 24's
+ *   finding 4 and the reason there is no crack layer in this file. A crack is
+ *   not a line, it is an edge between two materials, and the edge of a scoured
+ *   pan is exactly that edge: the loose sand stops, and what is underneath
+ *   starts. Drawn as strokes they would be ruled lines across the whole floor
+ *   and the floor would be graph paper. Drawn as rims they cost no layer at all
+ *   and read instantly as 'the wind has taken the sand down to here'.
+ *
+ * The band's five layers are first in the list and the sky under them is
+ * opaque, so everything below stops at the ridge — the same trick the base file
+ * uses, and the reason neither needs a mask.
+ *
+ * Every shaped layer ends in `transparent`. Phase 21's finding 1: a
+ * `radial-gradient` paints its LAST colour across the whole background
+ * positioning area rather than out to its radius, which is a silent failure and
+ * has to be written down rather than remembered.
+ */
+:root[data-world='desert'] .floor {
+  background-image:
+    /* The shadow the near dune throws forward onto the sand. This is the
+       baseboard, and it is dark for the reason everything in this world is. */
+    linear-gradient(transparent 0 calc(100% - 3px), var(--dune-shadow) calc(100% - 3px) 100%),
+    /* The near dune, anchored on the band's own foot so its height is a LENGTH
+       rather than a fraction of a band that is 36px tall at one framing and
+       87px at the other. The crest is a hard lit rim on the outside of the
+       mass — a dune at low sun is a dark shape with a bright edge, and the edge
+       is the part that identifies it. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 3.6) calc(var(--tile-size) * 0.34) at 28% 100%,
+        var(--ridge) 0 70%,
+        var(--ridge-lit) 70% 74%,
+        transparent 76%
+      ),
+    /* and the far one behind it, wider, lower and a shade lighter with
+       distance */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 4.6) calc(var(--tile-size) * 0.24) at 71% 100%,
+        var(--ridge-far) 0 72%,
+        var(--ridge-lit) 72% 76%,
+        transparent 78%
+      ),
+    /* The sun, low, and clear of both fixtures that stand in this band — the
+       route map is centred at 50% and the shuttered opening at 16%. */
+      radial-gradient(
+        circle calc(var(--tile-size) * 0.3) at 76% 62%,
+        var(--sun-disc) 0 62%,
+        rgba(var(--sun-rgb), 0.85) 62% 78%,
+        rgba(var(--sun-rgb), 0) 100%
+      ),
+    /* The sky. Opaque, which is what stops the sand textures below from
+       painting over the band. */
+      linear-gradient(var(--sky-high), var(--sky-mid) 54%, var(--sky-low)),
+    /* The two ripple families. Nearly parallel and leaning opposite ways, so
+       what the eye gets is the interference between them rather than either
+       one — which is what a wind-rippled sand sheet actually looks like from
+       above, and which no single field can produce. */
+      repeating-linear-gradient(
+        177deg,
+        rgba(var(--ripple-lit-rgb), 0.13) 0 1px,
+        rgba(var(--ripple-shade-rgb), 0.1) 1px 5px,
+        transparent 5px calc(var(--tile-size) * 0.52)
+      ),
+    repeating-linear-gradient(
+      3deg,
+      rgba(var(--ripple-lit-rgb), 0.09) 0 1px,
+      rgba(var(--ripple-shade-rgb), 0.07) 1px 4px,
+      transparent 4px calc(var(--tile-size) * 0.37)
+    ),
+    /* Drifted shading, which does not tile. Three of them, and on a surface at
+       value 0.94 the only place form can come from is shadow. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.6) calc(var(--tile-size) * 1.2) at 27% 34%,
+        rgba(var(--ripple-shade-rgb), 0.4),
+        rgba(var(--ripple-shade-rgb), 0) 74%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.8) calc(var(--tile-size) * 1.5) at 84% 70%,
+      rgba(var(--ripple-shade-rgb), 0.34),
+      rgba(var(--ripple-shade-rgb), 0) 76%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 3.1) calc(var(--tile-size) * 0.8) at 52% 96%,
+      rgba(var(--ripple-shade-rgb), 0.28),
+      rgba(var(--ripple-shade-rgb), 0) 76%
+    ),
+    /* And the baked pan the wind has scoured down to, which does not either.
+       Each one ends on a hard rim rather than fading out — see the note above
+       about what a crack actually is. Three of them at three sizes, overlapping
+       where they meet, so their rims make a network rather than three islands.
+       That network is the whole cracked-hardpan story in this world, and it
+       costs nothing. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.9) calc(var(--tile-size) * 0.62) at 58% 26%,
+        var(--tile) 0 62%,
+        rgba(var(--pan-rim-rgb), 0.2) 62% 67%,
+        transparent 69%
+      ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.72) at 66% 33%,
+      var(--tile) 0 60%,
+      rgba(var(--pan-rim-rgb), 0.17) 60% 66%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1) calc(var(--tile-size) * 0.46) at 50% 31%,
+      var(--tile) 0 60%,
+      rgba(var(--pan-rim-rgb), 0.15) 60% 66%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.45) calc(var(--tile-size) * 0.5) at 14% 79%,
+      var(--tile) 0 60%,
+      rgba(var(--pan-rim-rgb), 0.19) 60% 66%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 0.62) at 22% 85%,
+      var(--tile) 0 58%,
+      rgba(var(--pan-rim-rgb), 0.15) 58% 65%,
+      transparent 67%
+    );
+  background-size:
+    /* the five band layers */
+    100% var(--walk-top),
+    100% var(--walk-top),
+    100% var(--walk-top),
+    100% var(--walk-top),
+    100% var(--walk-top),
+    /* the two ripple fields, three drifts and five scoured pans */
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-position:
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 0,
+    left 0 top 0,
+    0 0,
+    calc(var(--tile-size) * 0.23) calc(var(--tile-size) * 0.31),
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat;
+  background-color: var(--floor);
+  /* Heat haze rather than dirt. As gentle as the harbour's and the ice's, and
+   * for the same reason: anything stronger on a bright scene reads as a smeared
+   * lens. */
+  box-shadow: inset 0 0 44px 10px rgba(var(--vignette-rgb), 0.14);
+}
+
+/* --- The ground slot -------------------------------------------------------
+ *
+ * The long shadows the low sun throws, and the sheet of blown sand moving over
+ * them.
+ *
+ * ON THE SAND AND NOT ON THE SKY. The slot is `inset: 0` in the base
+ * stylesheet, which includes the band — and a shadow up there would be a shadow
+ * falling on the sky. The top is pulled down to `--walk-top`, the same number
+ * the floor paints the dunes from and the walk math uses, taken and never set.
+ * Reef Station's finding 2. The consequence to remember is that positions
+ * inside this slot are then no longer floor percentages:
+ * `layer_y = (floor_y - 14) / 0.86`.
+ */
+:root[data-world='desert'] .worldlayer--ground {
+  top: var(--walk-top);
+  overflow: hidden;
+}
+
+/* THE SHADOWS, AND THEY ARE THIS WORLD'S DECORATION SLOT DOING THE JOB CLOUD
+ * CITY'S FINDING 1 SAYS IT HAS TO.
+ *
+ * You cannot paint sun onto a sunlit floor. What a low sun is actually visible
+ * as, from directly above, is the length and the direction of what it is
+ * interrupted by — so the brief's "long shadows" are not atmosphere here, they
+ * are the only statement this world gets to make about where its light is
+ * coming from.
+ *
+ * EVERY ONE OF THEM POINTS THE SAME WAY, which is the entire read. The sun is
+ * painted into the band at x 76%, so every shadow on this floor falls down and
+ * to the left of the object that throws it, and each is drawn long and flat
+ * because that is what a shadow at a shallow sun angle is. A single shadow at
+ * the wrong angle would undo all of them, so they are placed against the
+ * layout constants in components.jsx rather than by eye:
+ *
+ *   the two outposts   ROOMS, front wall at floor y 62, centres at x 23 and 77
+ *   the water barrel   `.fixture--cooler` at (50%, 28%)
+ *   the two cacti      PLANTS at (97, 55) and (16, 66)
+ *
+ * converted into this slot's own coordinates with the formula above, then
+ * offset left and down by roughly a third of a tile.
+ *
+ * Static, because a shadow that moved would be a sun that was moving, and the
+ * whole product runs for three minutes.
+ */
+:root[data-world='desert'] .worldlayer--ground::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    /* the left-hand outpost */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 0.3) at 16% 63%,
+      rgba(var(--shadow-rgb), 0.3),
+      rgba(var(--shadow-rgb), 0) 76%
+    ),
+    /* the right-hand outpost */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 0.3) at 70% 63%,
+        rgba(var(--shadow-rgb), 0.3),
+        rgba(var(--shadow-rgb), 0) 76%
+      ),
+    /* the water barrel, which is a small object and throws a long thin one */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.9) calc(var(--tile-size) * 0.14) at 45% 20%,
+        rgba(var(--shadow-rgb), 0.26),
+        rgba(var(--shadow-rgb), 0) 78%
+      ),
+    /* the tall cactus on the right margin */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 1.1) calc(var(--tile-size) * 0.13) at 90% 51%,
+        rgba(var(--shadow-rgb), 0.28),
+        rgba(var(--shadow-rgb), 0) 78%
+      ),
+    /* and the low scrub on the left */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 0.8) calc(var(--tile-size) * 0.12) at 10% 64%,
+        rgba(var(--shadow-rgb), 0.24),
+        rgba(var(--shadow-rgb), 0) 78%
+      ),
+    /* The dune's own shadow reaching out from the back of the floor. Widest and
+       faintest of the six, and the one that says the light is coming from
+       behind the ridge rather than from overhead. */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 5) calc(var(--tile-size) * 0.5) at 38% -6%,
+        rgba(var(--shadow-rgb), 0.22),
+        rgba(var(--shadow-rgb), 0) 72%
+      );
+  background-repeat: no-repeat;
+}
+
+/* The blown sand: a sheet of grains streaming low over the surface.
+ *
+ * TWO LAYERS RATHER THAN ONE, and they are the asymmetric pair again. A
+ * streamer of blown sand is lit along its leading edge and drags a shadow
+ * immediately behind it, and on a surface at value 0.94 it is the shadow that
+ * does all the work — a pale streak on pale sand is nothing. The shade layer is
+ * offset one pixel down from the bright one and tiles at exactly the same
+ * period, so the pair stays welded together while it drifts.
+ */
+:root[data-world='desert'] .worldlayer--ground::after {
+  content: '';
+  position: absolute;
+  /* Wider than the floor on both axes, so a drifting field never reaches an
+   * edge. */
+  inset: -30% -60%;
+  background-image:
+    radial-gradient(
+      ellipse 26% 2% at 40% 44%,
+      rgba(var(--ripple-lit-rgb), 0.55) 0 44%,
+      rgba(var(--ripple-lit-rgb), 0) 78%
+    ),
+    radial-gradient(
+      ellipse 26% 2% at 40% 44%,
+      rgba(var(--ripple-shade-rgb), 0.2) 0 46%,
+      rgba(var(--ripple-shade-rgb), 0) 80%
+    );
+  background-size: 137px 43px;
+  background-position:
+    0 0,
+    0 2px;
+  background-repeat: repeat;
+}
+
+/* --- The air slot ----------------------------------------------------------
+ *
+ * Dust hanging in the air, in front of everything.
+ *
+ * EVERY MOTE CARRIES ITS OWN SHADOW, and that is this world's split at
+ * `--walk-top` showing up in a two-pixel object — Arctic Base's falling-snow
+ * problem in a different climate, and the same answer. This layer sits above
+ * every pawn, so the same mote crosses the brightest surface in the world (open
+ * sand at value 0.94) and one of the darkest (the near dune at 0.43) within one
+ * cycle of its own animation. A pale dot vanishes over the sand and a dark one
+ * vanishes over the dune, so each mote is drawn as a bright core inside a
+ * darker ring — one gradient, three stops — and reads on both. A particle layer
+ * that crosses two lighting registers has to bring both of them with it.
+ *
+ * Faint by a wide margin besides: anything strong enough to notice would be
+ * strong enough to sit on somebody's name label.
+ */
+:root[data-world='desert'] .worldlayer--air {
+  overflow: hidden;
+}
+
+:root[data-world='desert'] .worldlayer--air::before,
+:root[data-world='desert'] .worldlayer--air::after {
+  content: '';
+  position: absolute;
+  /* Tall and wide enough that a full tile of travel never exposes an edge. */
+  inset: -60% -40%;
+}
+
+:root[data-world='desert'] .worldlayer--air::before {
+  background-image: radial-gradient(
+    circle 2px at 29% 27%,
+    rgba(var(--dust-rgb), 0.82) 0 40%,
+    rgba(var(--ripple-shade-rgb), 0.34) 40% 72%,
+    transparent 78%
+  );
+  background-size: 71px 49px;
+}
+
+:root[data-world='desert'] .worldlayer--air::after {
+  background-image: radial-gradient(
+    circle 1.5px at 68% 73%,
+    rgba(var(--dust-rgb), 0.66) 0 44%,
+    rgba(var(--ripple-shade-rgb), 0.26) 44% 74%,
+    transparent 80%
+  );
+  background-size: 101px 83px;
+}
+
+/* All three of this world's animations live here, and nowhere else. A reader
+ * who asked for less motion gets a still afternoon: the blown sand stops as
+ * streamers lying across the surface and the dust stops as a field of motes
+ * hanging in the air. Both are legible resting states, which is the bar a world
+ * with continuous motion has to clear — and neither reports anything, which is
+ * why neither has to.
+ *
+ * NOTHING THAT REPORTS MOVES IN THIS WORLD. The harbour let its beacon breathe;
+ * a lit inverter does not flicker, and a steady one is the more honest object
+ * anyway. That leaves `reduce` with nothing to take away from the state layer
+ * at all.
+ *
+ * All three run in the same direction, because they are all the same wind. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-world='desert'] .worldlayer--ground::after {
+    animation: desert-blown 37s linear infinite;
+  }
+
+  :root[data-world='desert'] .worldlayer--air::before {
+    animation: desert-dust-near 59s linear infinite;
+  }
+
+  :root[data-world='desert'] .worldlayer--air::after {
+    animation: desert-dust-far 88s linear infinite;
+  }
+}
+
+/* Each shift is a whole number of its own layer's tiles, so the loop has no
+ * seam: 137x43 for the blown sand, 71x49 and 101x83 for the two dust fields. */
+@keyframes desert-blown {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-137px, 43px, 0);
+  }
+}
+
+@keyframes desert-dust-near {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-142px, 49px, 0);
+  }
+}
+
+@keyframes desert-dust-far {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-101px, 83px, 0);
+  }
+}
+
+/* --- Outposts --------------------------------------------------------------
+ *
+ * The project rooms become adobe outposts under stretched shade canopies: a
+ * deck in the shade, a plank door in the front wall, and the station's power on
+ * the back one — the solar array in the right corner and its charge controller
+ * in the left.
+ *
+ * THE DECK IS DARKER THAN THE SAND, WHICH IS THE STRUCTURAL MOVE OF THIS WORLD.
+ * Paper Office's rooms separate from its corridor by being a shade LIGHTER; a
+ * sky harbour could not do that at all, because its deck was already at value
+ * 0.99, and had to buy the separation with a drop shadow instead. A canopy is
+ * shade, so this deck is allowed to be darker — 1.36:1 below the sand, which is
+ * very nearly the 1.32:1 a polar cabin sits below its snow — and it takes the
+ * drop shadow as well, because on sand a cast shadow is the only thing that
+ * says a building is standing ON the ground rather than painted onto it. That
+ * shadow is long and it falls to the LEFT, because the sun in this world's band
+ * is at x 76% and every shadow on this floor agrees with every other one.
+ *
+ * YOU CANNOT SEE A CANOPY FROM ABOVE. What you see is what it does to the
+ * deck — a run of batten shadows across the shade — so that is how it is drawn.
+ * A canopy is a manufactured run of discrete objects, so it may tile.
+ *
+ * The radii are in PX rather than percentages: this box is 175x125 at the 540
+ * framing and 175x299 at 960, so a percentage radius is a different shape at
+ * each — Phase 20's finding 2 applied to a room instead of to the floor.
+ *
+ * The border stays 2px and keeps the base geometry, so the room's padding box —
+ * and therefore where DESK_IN_ROOM puts the desk — is identical to every other
+ * world.
+ */
+:root[data-world='desert'] .room {
+  background-color: var(--room-floor);
+  background-image:
+    /* THE WARM HALF OF THE PAIR. The bar of low sun coming through the gap
+       between two canopy panels and landing across the deck. It goes UP in
+       value against the shade and it means NOTHING — this is the world being
+       warm, not the world reporting. Deliberately restated unchanged under
+       `.room--busy` below, because a light that changed when the agent started
+       working would be a second status light and this board has exactly one.
+
+       DRAWN FIRST AS AN ANGLED STRIPE, WHICH IS WHAT A GAP IN A STRETCHED
+       CLOTH ACTUALLY MAKES, AND IT HAD TO BE REPLACED — for a reason that is
+       Phase 20's finding 2 in a form that finding did not cover. That finding
+       is about percentage RADII: the floor is a different shape at each
+       framing, so a percentage-sized ellipse is a different shape at each. A
+       GRADIENT ANGLE HAS EXACTLY THE SAME PROBLEM AND IS EASIER TO MISS,
+       because the angle itself is framing-independent and looks safe. A room is
+       175x125 at the 540 framing and 175x299 at 960, so `linear-gradient(100deg
+       ...)` is a broad diagonal bar across a wide room at one and a full-height
+       vertical streak down a tall one at the other — and a vertical streak
+       reads as a light leak rather than as sunlight. Sized off `--tile-size`
+       instead, which is 44px at both, it is the same slot of light in both.
+       ANY DIRECTIONAL GRADIENT IN A BOX WHOSE ASPECT RATIO CHANGES IS A
+       PERCENTAGE IN DISGUISE.
+
+       It stays a tall narrow pool rather than becoming a round one, because the
+       cool half of the pair is a wide wash off the controller's corner — at
+       540px on a compressed recording the two have to differ in shape and in
+       position, not only in temperature.
+
+       AND IT SITS LOW AND RIGHT, below the desk stack, which is measured rather
+       than chosen. The controller's wash owns the top-left corner, the array
+       owns the top-right, and `.desk` is centred on the room at DESK_IN_ROOM
+       0.38 with a two-line nameplate above it — so the only deck a warm pool
+       can land on and still be seen is the near half, on the side away from the
+       controller. Placed at 40% down it was behind the desk at both framings
+       and invisible at both. */
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.6) calc(var(--tile-size) * 1.25) at 74% 64%,
+      rgba(var(--sun-rgb), 0.85),
+      rgba(var(--sun-rgb), 0.3) 54%,
+      rgba(var(--sun-rgb), 0) 80%
+    ),
+    /* The canopy battens, read as their own shadow. ACROSS rather than along,
+       and at the weight Arctic Base's roof joints settled on: a stronger rule
+       here read as decking, which is a floor rather than a roof, and it fought
+       the vertical stack of readout, nameplate and pawn standing in front of
+       it. */
+      repeating-linear-gradient(
+        180deg,
+        rgba(var(--canopy-shade-rgb), 0.11) 0 1px,
+        transparent 1px calc(17px * var(--furn))
+      );
+  border-radius: 3px 3px 8px 8px;
+  box-shadow:
+    /* the lit inner face of the adobe wall */
+    inset 0 0 0 2px rgba(var(--adobe-rgb), 0.5),
+    inset 0 0 18px 6px rgba(var(--vignette-rgb), 0.08),
+    /* and the outpost's own long shadow on the sand, thrown left */
+    -7px 7px 15px var(--shadow);
+}
+
+/* The door. The base rule paints the gap in the corridor's own floor colour, so
+ * it reads as an opening; an outpost keeps its door shut against the sand, so
+ * it is a slab of plank instead. */
+:root[data-world='desert'] .room__door {
+  background: var(--door);
+  box-shadow:
+    -3px 0 0 0 var(--wall-trim),
+    3px 0 0 0 var(--wall-trim);
+}
+
+/* `.room__door` has no pseudo-element in the base stylesheet, so this is free:
+ * the apron of sand trodden flat outside a door that gets used. It is the one
+ * place a viewer can see that somebody actually goes in and out — and it is
+ * drawn as compaction rather than as a drift, because sand pushed away from a
+ * threshold goes DARKER and smoother, not paler. */
+:root[data-world='desert'] .room__door::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  width: calc(32px * var(--furn));
+  height: calc(8px * var(--furn));
+  border-radius: 0 0 60% 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--track-rgb), 0.55),
+    rgba(var(--track-rgb), 0) 84%
+  );
+}
+
+/* THE CHARGE CONTROLLER, AND THIS IS THE STATE EXPRESSION WHOSE FORM THIS WORLD
+ * CHANGES.
+ *
+ * Paper Office announces a working room by tinting its floor. A bay lights its
+ * dome, a hollow glows from inside, a module lights its antenna array, a dome
+ * lights its porthole, a pavilion lights the beacon on its roof, a cabin lights
+ * the instrument port in its back wall. AN OUTPOST'S CONTROLLER COMES ALIVE:
+ * the box that stands between the solar array and everything the station runs
+ * is dead dark while nothing is drawing power, and lights cool the moment the
+ * agent starts spending.
+ *
+ * That is the most literal reading of the product this set of worlds has
+ * managed. The controller between a supply and its load, with a light on it
+ * that means the load is drawing, IS the governance story — an enforced budget
+ * with a meter on it — rendered as a piece of hardware.
+ *
+ * ON THE BACK WALL AND NOT ON THE FRONT ONE, and that is taken from Cloud City
+ * rather than rediscovered: `.desk` is centred in the room with a two-line
+ * nameplate riding above the desk stack, and the base stylesheet's speech
+ * bubble sits over the readout whenever an agent has anything to say. So the
+ * desk's own readout cannot be relied on as the thing a viewer sees, and the
+ * room-level expression has to live somewhere the nameplate and the bubble
+ * never reach. The top corners are that place in every world and at every
+ * framing.
+ *
+ * A COMPACT UPRIGHT BOX WITH A VENT, where the array opposite it is a wide low
+ * grid. The pair must not read as two of the same fitting, and at 540px shape
+ * carries that better than hue does. One is a box with a light on it and one is
+ * a panel.
+ *
+ * Idle it is the darkest small object in the outpost, and dark on purpose, so
+ * that when it lights the change is from one strong value to another rather
+ * than from nothing to a glow that a bright world would swallow.
+ */
+:root[data-world='desert'] .room::before {
+  content: '';
+  position: absolute;
+  left: 7%;
+  top: 5%;
+  width: calc(11px * var(--furn));
+  height: calc(13px * var(--furn));
+  border-radius: 2px;
+  background-color: var(--screen-off);
+  /* the louvres in its case */
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(var(--steel-rgb), 0.2) 0 1px,
+    transparent 1px 4px
+  );
+  box-shadow:
+    inset 0 0 0 2px var(--steel-dark),
+    0 2px 4px var(--shadow);
+}
+
+/* THE SOLAR ARRAY. Permanent, inert, and it reports nothing at all.
+ *
+ * GRAPHITE AND NOT BLUE-BLACK — see the prop check at the top of the file. A
+ * dark blue rectangle standing on the back wall of every outpost would put a
+ * cool-hued object in exactly the place the cool-hued state lives, and the
+ * brief's own busy beat is "the array's inverter lights cool". The panel is the
+ * thing that must not.
+ *
+ * The frame grid is what makes it a module rather than a slate: two gradients
+ * on one element, which is cheap and is the only construction at this size that
+ * says "an engineered surface" instead of "a dark rectangle".
+ */
+:root[data-world='desert'] .room::after {
+  content: '';
+  position: absolute;
+  right: 7%;
+  top: 5%;
+  width: calc(22px * var(--furn));
+  height: calc(10px * var(--furn));
+  border-radius: 1px;
+  background-color: var(--array);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      var(--array-rule) 0 1px,
+      transparent 1px calc(5px * var(--furn))
+    ),
+    repeating-linear-gradient(
+      180deg,
+      var(--array-rule) 0 1px,
+      transparent 1px calc(5px * var(--furn))
+    ),
+    /* the sky's reflection raking off the glass, which is the only reason a
+       panel seen from above is not a black hole */
+      linear-gradient(104deg, rgba(var(--sun-rgb), 0.22), rgba(var(--sun-rgb), 0) 58%);
+  box-shadow:
+    inset 0 0 0 2px var(--array-frame),
+    0 2px 4px var(--shadow);
+}
+
+/* BUSY. The deck takes the controller's cool wash and the wall goes cool with
+ * it.
+ *
+ * Restated at this specificity on purpose: the `.room` rule above is (0,3,0)
+ * and the base `.room--busy` is (0,2,0), so without this the outpost would keep
+ * its idle deck while BUSY and the whole beat would vanish.
+ *
+ * NOTE WHAT THE TWO GRADIENTS DO, because it is the point of the world. The
+ * cool wash falls from the controller's corner and goes DOWN in value against
+ * the deck; the bar of sun through the canopy gap is carried through unchanged
+ * and goes UP. They are side by side in one frame, moving in opposite
+ * directions, which is a difference that survives compression, a bad projector
+ * and a colourblind viewer — none of which a warm/cool difference on its own
+ * does.
+ */
+:root[data-world='desert'] .room--busy {
+  background-color: var(--room-floor-busy);
+  background-image:
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 1.5) calc(var(--tile-size) * 1.2) at 11% 7%,
+      rgba(var(--cool-rgb), 0.38),
+      rgba(var(--cool-rgb), 0) 78%
+    ),
+    radial-gradient(
+      ellipse calc(var(--tile-size) * 0.6) calc(var(--tile-size) * 1.25) at 74% 64%,
+      rgba(var(--sun-rgb), 0.85),
+      rgba(var(--sun-rgb), 0.3) 54%,
+      rgba(var(--sun-rgb), 0) 80%
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--canopy-shade-rgb), 0.11) 0 1px,
+      transparent 1px calc(17px * var(--furn))
+    );
+  border-color: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px rgba(var(--cool-rgb), 0.3),
+    inset 0 0 18px 6px rgba(var(--vignette-rgb), 0.07),
+    -7px 7px 15px var(--shadow);
+}
+
+/* And the controller lights. Same specificity as `.room::before` above, so this
+ * has to come after it in source order — which it does.
+ *
+ * A hard-edged saturated face rather than a soft bright halo, which is the
+ * harbour's correction taken as given: the halo is the part that does not work
+ * on a bright ground. What is left is an object that changes colour decisively,
+ * and it survives compression better anyway. */
+:root[data-world='desert'] .room--busy::before {
+  background-color: var(--screen-on);
+  background-image:
+    linear-gradient(180deg, rgba(var(--sheen-rgb), 0.24), rgba(var(--sheen-rgb), 0) 58%),
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--ink-rgb), 0.18) 0 1px,
+      transparent 1px 4px
+    );
+  box-shadow:
+    inset 0 0 0 2px var(--cool),
+    0 0 0 2px rgba(var(--cool-rgb), 0.4),
+    0 0 12px 4px rgba(var(--cool-rgb), 0.32);
+}
+
+/* --- Field stations --------------------------------------------------------
+ *
+ * The desk becomes a weathered ply field bench and the monitor becomes the
+ * shaded readout the brief names: a pane under a sun hood, because a screen in
+ * open desert without one is a mirror.
+ */
+:root[data-world='desert'] .desk__surface {
+  border-radius: 2px 2px 4px 4px;
+  background-image:
+    /* the plank joints along the top of it */
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--desk-edge-rgb), 0.3) 0 1px,
+      transparent 1px 15px
+    ),
+    linear-gradient(var(--desk-top), var(--desk));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.24),
+    inset 0 -4px 0 0 var(--desk-edge),
+    0 4px 7px var(--shadow);
+}
+
+/* The enamel mug, where the office's mug was. Some things survive a change of
+ * latitude, and in a place where water is carried in by barrel it is the one
+ * anybody would fight for. */
+:root[data-world='desert'] .desk__surface::before {
+  background: var(--mug);
+  box-shadow:
+    0 0 0 1px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--shadow-rgb), 0.32);
+}
+
+/* The field notebook, where the loose paper was. `--paper` is the panel surface
+ * and is pale in this world, so unlike the three dark worlds this one needs no
+ * separate sheet token — Phase 19's finding 3 is the other half of finding 2,
+ * and neither bites on a light ground. */
+:root[data-world='desert'] .desk__surface::after {
+  background: var(--paper);
+  box-shadow: 0 0 0 1px rgba(var(--desk-edge-rgb), 0.45);
+}
+
+/* The logging keypad, where the keyboard was: a sealed plate with two guarded
+ * switches, because everything at this station has sand in it. */
+:root[data-world='desert'] .desk__keyboard {
+  border-radius: 2px;
+  background-color: var(--desk-edge);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 24%,
+    var(--steel) 24% 32%,
+    transparent 32% 50%,
+    var(--steel) 50% 58%,
+    transparent 58%
+  );
+  box-shadow: inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.14);
+}
+
+/* The shaded readout.
+ *
+ * HEIGHT UNCHANGED AT 20px, and only the width moves. `.desk` is a centred flex
+ * column, so a pane one pixel taller than the base monitor shifts the whole
+ * stack — and therefore the nameplate under it — half that far up, which is a
+ * layout difference between worlds that this file has no reason to introduce.
+ * Reef Station measured it at 1.5px and the number has not changed. */
+:root[data-world='desert'] .desk__monitor {
+  position: relative;
+  width: calc(27px * var(--furn));
+  height: calc(20px * var(--furn));
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--screen-off);
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 2px 4px 0 rgba(var(--ink-rgb), 0.4),
+    0 2px 4px var(--shadow);
+}
+
+/* THE SUN HOOD, and it is the reason this readout is legible at all.
+ *
+ * A screen in open desert is under a hood or it is unreadable, which is true of
+ * the real object and true of this one for a second reason: on a bright world a
+ * dark pane needs an edge that says 'this is in shadow' rather than 'this is a
+ * hole'. The hood is a pale bar across the far edge with a cheek down each
+ * side — three marks, drawn as one inset shadow and two gradients, present
+ * whether the pane is lit or not, because a hood is hardware rather than
+ * state. */
+:root[data-world='desert'] .desk__monitor::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(
+      180deg,
+      var(--desk-top) 0 calc(3px * var(--furn)),
+      rgba(var(--ink-rgb), 0.3) calc(3px * var(--furn)) calc(4px * var(--furn)),
+      transparent calc(4px * var(--furn))
+    ),
+    linear-gradient(
+      90deg,
+      var(--desk-top) 0 calc(2px * var(--furn)),
+      transparent calc(2px * var(--furn)) calc(100% - 2px * var(--furn)),
+      var(--desk-top) calc(100% - 2px * var(--furn))
+    );
+}
+
+/* The lit readout, hidden while the desk is idle. Inset far enough to sit
+ * inside the hood rather than under it. */
+:root[data-world='desert'] .desk__monitor::after {
+  content: '';
+  position: absolute;
+  left: calc(3px * var(--furn));
+  right: calc(3px * var(--furn));
+  top: calc(5px * var(--furn));
+  bottom: calc(2px * var(--furn));
+  border-radius: 1px;
+  opacity: 0;
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      rgba(var(--sheen-rgb), 0.2) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(180deg, var(--screen-on), var(--cool));
+}
+
+/* The pane comes up. Restated at this specificity for the `.room--busy` reason.
+ *
+ * The two spills are tighter and far more saturated than the base stylesheet's,
+ * and that is the bright-world correction rather than a taste one: a wide soft
+ * glow over sand at value 0.94 raises very little, so it goes unseen while
+ * costing the same paint. What reads is a small ring of strongly coloured light
+ * right at the source, because a hue change on a pale surface is visible where a
+ * brightness change is not. */
+:root[data-world='desert'] .desk--busy .desk__monitor {
+  background: var(--cool);
+  box-shadow:
+    inset 0 0 0 2px var(--cool),
+    0 0 6px 1px rgba(var(--cool-rgb), 0.52),
+    0 4px 12px 3px rgba(var(--cool-rgb), 0.3);
+}
+
+:root[data-world='desert'] .desk--busy .desk__monitor::after {
+  opacity: 1;
+}
+
+/* The camp stool. Height unchanged at 18px so the desk stack — and therefore
+ * where the nameplate lands under it — is exactly where every other world puts
+ * it. */
+:root[data-world='desert'] .desk__chair {
+  width: calc(21px * var(--furn));
+  height: calc(18px * var(--furn));
+  border-radius: 3px 3px 8px 8px;
+  background: linear-gradient(180deg, var(--chair), var(--desk-edge));
+  box-shadow:
+    inset 0 0 0 2px var(--desk-edge),
+    inset 0 -2px 0 0 rgba(var(--ink-rgb), 0.3),
+    0 3px 6px var(--shadow);
+}
+
+/* The canvas sling across the back of it, faded to the colour a year of this
+ * sun leaves. Warm, and it means nothing. */
+:root[data-world='desert'] .desk__chair::before {
+  left: 50%;
+  top: 16%;
+  width: calc(14px * var(--furn));
+  height: calc(5px * var(--furn));
+  border-radius: 2px;
+  background: var(--rope);
+  box-shadow: 0 1px 0 0 rgba(var(--ink-rgb), 0.22);
+}
+
+/* --- Fixtures, re-dressed --------------------------------------------------
+ *
+ * All five keep their percentage positions, which is what keeps the floor's
+ * composition — and therefore its responsive behaviour, earned over three
+ * phases — identical across worlds. Only the costume changes. */
+
+/* Whiteboard -> the route map: a canvas chart tacked to a batten frame,
+ * standing on two legs in the dune ridge.
+ *
+ * PALE, WHICH IS THE BAND'S CALL AND NOT THE WORLD'S. This is Phase 24's
+ * finding 1 arriving in a third world and giving the same answer it gave on the
+ * ice: the fixture sits at top 9%, which is inside `--walk-top` at both
+ * framings, so it takes the lighting regime of the BAND rather than of the
+ * floor. The band here is a dark dune lit from behind, so the only thing that
+ * reads against it is a pale object — the opposite of the call Cloud City had
+ * to make on the same element, whose band was bright open sky. A world that
+ * picked one register and applied it everywhere gets this backwards.
+ */
+:root[data-world='desert'] .fixture--board {
+  border-radius: 1px;
+  background-color: var(--board-face);
+  background-image:
+    /* the weave of the canvas */
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--desk-edge-rgb), 0.06) 0 1px,
+      transparent 1px 3px
+    ),
+    /* and the sun raking across it from the right, which is where the sun is */
+      linear-gradient(104deg, rgba(var(--sun-rgb), 0.3), rgba(var(--sun-rgb), 0) 62%);
+  box-shadow:
+    inset 0 0 0 2px var(--board-frame),
+    0 3px 6px var(--shadow);
+}
+
+/* The two legs it stands on. `.fixture--board` has no pseudo-element in the
+ * base stylesheet, so this is free — and it is needed for the harbour's reason
+ * and the ice's: an unsupported board standing in a band is a board hovering in
+ * mid-air. Two rather than one, because a map you read standing up is on a
+ * frame and not on a pole. */
+:root[data-world='desert'] .fixture--board::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 100%;
+  height: calc(8px * var(--furn));
+  background-image: linear-gradient(
+    90deg,
+    var(--board-frame) 0 calc(4px * var(--furn)),
+    transparent calc(4px * var(--furn)) calc(100% - 4px * var(--furn)),
+    var(--board-frame) calc(100% - 4px * var(--furn))
+  );
+}
+
+/* The marks become the route itself: a dashed track with a waypoint at each
+ * end, rather than two solid strokes. A map is a thing you follow, and a solid
+ * bar on one reads as a sticker.
+ *
+ * This is also where the queue's own story is told twice — the caravan track
+ * the queue stands on is drawn on the floor below, and this is the map of it.
+ */
+:root[data-world='desert'] .board__scribble {
+  height: calc(2px * var(--furn));
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--ink-rgb), 0.3) 0 calc(4px * var(--furn)),
+    transparent calc(4px * var(--furn)) calc(7px * var(--furn))
+  );
+  box-shadow:
+    calc(-1px * var(--furn)) 0 0 calc(1px * var(--furn)) var(--board-frame),
+    calc(1px * var(--furn)) 0 0 calc(1px * var(--furn)) var(--board-frame);
+}
+
+/* Water cooler -> the water barrel. The bottle becomes the open head with the
+ * water standing in it, and the body becomes the cask.
+ *
+ * THE CASK IS WIDER THAN THE HEAD IT HOLDS, which is the Forest's well lesson
+ * and the reef's twinset and the ice's core rack: from directly overhead, the
+ * thing UNDER an object is what tells you what the object is. A pale disc on a
+ * narrower base is a drum lid; the same disc on a visibly banded cask is water.
+ *
+ * AND IT IS A WOODEN CASK RATHER THAN A BLUE PLASTIC JERRICAN, which is what a
+ * modern field camp actually uses — see the prop check at the top of the file.
+ * A blue drum standing permanently in the corridor of a board whose busy state
+ * is cyan is the harbour's orange windsock in a different material. */
+:root[data-world='desert'] .cooler__bottle {
+  position: relative;
+  z-index: 1;
+  width: calc(12px * var(--furn));
+  height: calc(12px * var(--furn));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 38% 34%,
+    var(--bottle) 0 52%,
+    var(--bottle-base) 74%,
+    var(--timber-dark) 88%
+  );
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+:root[data-world='desert'] .cooler__body {
+  width: calc(19px * var(--furn));
+  height: calc(11px * var(--furn));
+  margin-top: calc(-4px * var(--furn));
+  border-radius: 3px 3px 5px 5px;
+  background-color: var(--cooler-body);
+  background-image:
+    /* the staves */
+    repeating-linear-gradient(
+      90deg,
+      rgba(var(--ink-rgb), 0.16) 0 1px,
+      transparent 1px calc(4px * var(--furn))
+    ),
+    /* and the two iron hoops round them */
+      linear-gradient(
+        180deg,
+        transparent 0 22%,
+        var(--steel) 22% 32%,
+        transparent 32% 66%,
+        var(--steel) 66% 76%,
+        transparent 76%
+      );
+  box-shadow:
+    inset 0 0 0 1px var(--timber-dark),
+    /* the tap on the front of it */
+    0 calc(5px * var(--furn)) 0 calc(-4px * var(--furn)) var(--steel),
+    0 3px 5px var(--shadow);
+}
+
+/* Window -> the shuttered opening: louvred slats set into an adobe face at the
+ * foot of the dune.
+ *
+ * The fixture is 70x28 — a wide, low box — and the Forest found that any wide
+ * low shape filled with a single pale colour reads as one object whatever its
+ * border-radius. Four things instead: a heavy adobe surround, a run of louvre
+ * slats lit along the top and shaded at the bottom, the base rule's vertical
+ * bar kept as the shutter post, and a sill projecting below it.
+ *
+ * THE SLATS ARE A RUN OF DISCRETE MANUFACTURED OBJECTS, so they may tile —
+ * Phase 19's case rather than Phase 20's, and the one place in this file a
+ * strict lattice is the correct answer rather than a defect.
+ *
+ * Every shaped layer ends in `transparent` — Phase 21's finding 1. */
+:root[data-world='desert'] .fixture--window {
+  border-radius: 2px;
+  background-color: var(--glass);
+  background-image:
+    /* the sun on the upper slats, which is what says the light is above and
+       behind */
+    linear-gradient(180deg, rgba(var(--sun-rgb), 0.5), rgba(var(--sun-rgb), 0) 56%),
+    /* the slats themselves, and the shadow each one throws on the next */
+      repeating-linear-gradient(
+        180deg,
+        var(--glass-sky) 0 calc(3px * var(--furn)),
+        rgba(var(--ink-rgb), 0.28) calc(3px * var(--furn)) calc(4px * var(--furn))
+      );
+  box-shadow:
+    inset 0 0 0 3px var(--adobe-dark),
+    0 0 0 2px var(--adobe),
+    0 3px 6px var(--shadow);
+}
+
+/* The base rule's vertical glazing bar becomes the shutter post that the two
+ * leaves close against — the same element doing the same job in a hotter
+ * building. */
+:root[data-world='desert'] .fixture--window::before {
+  background: var(--timber-dark);
+}
+
+/* And the base rule's horizontal bar becomes the sill below it, with the hard
+ * shadow an overhanging ledge throws in raking light. A wall opening needs a
+ * sill or it is a hole; this is also the mark that stops the fixture reading as
+ * a standing panel rather than as part of a wall. */
+:root[data-world='desert'] .fixture--window::after {
+  left: -2px;
+  right: -2px;
+  top: auto;
+  bottom: calc(-5px * var(--furn));
+  height: calc(5px * var(--furn));
+  transform: none;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(
+    180deg,
+    var(--adobe) 0 46%,
+    var(--adobe-dark) 46%
+  );
+  box-shadow: 0 calc(2px * var(--furn)) calc(3px * var(--furn)) rgba(var(--shadow-rgb), 0.5);
+}
+
+/* Daylight -> the long raking pool the setting sun throws across the sand.
+ *
+ * The fixture keeps its role exactly: a patch of illumination in a fixed place
+ * at (17%, 46%). The sun itself is in the BAND, which is the only part of this
+ * floor that is sky, and Phase 22's finding 2 is therefore satisfied by
+ * separating the source from what it does rather than by moving either — the
+ * third different answer that finding has had.
+ *
+ * WIDER AND MUCH FLATTER than the base cone, because that is what a light
+ * source near the horizon does: the pool it throws is long, low and raking, and
+ * a round one would put the sun overhead. Sized off `--tile-size` for Phase
+ * 18's reason — `calc()` will not divide a length by a length, so the ratio is
+ * written `tile * n / 44` and not `tile / 44 * n`.
+ *
+ * AND THIS IS THE ONE WARM WASH IN THE WORLD, held at 0.38 saturation where
+ * `--honey` is at 0.98 and 1.9deg away in hue. That 2.6x gap is the whole
+ * licence for it — wider than the 2.4x the polar cabin's hearth shipped with,
+ * and it needs to be, because a pool of warm light on sand is the exact colour
+ * this board already spends on `queued`. A light is not a word. Everywhere else
+ * this world states its sun as shadow instead. */
+:root[data-world='desert'] .fixture--daylight {
+  width: calc(var(--tile-size) * 264 / 44);
+  height: calc(var(--tile-size) * 94 / 44);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--sun-rgb), 0.2),
+    rgba(var(--sun-rgb), 0) 68%
+  );
+}
+
+/* Plants -> cacti and scrub, and this is the Forest's non-negotiable landing in
+ * the world most likely to fail it. A desert is exactly where somebody draws a
+ * bright green cactus, and a bright green object standing permanently in the
+ * corner of a board whose budget meter is jade is a state hue detaching from
+ * the chrome. `--foliage` is the glaucous blue-grey of agave and saltbush,
+ * which is what desert succulents actually are: 47.0deg from `--safe` at 5.4x
+ * less saturation.
+ *
+ * TWO DIFFERENT PLANTS, and deliberately not two cacti — a fifth world with the
+ * same prop twice is the same prop twice. One is a columnar cactus with a pair
+ * of arms; the other is a low agave rosette. Both stand in a scatter of
+ * gravel, which is what anything growing here stands in.
+ *
+ * The two plants are adjacent siblings — PLANTS.map in components.jsx renders
+ * them back to back with nothing between — so `+` is what tells them apart.
+ * `:nth-of-type` would not: it counts divs, and these sit among a great many
+ * other divs. */
+:root[data-world='desert'] .decor__leaves {
+  position: relative;
+  width: calc(7px * var(--furn));
+  height: calc(7px * var(--furn));
+  border-radius: 3px 3px 1px 1px;
+  background: var(--foliage);
+  /* the two arms, one higher than the other, which is what a columnar cactus
+     actually does and what stops it reading as a candelabra */
+  box-shadow:
+    calc(-6px * var(--furn)) calc(3px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    calc(6px * var(--furn)) calc(6px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    0 2px 4px var(--shadow);
+}
+
+:root[data-world='desert'] .decor__pot {
+  width: calc(7px * var(--furn));
+  height: calc(15px * var(--furn));
+  margin-top: 0;
+  border-radius: 1px 1px 3px 3px;
+  background-color: var(--foliage);
+  /* the ribs down the column, and the spines catching the low sun on the right
+     edge of each */
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(var(--ink-rgb), 0.2) 0 1px,
+    rgba(var(--spine-rgb), 0.5) 1px 2px,
+    transparent 2px calc(3px * var(--furn))
+  );
+  box-shadow:
+    inset calc(-1px * var(--furn)) 0 0 0 rgba(var(--ink-rgb), 0.18),
+    /* the gravel it stands in */
+    0 calc(7px * var(--furn)) 0 calc(-2px * var(--furn)) var(--cairn),
+    0 3px 5px var(--shadow);
+}
+
+/* The second one is an agave: a rosette of blades rather than a column, on
+ * almost no trunk at all. */
+:root[data-world='desert'] .decor--plant + .decor--plant .decor__leaves {
+  width: calc(5px * var(--furn));
+  height: calc(5px * var(--furn));
+  border-radius: 50%;
+  background: var(--foliage);
+  box-shadow:
+    calc(-7px * var(--furn)) calc(2px * var(--furn)) 0 calc(-1.5px * var(--furn)) var(--foliage),
+    calc(7px * var(--furn)) calc(2px * var(--furn)) 0 calc(-1.5px * var(--furn)) var(--foliage),
+    calc(-4px * var(--furn)) calc(-3px * var(--furn)) 0 calc(-1.5px * var(--furn)) var(--foliage),
+    calc(4px * var(--furn)) calc(-3px * var(--furn)) 0 calc(-1.5px * var(--furn)) var(--foliage),
+    0 calc(6px * var(--furn)) 0 calc(-1px * var(--furn)) var(--foliage),
+    0 2px 4px var(--shadow);
+}
+
+:root[data-world='desert'] .decor--plant + .decor--plant .decor__pot {
+  width: calc(11px * var(--furn));
+  height: calc(4px * var(--furn));
+  margin-top: calc(4px * var(--furn));
+  border-radius: 50%;
+  background-color: var(--cairn);
+  background-image: none;
+  box-shadow:
+    inset 0 -1px 0 0 rgba(var(--ink-rgb), 0.2),
+    0 2px 4px var(--shadow);
+}
+
+/* --- The caravan track -----------------------------------------------------
+ *
+ * The waiting area becomes a stretch of caravan route: a worn track scuffed
+ * across the sand, with marker posts planted down it and a rope run between
+ * them. A queued member stands BETWEEN two posts, on the track, in order.
+ *
+ * THIS IS THE CLEAREST LITERAL READING OF THE FAIR QUEUE IN ANY WORLD, and the
+ * brief says so. A boarding platform, a lit landing strip and a swept ice path
+ * are all places people wait; a caravan track is a place people wait IN LINE,
+ * facing the same way, because that is the only way a caravan goes anywhere.
+ * The scheduler's actual claim — that the order is real and you can see your
+ * place in it — is a thing this particular piece of scenery says on its own.
+ *
+ * The posts are placed against the queue's own constants in components.jsx:
+ * WAIT_X0 is 38 and WAIT_DX is 9, so the five spots of the first row land at
+ * floor x 38/47/56/65/74, which is 29.3/44.8/60.3/75.9/91.4% of this box — it
+ * runs from 21% to 79%. The gaps between and before them are therefore centred
+ * at 21.6/37.1/52.6/68.1/83.6%, and a post goes in each.
+ *
+ * SOLVED RATHER THAN NUDGED, which is Phase 20's finding 3: `background-position
+ * left p%` offsets by p% of (container - image), so putting a layer's CENTRE at
+ * c% needs p = (c - w/2) / (100 - w) with w the image width as a percentage.
+ * The posts are sized as a percentage of the box precisely so that w is one,
+ * which makes p framing-independent — this box is 298x83 at the 540 framing and
+ * 298x199 at 960, and a length-based width would have drifted in the wide
+ * layout. At w = 1.6 the five land at 21.09/36.86/52.63/68.39/84.17%.
+ *
+ * THE ROPE IS A RULED LINE AND THAT IS CORRECT HERE. Phase 24's finding 4 is
+ * that a mark meaning "edge between two materials" must not be drawn as a
+ * stroke — eight ruled lines across a floor are a grid however cleverly spaced.
+ * A rope strung between posts is not that mark. It is a single continuous
+ * object that genuinely does run the length of the box at a constant height,
+ * which is the one case a stroke is the honest drawing rather than the lazy
+ * one.
+ *
+ * The scuffing may tile and the sand may not, which is the same pair of rules
+ * the floor itself follows, on one element.
+ */
+:root[data-world='desert'] .waiting {
+  border-radius: 6px;
+  background-color: var(--rug);
+  background-image:
+    /* the five marker posts, each a weathered stake with a pale cap */
+    linear-gradient(180deg, var(--rope) 0 30%, var(--post) 30%),
+    linear-gradient(180deg, var(--rope) 0 30%, var(--post) 30%),
+    linear-gradient(180deg, var(--rope) 0 30%, var(--post) 30%),
+    linear-gradient(180deg, var(--rope) 0 30%, var(--post) 30%),
+    linear-gradient(180deg, var(--rope) 0 30%, var(--post) 30%),
+    /* the rope run between them, at the height of the post caps */
+      linear-gradient(180deg, var(--rope) 0 100%),
+    /* THE TRACK ITSELF, AND IT IS AN ASYMMETRIC TROUGH RATHER THAN A BAND.
+       Cloud City's finding 4: a line that means "depth" and a line that means
+       "joint" cannot be drawn at the same weight. A worn track is a shallow
+       scoop, and in raking light its far bank catches the sun while its near
+       bank is in its own shadow — so the far lip is a thin bright line and the
+       near one is three times wider and darker. Drawn with both edges equal it
+       was a stripe painted on the sand rather than a hollow worn into it. */
+      linear-gradient(
+        180deg,
+        transparent 0 31%,
+        rgba(var(--ripple-lit-rgb), 0.34) 33% 36%,
+        rgba(var(--track-rgb), 0.3) 39% 60%,
+        rgba(var(--ripple-shade-rgb), 0.26) 64% 69%,
+        transparent 72%
+      ),
+    /* hoof and boot scuffing along the route, which is a field of small
+       discrete marks and therefore may tile */
+      repeating-linear-gradient(
+        83deg,
+        rgba(var(--track-rgb), 0.12) 0 1px,
+        transparent 1px calc(var(--tile-size) * 0.47)
+      ),
+    /* and the sand banked along the upwind edge, which does not repeat */
+      radial-gradient(
+        ellipse calc(var(--tile-size) * 2.3) calc(var(--tile-size) * 0.3) at 34% 6%,
+        rgba(var(--ripple-shade-rgb), 0.26),
+        rgba(var(--ripple-shade-rgb), 0) 76%
+      );
+  background-size:
+    1.6% calc(13px * var(--furn)),
+    1.6% calc(13px * var(--furn)),
+    1.6% calc(13px * var(--furn)),
+    1.6% calc(13px * var(--furn)),
+    1.6% calc(13px * var(--furn)),
+    68% 1px,
+    100% 100%,
+    auto,
+    auto;
+  background-position:
+    left 21.09% top 34%,
+    left 36.86% top 34%,
+    left 52.63% top 34%,
+    left 68.39% top 34%,
+    left 84.17% top 34%,
+    left 50% top 34%,
+    0 0,
+    0 0,
+    0 0;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--ripple-lit-rgb), 0.7),
+    inset 0 0 0 2px rgba(var(--rug-edge-rgb), 0.4),
+    inset 0 0 16px 6px rgba(var(--vignette-rgb), 0.08);
+}
+
+/* --- The cast --------------------------------------------------------------
+ *
+ * Nothing to do. The one-pixel rim round every sprite comes from `--ink-rgb`,
+ * which in this world is still the darkest thing in the system — so the base
+ * stylesheet's hard dark outline is exactly right and needs no override. Reef
+ * Station had to drop its to 0.28 because an inverted `--ink` turned the rim
+ * into a halo; that was a dark-world correction and it does not reach here.
+ * Recorded rather than left silent, because the absence of these rules is the
+ * difference between a light world and a dark one in this file. */
+
+/* --- The handoff -----------------------------------------------------------
+ *
+ * A courier satchel, crossing the compound. The path is untouched, the 1100 ms
+ * timing is untouched and still comes from the base `.envelope` transition in
+ * step with `ENVELOPE_MS` in components.jsx, and the `aria-live` label is
+ * untouched because it lives in the markup and this file has no reach into it.
+ * Only the thing travelling changes.
+ *
+ * DARK, for the harbour's reason and the ice's rather than in imitation of
+ * either. Four of the seven handoff objects in the product are pale, and every
+ * one of those is pale because the floor it crosses is dark. This floor is
+ * bright, so the same reasoning gives the opposite answer: the object separates
+ * from the ground by being on the other side of it, and the other side of sunlit
+ * sand is dark.
+ *
+ * AND IT IS OILED NEAR-BLACK RATHER THAN TAN, which is this world's version of
+ * a check five worlds have now run. Courier leather is tan; tan is `--honey`
+ * with the saturation turned down, and a small warm-ochre object detaching from
+ * a desk and flying across a floor whose queue label is warm ochre is a state
+ * hue on the loose. Held at 0.25 saturation and 0.27 value.
+ *
+ * THE FLAP IS REUSED RATHER THAN STOOD DOWN. Cloud City had to hide it because
+ * its courier is a silhouette and a second shape stacked on a silhouette
+ * becomes the average of the two. A satchel is not a silhouette — it is a solid
+ * object with a strap round it, and a strap is a LINE rather than a blob, which
+ * is exactly the kind of mark that survives at 20x13 real pixels. One dark bag,
+ * one pale strap, one buckle.
+ */
+:root[data-world='desert'] .envelope {
+  width: calc(20px * var(--furn));
+  height: calc(13px * var(--furn));
+  border: 0;
+  border-radius: 3px 3px 5px 5px;
+  background-image:
+    /* the flap lying over the top two thirds of it, and its own shadow on the
+       body below */
+    linear-gradient(
+      180deg,
+      var(--satchel-lid) 0 56%,
+      rgba(var(--ink-rgb), 0.45) 56% 60%,
+      var(--satchel) 60%
+    ),
+    linear-gradient(180deg, var(--satchel), var(--satchel));
+  box-shadow:
+    inset 0 1px 0 0 rgba(var(--sheen-rgb), 0.16),
+    0 3px 6px var(--shadow),
+    0 1px 2px rgba(var(--envelope-contact-rgb), 0.45);
+}
+
+/* The flap's hairlines become the carrying strap that runs over it. */
+:root[data-world='desert'] .envelope__flap {
+  border-radius: 3px 3px 5px 5px;
+}
+
+:root[data-world='desert'] .envelope__flap::before {
+  left: 50%;
+  top: -12%;
+  width: calc(4px * var(--furn));
+  height: 124%;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 1px;
+  background: var(--satchel-strap);
+  /* the buckle, which is the one mark that says "strap" rather than "stripe" */
+  box-shadow: inset 0 calc(4px * var(--furn)) 0 calc(-2px * var(--furn)) var(--steel-dark);
+}

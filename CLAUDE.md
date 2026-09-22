@@ -20,38 +20,38 @@ This overrides anything further down in this file or in any other doc that still
 
 **The project is live again as of 2026-09-21, on user decision.** With the hackathon closed, the user is building out the world/theme phases that time ran out on. **This is the current work. "Start the next phase" means the next world phase.**
 
-**Six** worlds have shipped — **19 Night Watch**, **20 Enchanted Forest**, **21 Reef Station**, **22 Alien Colony**, **23 Cloud City** and **24 Arctic Base** — alongside **Paper Office**, which is the Phase 12 default and is not a world phase. Two phases remain, all fully specified in `BUILD_PLAN.md` → *Phases 18–27 — the worlds*.
+**Seven** worlds have shipped — **19 Night Watch**, **20 Enchanted Forest**, **21 Reef Station**, **22 Alien Colony**, **23 Cloud City**, **24 Arctic Base** and **25 Desert Outpost** — alongside **Paper Office**, which is the Phase 12 default and is not a world phase. Two phases remain, both fully specified in `BUILD_PLAN.md` → *Phases 18–27 — the worlds*.
 
 **The queue, in order. Take the first one the `PROGRESS.md` phase board does not mark `COMPLETE`:**
 
 | Order | Phase | World | File |
 |---|---|---|---|
-| 1 | **25** | Desert Outpost | `frontend/src/worlds/desert.css` |
-| 2 | **26** | Ancient Ruins | `frontend/src/worlds/ruins.css` |
-| 3 | **27** | World polish + Random World | **last — it depends on every world that shipped** |
+| 1 | **26** | Ancient Ruins | `frontend/src/worlds/ruins.css` |
+| 2 | **27** | World polish + Random World | **last — it depends on every world that shipped** |
 
-Phases 25 and 26 depend on 18 and on nothing else, so this order is a convention, not a constraint — the user may reorder or drop either of them. **27 genuinely runs last.** Check the phase board in `PROGRESS.md` for live status before assuming; it is the record of what actually shipped.
+Phase 26 depends on 18 and on nothing else, so the user may reorder or drop it. **27 genuinely runs last.** Check the phase board in `PROGRESS.md` for live status before assuming; it is the record of what actually shipped.
 
 **Before starting any world phase, read in this order:**
 
 1. `BUILD_PLAN.md` → the `## Phases 18–27` intro — the fixed scope, **the recolour test**, and **the state-legibility contract**. Both are applied at every world gate and a session will not infer them.
-2. **The four findings under each of Phases 19, 20, 21, 22, 23 and 24**, same file — every shared-code trap found so far. Most have a fix already written in `worlds/nightsky.css`, `worlds/forest.css`, `worlds/underwater.css`, `worlds/alien.css`, `worlds/cloudcity.css` or `worlds/arctic.css` to copy rather than rediscover.
+2. **The four findings under each of Phases 19, 20, 21, 22, 23, 24 and 25**, same file — every shared-code trap found so far. Most have a fix already written in `worlds/nightsky.css`, `worlds/forest.css`, `worlds/underwater.css`, `worlds/alien.css`, `worlds/cloudcity.css`, `worlds/arctic.css` or `worlds/desert.css` to copy rather than rediscover.
 3. The brief for the phase itself, then the shared **Validation** block that every world phase must pass.
 
-**Phase 25 is a bright world, so read Phase 23's and Phase 24's findings first.** Desert Outpost
-is sand in daylight, so it inherits Cloud City's central problem rather than the three dark
-worlds': **there is no headroom above a bright ground.** A bright world reports by going *down* in
-value, *up* in saturation, and by painting the shadow instead of the light, and Phase 19's
-findings 2 and 3 (the two scrims, the chair's under-edge, the world-local `--sheet`) do not apply
-to it at all. Two things from Phase 24 matter more here than anywhere: **a bright world's scenery
-collides with the state hues systematically rather than incidentally**, because "high-visibility"
-is defined as *what stands out against a bright ground* and that is the same job `--honey` and
-`--alarm` do — and this is the world whose entire ground is the colour of the warn state, so the
-check has to run against all four meanings on every prop; and **every value register a world adds
-costs a re-pitch of `--dim` and `--faint`**, because the small type has to clear the darkest of
-them and `--faint` walks into `--dim` on the way down.
+**Phase 26 is a dark world with two light sources, so read Phase 19's and Phase 20's findings
+first** — the two scrims, the chair's under-edge and the world-local `--sheet` all come back, and
+Ancient Ruins is the first dark world since Reef Station. Three things from later phases matter
+more than they look. **Torch amber is `--honey` wearing a costume**: Phase 25 found that when the
+ambient light's own colour collides with a state hue the light has to be stated as *geometry* —
+shadow, silhouette, rim — rather than as colour, and torchlight is that case exactly; the brief's
+own non-negotiable (flicker must not read as an alert) is the same problem stated from the other
+end. **This world has three value registers** — flagstone, moss and interior — and Phase 24's
+finding 2 says every register you add costs a re-pitch of `--dim` and `--faint`, which bit again
+in Phase 25 with only two. And **moss-on-flagstone is the surface question three phases have now
+circled**: ask which *part* of it is periodic, and ask what a mark is an edge *between* before
+drawing it as a stroke — Phase 25 adds that the rim trick only works when the shapes overlap,
+because an isolated closed curve on an even surface reads as a spill.
 
-**The traps that have already cost time, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed — and **check the scenery against all four, not just the one the brief names.** **Paper Office is the default and must stay byte-for-byte unchanged.** A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number — but it usually has to **read** it, because `.worldlayer--ground` is `inset: 0` and will otherwise paint the ground onto the sky. **Size anything shaped on the floor off `--tile-size`, never as a floor percentage** — the floor is 516×260 at the 540 demo framing and 515×622 at 960, so a percentage radius is a different shape at each. **On a bright world the whole lighting method inverts — you cannot add light to a white floor, so light is painted as the shadow it casts.** **End every shaped gradient layer in `transparent`** — a `radial-gradient`'s last colour fills its whole box, not just to the radius, and hides every layer under it. **A continuous surface may not tile**; a field of discrete objects may; and a surface can be both at once, so ask which *part* of it is periodic — and a line that crosses the whole floor is never a member of such a field, it is a ruled line, so **a mark that means "edge between two materials" has to be drawn as an edge and not as a stroke.** **Every value register a world adds costs a re-pitch of `--dim` and `--faint`**, because the small type has to clear the darkest of them. **A fixture that sits inside the wall band takes the band's lighting regime, not the world's** — the same `.fixture--board` went dark in Cloud City and pale in Arctic Base for the same reason. Frontend only: no backend, no protocol, no schema, no new dependency.
+**The traps that have already cost time, in short:** a world is *not* a colour scheme — if the whole diff is values inside the token block, the phase is not done. A world may **never** reassign what a colour means: busy blue, queued ochre, budget jade and over-budget red carry the governance story and are re-tuned, never repurposed — and **check the scenery against all four, not just the one the brief names.** **Paper Office is the default and must stay byte-for-byte unchanged.** A world stylesheet must **never** set `--walk-top` — the registry owns it, because the walk math in `components.jsx` reads the same number — but it usually has to **read** it, because `.worldlayer--ground` is `inset: 0` and will otherwise paint the ground onto the sky. **Size anything shaped on the floor off `--tile-size`, never as a floor percentage** — the floor is 516×260 at the 540 demo framing and 515×622 at 960, so a percentage radius is a different shape at each. **On a bright world the whole lighting method inverts — you cannot add light to a white floor, so light is painted as the shadow it casts.** **End every shaped gradient layer in `transparent`** — a `radial-gradient`'s last colour fills its whole box, not just to the radius, and hides every layer under it. **A continuous surface may not tile**; a field of discrete objects may; and a surface can be both at once, so ask which *part* of it is periodic — and a line that crosses the whole floor is never a member of such a field, it is a ruled line, so **a mark that means "edge between two materials" has to be drawn as an edge and not as a stroke.** **Every value register a world adds costs a re-pitch of `--dim` and `--faint`**, because the small type has to clear the darkest of them. **A gradient *angle* is a percentage in disguise** — a directional gradient inside a box whose aspect ratio changes between framings is a different shape at each, exactly as a percentage radius is. **A fixture that sits inside the wall band takes the band's lighting regime, not the world's** — the same `.fixture--board` went dark in Cloud City and pale in Arctic Base for the same reason. Frontend only: no backend, no protocol, no schema, no new dependency.
 
 ---
 

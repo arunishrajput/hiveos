@@ -531,17 +531,19 @@ there was a submittable deliverable at every point.
 
 ## Phases 18–27 — the worlds *(added 2026-09-20, user decision)*
 
-> ### ▶ These are the active phases as of 2026-09-21
+> ### ▶ These are the active phases as of 2026-09-22
 >
-> The hackathon is over and submitted. **Six worlds have shipped — 19 Night Watch, 20 Enchanted
-> Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City and 24 Arctic Base** (Paper Office is
-> the Phase 12 default, not a world phase). The user is building the rest, one phase per session.
+> The hackathon is over and submitted. **Seven worlds have shipped — 19 Night Watch, 20 Enchanted
+> Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City, 24 Arctic Base and 25 Desert Outpost**
+> (Paper Office is the Phase 12 default, not a world phase). The user is building the rest, one
+> phase per session.
 >
 > **Build order — "Start the next phase" takes the first one not yet `COMPLETE`:**
-> **25 → 26 → 27.**
+> **26 → 27.**
 >
 > 19–26 depend on 18 and on nothing else, so that order is a convention and the user may reorder
-> or drop any of them. **27 is genuinely last** — it depends on whichever worlds actually shipped.
+> or drop either of them. **27 is genuinely last** — it depends on whichever worlds actually
+> shipped.
 > `PROGRESS.md`'s phase board is the live record of what is done; check it rather than assuming.
 >
 > **No deadline applies any more. The gates are unchanged** — the recolour test, the
@@ -1364,6 +1366,101 @@ them darker and more saturated until they do, and measure.
 **Validation.** The shared block above, plus a queue of three read against the dunes at 540 px.
 
 **Gate.** A queued member and a half-spent budget are both obvious in a world the colour of both.
+
+**Shipped 2026-09-22. Four things the plan got wrong, corrected in flight — and all four are
+findings for worlds 26 and 27 rather than details of this one:**
+
+1. **A GRADIENT ANGLE IS A PERCENTAGE IN DISGUISE, AND THAT IS PHASE 20'S FINDING 2 IN THE ONE
+   FORM IT DID NOT COVER.** That finding is about percentage *radii*: the floor is a different
+   shape at each framing, so `ellipse 5% 11%` is a round dapple at one and a tall smear at the
+   other, and every world since has sized its shaped light in `--tile-size`. The canopy's bar of
+   sunlight was therefore drawn as `linear-gradient(100deg …)` on the reasonable-sounding grounds
+   that an *angle* is not a percentage and so cannot drift. It drifts worse. A room is 175x125 at
+   the 540 framing and 175x299 at 960, so the same 100deg is a broad diagonal bar across a wide
+   room at one and a **full-height vertical streak down a tall one** at the other — and a vertical
+   streak reads as a light leak rather than as sunlight. The angle is genuinely
+   framing-independent, which is exactly what makes it look safe and what makes this harder to
+   catch than the radius version. Redrawn as a radial pool sized off `--tile-size`, it is the same
+   slot of light at both. **Any directional gradient in a box whose aspect ratio changes between
+   framings is a percentage in disguise** — and 26's chambers change silhouette as well as size,
+   so it has this twice.
+
+2. **WHEN A WORLD'S GROUND *IS* A STATE HUE, THE HUE AXIS IS SPENT AND THE RIGHT MOVE IS TO STOP
+   USING IT.** Reef Station kept a blue busy state legible in a blue world and bought the
+   separation with brightness and a flicker. This is the same problem in the warn hue and worse on
+   two counts: the reef's blue was the *band*, while this ochre is the **floor** — the largest
+   surface in the product, the one every pawn stands on and every small caption sits over — and
+   `--honey` is doing two jobs at once, `queued #N` under a waiting person and the 50-80% band of
+   the budget meter. The instinct is to push honey's hue away from the sand. It does not work:
+   pushing it redder walks it into `--alarm` and pushing it yellower walks it into the ground. So
+   the hue gap is left at **14.5deg and asked to carry nothing at all**, and the separation is
+   bought entirely on the other two axes — value 0.42 against the sand's 0.94, saturation 0.98
+   against 0.28, which is 7.31:1 on the corridor and 4.92:1 on the darkest surface in the world.
+   What makes that safe rather than lucky is the guarantee that has held since Phase 19: **amber is
+   only ever a fill and honey is only ever a word**, and a floor is never a word. **The cost lands
+   somewhere the brief did not warn about** — the identity palette. The ochre wedge, roughly
+   10-50deg, is unavailable *twice over* here, because a warm-brown hood is both the colour of the
+   ground it is standing on and the colour of the word hanging underneath it while it waits. Seven
+   of the eight identities are cool, green or violet and the one warm neutral is held at 0.26
+   saturation, a 3.8x gap. 26's torchlit stone has the same wedge problem in a darker key.
+
+3. **A LIGHT WHOSE COLOUR *IS* A STATE HUE HAS TO BE PAINTED AS ITS SHADOW — AND THAT IS A SECOND,
+   INDEPENDENT REASON FOR CLOUD CITY'S RULE.** The harbour reached "paint the shadow, not the
+   light" by arithmetic: there is no headroom above white, so nothing can report by getting
+   brighter. This world reaches the same technique from a completely different direction, and the
+   new reason is the stronger one. Low raking sunlight, measured, sits **1.9deg from `--honey`**.
+   A world that painted its sun as light would be laying the warn colour across its entire floor —
+   not as a small prop that can be recoloured, as the illumination itself. So the sun is stated as
+   geometry instead: the ground slot carries the long shadows and no light at all, the dunes along
+   the back are dark masses with lit crests rather than lit masses, and the single surviving warm
+   wash is held at 0.38 saturation against honey's 0.98. **This is Arctic Base's aurora rule
+   applied to a light source instead of to an object** — there, form carried the identification so
+   the hue was free; here, shadow carries the direction of the sun so its hue never has to be
+   painted. The general shape, and 26's torchlight is exactly this case: **when the ambient light's
+   colour collides with a state hue, render the light as geometry — shadow, silhouette, rim — and
+   never as colour.**
+
+4. **A SMOOTH CLOSED CURVE ON AN EVEN SURFACE IS A SPILL, WHICH IS WHY PHASE 24'S RIM TRICK NEEDS
+   ITS SHAPES TO TOUCH.** The ice's finding 4 — a crack is an edge between two materials, so draw
+   the rim and not the stroke — was taken as given and applied to the wind-scoured hardpan. Drawn
+   as three well-separated ellipses each carrying its own closed rim, the floor read as three
+   puddles: a closed smooth curve on an otherwise even surface is a spill whatever colour it is
+   filled with, and the rim that was supposed to say "edge" only said "outline". Overlapped into
+   two clusters of five, the union stops being an ellipse and — the part worth keeping — **the
+   rims that run *through* a neighbour stop being outlines and become the crack network the world
+   would otherwise have had to draw as strokes**, which is the thing finding 4 forbids. Same
+   construction, same layer cost, and the only change is that they touch. **Related, on the same
+   surface:** the first ripple pass ran a 1px crest at 0.42 alpha the full width of the floor and
+   the sand read as **planed timber**. On a bright world the crest has to come *down* and the
+   trough *up*, so the shadow does the work — and the non-repeating drifts then have to be strong
+   enough to modulate the field, because a ripple texture of even weight from edge to edge is
+   corduroy however faint each line is.
+
+**Three notes that are not corrections.**
+
+**The solar array is on the outpost's back wall and not behind each desk, which is where the brief
+put it.** `.desk` is a centred flex column — nameplate, role, readout, bench, stool — with the
+two-line plate riding above the stack, so there is no free space above; and the two open desks sit
+at floor x 8 and x 91, where anything hung out to the side is against the edge of the floor at the
+540 framing. The array and its charge controller are therefore room-level, in the two top corners
+the nameplate and the speech bubble never reach, which is Cloud City's placement finding taken as
+given. Open desks keep the readout and lose the array, exactly as they lose the bay, the hollow,
+the module, the dome, the pavilion and the cabin in every world before this one.
+
+**The sun is painted into the band and its light is on the floor, which is the third distinct
+answer to Phase 22's finding 2.** A world may not put a celestial object on `.fixture--daylight`,
+because that fixture sits at (17%, 46%) and a sun rendered there is a sun lying on the ground. The
+harbour moved its sun into the sky slot; the ice deleted it, because at midwinter the sun is
+already down. Here the sun is the whole subject of the world and is genuinely visible, so the
+*source* goes into the band — the only part of this floor that is sky — and the fixture keeps its
+actual role, the pool that source throws in a fixed place. **Separating the source from what it
+does is available to any world whose brief names a sky object for `daylight`.**
+
+**A real task finishes in about four seconds, which is shorter than a screenshot round trip.**
+Sampling the DOM from inside the page rather than photographing it is how the busy beat was
+actually verified on the deployed board: `.room--busy` and `.desk--busy` appear at 507 ms and clear
+at 4645 ms, with the pawn reading `working` throughout. A world phase that wants the busy state in
+a *frame* should force the class for the photograph and say so, rather than racing the agent.
 
 ---
 
