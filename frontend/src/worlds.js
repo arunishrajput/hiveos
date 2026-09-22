@@ -573,6 +573,212 @@ const SERVICE_ROBOTS = [
   ],
 ]
 
+/* --- Arctic Base's cast -----------------------------------------------------
+ *
+ * The station's people are the research team, in hooded parkas. Its agents are
+ * the penguins, who were here first and work the survey stations. The third
+ * world to use `agentDesigns`, for the colony's and the harbour's reason: an
+ * agent at a desk has to be visibly not one of the people watching it, and a
+ * silhouette says that faster than a hue does on a compressed recording.
+ *
+ *   H  hood / plumage  --sp-hair    per-character, from the palette below
+ *   F  the face        --sp-skin    people only
+ *   S  parka / body    --sp-shirt
+ *   A  ruff, mittens, bill          --sp-accent
+ *   D  goggles, eye    --sp-detail
+ *
+ * WHAT MAKES THESE NOT NIGHT WATCH'S HOODS, which is the risk a fourth hooded
+ * cast runs: the night deck's `A` is a headlamp lying ACROSS the brim, one bar
+ * at the top of the head. A parka's tell is the fur ruff, which RINGS the face
+ * opening — `A` down both sides of the face and under the chin, which is a
+ * shape the night watch never makes. The mittens are the same layer at the
+ * ends of row 8, where every other world in the set has bare hands; an arctic
+ * team with bare hands was the first thing that looked wrong.
+ *
+ * THE PENGUINS HAVE NO `F` LAYER, and the reason is the honest one rather than
+ * the convenient one. A penguin's white front is the first thing anybody draws
+ * and IT IS NOT VISIBLE FROM ABOVE — from directly overhead a penguin is a
+ * dark back, a bill, and two flipper edges, which is also exactly the number of
+ * marks a 9x10 grid can hold. So `shadowFor` simply emits nothing for `F` here,
+ * the same tell the colony's robots and the harbour's drones carry, and the
+ * skin token stays unambiguously human.
+ *
+ * Identity lives in rows 0 and 1 in both tables — Phase 21's lesson, taken as
+ * given. The last row is legs and nothing else in every design, because
+ * `stepFrame` and `seatedFrame` replace exactly that row; a penguin's feet are
+ * therefore `S` and not `A`, or the walk cycle would change their colour
+ * halfway through a stride.
+ */
+const PARKA_TEAM = [
+  // 0 — hood drawn tight, deep fur ruff right around the face
+  [
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    '.HAAAAAH.',
+    '.ADFFFDA.',
+    '..AFFFA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 1 — wide storm hood, shallow ruff
+  [
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    'HHHAAAHHH',
+    '.HDFFFDH.',
+    '..AFFFA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 2 — peaked hood with the storm flap out to both shoulders
+  [
+    '....H....',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    '.HAAAAAH.',
+    'HHDFFFDHH',
+    '..AFFFA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 3 — drawcords flying loose, so row 0 is split rather than solid
+  [
+    '.A.....A.',
+    '.AHHHHHA.',
+    '..HHHHH..',
+    '.HAAAAAH.',
+    '.HDFFFDH.',
+    '..AFFFA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 4 — the widest ruff in the set, and the one pair of goggles pulled DOWN
+  [
+    '..HHHHH..',
+    'AHHHHHHHA',
+    'AAHHHHHAA',
+    '.AAAAAAA.',
+    '.HDDDDDH.',
+    '..AFFFA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+]
+
+/* The agents. Penguins, seen from directly above.
+ *
+ * Four rather than five: `lookFor` mods by the table length, so the eight
+ * markers land on more of a short table, and there are only so many ways a
+ * top-down penguin can differ above the eyes.
+ *
+ * The bill is `--sp-accent` and IT IS NOT ORANGE. This is the fourth world
+ * running where the prop with the obvious real-world colour was a state hue
+ * wearing a costume — the reef's aqua fin, the harbour's brass fitting and its
+ * orange windsock, and now a gentoo's bill. An orange mark riding on every
+ * agent on a board whose `--honey` means "queued" is the same defect each
+ * time. Plenty of real penguins have dark or pale bills; these have pale ones,
+ * in the same oat the parka ruffs are, which also lets one accent token serve
+ * both casts.
+ */
+const PENGUINS = [
+  // 0 — Adélie: small round head, short bill, eyes wide apart
+  [
+    '....A....',
+    '...HHH...',
+    '..HHHHH..',
+    '.HDHHHDH.',
+    '.HHHHHHH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 1 — emperor: tall head, long bill, the two ear-patch flashes low
+  [
+    '....A....',
+    '....A....',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHDHHHDHH',
+    '.AHHHHHA.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+  // 2 — chinstrap: narrow bill, and the strap as a line across the throat
+  [
+    '....A....',
+    '...HHH...',
+    '..HHHHH..',
+    '.HDHHHDH.',
+    '.HHHHHHH.',
+    '.AAAAAAA.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'SSSSSSSSS',
+    '..S...S..',
+  ],
+  // 3 — crested: plumes out to each side of row 0, bill below them
+  [
+    '.A.....A.',
+    '.AAHHHAA.',
+    '...HAH...',
+    '..HHHHH..',
+    '.HDHHHDH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSSA',
+    '..S...S..',
+  ],
+]
+
+/* One parka shell per marker, shared by the team and the penguins.
+ *
+ * Shared for the reason the colony and the harbour share theirs: the palette is
+ * *identity*, and the person who picked the fox is the fox whichever body the
+ * world gives them. On a penguin it reads as the oily sheen a penguin's back
+ * actually has, which photographs blue, green or violet depending on the light.
+ *
+ * MEASURED AGAINST THREE VALUE REGISTERS, WHICH IS WHAT MAKES THIS THE
+ * TIGHTEST PALETTE IN THE SET. The harbour's jackets only ever had to clear
+ * near-white; these have to clear near-white snow AND the cabin deck, which is
+ * a third of the way down the value range, AND a lit cabin deck below that.
+ * Every one clears 4.0:1 on all five surfaces a pawn can stand on — packed
+ * snow, bare blue ice, the swept path, a cabin deck and a lit cabin deck —
+ * worst case 4.60:1 against the lit deck, which is the binding one every time.
+ *
+ * Held between 0.23 and 0.45 saturation where this world's four state hues run
+ * 0.83-0.96. That gap is the whole guarantee: on a bright world a state hue
+ * has to be both deep and saturated to carry a word, and deep is exactly what
+ * an identity has to be as well — so saturation is the only axis left to
+ * separate them on, and it is held at 2.0x or better everywhere.
+ */
+const PARKA_SHELLS = [
+  '#644c71', // aubergine
+  '#3e5670', // deep petrol
+  '#695241', // umber
+  '#3c5c49', // pine
+  '#4e5079', // indigo
+  '#575636', // olive
+  '#6b3e52', // wine
+  '#48595d', // storm
+]
+
 /* --- Cloud City's cast ------------------------------------------------------
  *
  * The sky harbour's people are pilots: flying helmets, goggles, high-collared
@@ -821,6 +1027,218 @@ const COLONY_HULLS = [
  * registry owns it and the provider stamps the custom property. A world
  * stylesheet must never set `--walk-top` — the JS would not see it.
  */
+/* --- Desert Outpost's cast --------------------------------------------------
+ *
+ * The outpost's people are travellers in head wraps; its agents are the animals
+ * that already lived in the dunes. The fourth world to use `agentDesigns`, and
+ * the argument is Arctic Base's rather than the colony's: the survey team are
+ * visitors and the fennec was here first, so an agent at a field station is
+ * visibly not one of the people watching it.
+ *
+ *   H  wrap / pelt / scales  --sp-hair    per-character, from the palette below
+ *   F  the face              --sp-skin    people only
+ *   S  robe / body           --sp-shirt
+ *   A  wrap tail, ears, tail --sp-accent
+ *   D  eyes                  --sp-detail
+ *
+ * WHAT MAKES THESE NOT THE NIGHT WATCH'S HOODS AND NOT THE ICE TEAM'S PARKAS,
+ * which is the risk a THIRD hooded cast runs and the one Phase 24 wrote down.
+ * The night deck's `A` is a headlamp lying ACROSS the brim: one bar, centred,
+ * at the top of the head. A parka's `A` RINGS the face opening and repeats at
+ * the ends of row 8 as mittens: symmetrical, on both sides, every time. A
+ * desert head wrap does neither — its tell is the loose end of the cloth, which
+ * hangs down ONE shoulder and nothing else. Every traveller here is
+ * asymmetric, and neither of the other two casts ever is. That is a difference
+ * the eye gets at 9x10 without being told.
+ *
+ * THE ANIMALS HAVE NO `F` LAYER, the same tell the colony's robots, the
+ * harbour's drones and the ice's penguins carry: a fennec seen from directly
+ * above is ears, a back and two eyes, and `--sp-skin` stays unambiguously
+ * human. Identity lives in rows 0 and 1 in both tables — Phase 21's lesson,
+ * taken as given and now holding for a seventh cast. The last row is legs and
+ * nothing else in every design, because `stepFrame` and `seatedFrame` replace
+ * exactly that row.
+ *
+ * WHICH IS ALSO WHY A TAIL CANNOT BE DRAWN WHERE A TAIL GOES. Seen from above a
+ * quadruped's tail trails off the back of it, and the back of a sprite is row
+ * 9 — the one row the walk cycle rewrites, so anything put there changes colour
+ * halfway through a stride. It is curled to one side at row 8 instead, which is
+ * what a resting fennec actually does with it and which makes the animals
+ * asymmetric too.
+ */
+const CARAVAN = [
+  // 0 — wrap drawn close, the loose end down the left shoulder
+  [
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    '.HHHHHHH.',
+    'AHDFFFDH.',
+    'A.HFFFH..',
+    'ASSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 1 — a wide brow band, and the end thrown over the right shoulder
+  [
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    '.AAAAAAA.',
+    '.HDFFFDHA',
+    '..HFFFH.A',
+    '.SSSSSSSA',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 2 — the wrap piled high on the crown, short end to the left
+  [
+    '....H....',
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'AHDFFFDH.',
+    '.AHFFFH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 3 — hood thrown back, the cloth round the neck only
+  [
+    '..HHHHH..',
+    '.HHHHHHH.',
+    '.HFFFFFH.',
+    '..FFFFF..',
+    '..DFFFD..',
+    '.AAAAAAA.',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+  // 4 — veiled against the sand, so row 4 is an eye slot rather than a face
+  [
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HHHHHHHHH',
+    '.HDDDDDH.',
+    '.HHHHHHHA',
+    '.SSSSSSSA',
+    'SSSSSSSSS',
+    'FSSSSSSSF',
+    '..S...S..',
+  ],
+]
+
+/* The agents. The dune's own residents, seen from directly above.
+ *
+ * Four rather than five: `lookFor` mods by the table length, so the eight
+ * markers land on more of a short table. Two with ears and two without, and the
+ * two of each differ from each other in row 0 rather than anywhere lower —
+ * enormous round ears against tall narrow ones, a narrow snout against a wide
+ * flat skull.
+ *
+ * THE EARS ARE `--sp-accent` AND THAT COLOUR IS MADDER ROSE, NOT SAND. A
+ * fennec's ears are the first thing anybody draws and the obvious colour for
+ * them is the pale gold of the animal itself — which is this world's floor, so
+ * the ears would vanish into the ground the character is standing on. It is the
+ * sixth world running where the prop with the obvious real-world colour had to
+ * go somewhere else, and the first where the reason was legibility rather than
+ * a state collision. The rose reads as the ear lining, which on a real fennec
+ * is exactly what is pink.
+ */
+const DESERT_FAUNA = [
+  // 0 — fennec: ears filling both top corners, which is the whole animal
+  [
+    'AA.....AA',
+    'AAA...AAA',
+    '.AAHHHAA.',
+    '..HHHHH..',
+    '.HDHHHDH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSS.',
+    '..S...S..',
+  ],
+  // 1 — jerboa: two tall narrow ears rising from the centre
+  [
+    '..A...A..',
+    '..A...A..',
+    '..AHHHA..',
+    '..HHHHH..',
+    '.HDHHHDH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    '.SSSSSSSA',
+    '..S...S..',
+  ],
+  // 2 — agama: no ears at all, a narrow snout widening into the skull
+  [
+    '...HHH...',
+    '..HHHHH..',
+    '.HHHHHHH.',
+    'HDHHHHHDH',
+    '.HHHHHHH.',
+    '..HHHHH..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    'ASSSSSSS.',
+    '..S...S..',
+  ],
+  // 3 — gecko: a wide flat skull with the eyes right at the front of it
+  [
+    '.HHHHHHH.',
+    'HDHHHHHDH',
+    'HHHHHHHHH',
+    '.HHHHHHH.',
+    '..HHHHH..',
+    '..AHHHA..',
+    '.SSSSSSS.',
+    'SSSSSSSSS',
+    '.SSSSSSSA',
+    '..S...S..',
+  ],
+]
+
+/* One dyed cloth per marker, shared by the travellers and the animals.
+ *
+ * Shared for the reason the colony, the harbour and the ice share theirs: the
+ * palette is *identity*, and the person who picked the fox is the fox whichever
+ * body the world gives them. On an animal it reads as the coat, which in real
+ * desert fauna genuinely runs from slate to olive to rust.
+ *
+ * NOT ONE OF THESE IS IN THE OCHRE WEDGE, AND THAT IS THE POINT. Every other
+ * world could spend a hue anywhere it liked as long as it stayed clear of four
+ * narrow bands. This world's entire ground is one of those bands, so the whole
+ * region from roughly 10deg to 50deg is unavailable twice over — a warm brown
+ * identity would be both the colour of the sand it stands on and the colour of
+ * the word hanging under it while it waits. Seven of the eight are therefore
+ * cool, green or violet, and the one warm-neutral is held at 0.26 saturation
+ * against `--honey`'s 0.98, a 3.8x gap.
+ *
+ * MEASURED AGAINST TWO VALUE REGISTERS. Every one clears 4.0:1 on all five
+ * surfaces a pawn can stand on — open sand, scoured pan, the caravan track, an
+ * outpost deck and a lit outpost deck — worst case 4.13:1 against the lit deck,
+ * which is the binding one every time. Held between 0.14 and 0.48 saturation
+ * where this world's four state hues run 0.86-0.98.
+ */
+const CARAVAN_CLOTH = [
+  '#364365', // indigo
+  '#35504f', // verdigris
+  '#43533c', // desert sage
+  '#4b4d31', // dry olive
+  '#4d3757', // aubergine
+  '#663546', // madder
+  '#464951', // basalt
+  '#4e443a', // dust
+]
+
 const REGISTRY = [
   {
     id: DEFAULT_WORLD_ID,
@@ -948,6 +1366,63 @@ const REGISTRY = [
     agentDesigns: SKY_DRONES,
     layers: DEFAULT_LAYERS,
     palette: PILOT_JACKETS,
+  },
+  {
+    id: 'arctic',
+    label: 'Arctic Base',
+    blurb: 'Cabins and antenna masts on packed snow, under a winter aurora.',
+    // THE FIRST WORLD SPLIT DOWN THE MIDDLE. Cloud City is bright everywhere
+    // and the three before it are dark everywhere; this one is a near-white
+    // floor under a night sky, and the line between the two regimes is
+    // `--walk-top`. It registers as light because the eight surfaces a word
+    // can land on are all in the bright half — the band carries no word and is
+    // not walkable. So `--ink` still means "the mark on the page" AND "a dark
+    // colour" at once, and the three overrides every dark world needs (the two
+    // scrims, the chair's under-edge) are not needed here, exactly as they
+    // were not needed in the harbour.
+    colorScheme: 'light',
+    // `--cream` in worlds/arctic.css. Literal for the same reason all the
+    // others are: the browser needs it before a stylesheet exists.
+    themeColor: '#eef3f8',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the cabins at
+    // y=14, so a world that raised its band would run the aurora behind them.
+    walkTop: 14,
+    designs: PARKA_TEAM,
+    // The third world whose agents are a different species, and the argument
+    // is the colony's rather than the night deck's: the research team are
+    // visitors and the penguins live here, so an agent at a survey station is
+    // visibly not one of the people watching it. See PENGUINS above.
+    agentDesigns: PENGUINS,
+    layers: DEFAULT_LAYERS,
+    palette: PARKA_SHELLS,
+  },
+  {
+    id: 'desert',
+    label: 'Desert Outpost',
+    blurb: 'Adobe outposts under shade canopies, on open sand at low sun.',
+    // THE SECOND WORLD SPLIT AT `--walk-top`, and the split is Arctic Base's
+    // with the reason changed: the ice is bright below and dark above because
+    // it is night up there, and this is bright below and dark above because the
+    // sun is BEHIND the dunes along the back of the floor. It registers as
+    // light for exactly the reason the ice does — the eight surfaces a word can
+    // land on are all in the bright half, the band carries no word and is not
+    // walkable. So `--ink` still means "the mark on the page" AND "a dark
+    // colour" at once, and the three overrides every dark world needs (the two
+    // scrims, the chair's under-edge) are not needed here.
+    colorScheme: 'light',
+    // `--cream` in worlds/desert.css. Literal for the same reason all the
+    // others are: the browser needs it before a stylesheet exists.
+    themeColor: '#f8eddc',
+    // Unchanged, and it has to be: ROOMS in components.jsx puts the outposts at
+    // y=14, so a world that raised its band would run the dunes behind them.
+    walkTop: 14,
+    designs: CARAVAN,
+    // The fourth world whose agents are a different species, on Arctic Base's
+    // argument rather than the colony's: the survey team are visitors and the
+    // dune's animals live here. See DESERT_FAUNA above.
+    agentDesigns: DESERT_FAUNA,
+    layers: DEFAULT_LAYERS,
+    palette: CARAVAN_CLOTH,
   },
 ]
 
