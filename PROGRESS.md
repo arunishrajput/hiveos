@@ -3,7 +3,7 @@
 > Current execution state. A fresh Claude Code session reads this to know exactly where things stand.
 > Keep it operational and short. Not a diary — history lives in git.
 
-**Last updated:** 2026-09-21
+**Last updated:** 2026-09-22
 
 ---
 
@@ -16,9 +16,9 @@
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
 | **▶ Current phase** | **Phase 26 — Ancient Ruins. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 26.** Queue after it: **27** (genuinely last — it depends on every world that shipped) |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 25 `COMPLETE` — deployed and verified 2026-09-22. **Eight looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost — and the board wears any of them. **Seven of the eight world phases have shipped; one world remains, plus the polish phase.** Gates after Phase 25: `pytest` **65/65** · `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after: the only two `CONN#` rows in the whole table were the suite's **own** `TEAM#alpha`/`dana` fixtures racing its disconnect cleanup, none in the live workspace and none from a stranger — every state hue measured at **≥4.85:1 against all eight of this world's surfaces**, real tasks run on the deployed board in this world, and Paper Office proven unchanged by a **73/73 custom-property, 4,611-computed-field** diff across 159 records against a HEAD build with **zero** deltas. |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 25 `COMPLETE` — deployed and verified 2026-09-22. **Eight looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost — and the board wears any of them. **Seven of the eight world phases have shipped; one world remains, plus the polish phase.** Gates after Phase 25: `pytest` **112/112** (65 at the time; the four bug-fix PRs merged 2026-09-22 added 47) · `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after: the only two `CONN#` rows in the whole table were the suite's **own** `TEAM#alpha`/`dana` fixtures racing its disconnect cleanup, none in the live workspace and none from a stranger — every state hue measured at **≥4.85:1 against all eight of this world's surfaces**, real tasks run on the deployed board in this world, and Paper Office proven unchanged by a **73/73 custom-property, 4,611-computed-field** diff across 159 records against a HEAD build with **zero** deltas. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated 2026-09-21T17:54Z — untouched by this phase). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 38, the Desert Outpost build**. **`main` and the stack are in step.** The last backend change is still PR #7 (the budget ceiling reservation), merged and deployed 2026-09-21. Phase 25 is frontend-only and in step as well. DynamoDB TTL is `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 38, the Desert Outpost build**. **`main` and the stack are in step.** The last backend change is **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -2884,6 +2884,36 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 
 ## Known issues and discoveries
 
+- **A clean textual merge is not a clean semantic merge, and the token meter is where that bit.**
+  Bug F (PR #9) made `history.record` raise instead of swallowing, so `_reply` could now fail
+  *after* `state.add_tokens` had already settled the task. Its rollback backed out
+  `result.tokens`. But PR #7 had since landed on `main`, and `_reply` settles
+  `result.tokens - reserved` — so the rollback was also releasing the reservation, and
+  `_handle` only clears its `reserved` local *after* `_reply` returns, meaning the `finally`
+  released the same placeholder a second time. Git merged the two hunks without a conflict
+  because they never touched the same lines. A task whose ledger write failed left
+  `tokens_used` at **-1805** on a fresh workspace: negative, on the number the whole product is
+  about. Fixed by rolling back `reserved - result.tokens`, the exact inverse of the settling
+  write, which leaves the hold outstanding for the `finally` to release once.
+  **The lesson to carry: when two PRs change the same function for unrelated reasons, the
+  absence of a conflict marker is evidence of nothing.** Read the merged function.
+
+- **The DLQ redrive tool can cut a live task short, and that is documented rather than fixed.**
+  A redrive clears the task's `IDEMPOTENCY#` marker on purpose — that is what makes the replay
+  run — so the replayed task ends like any other, releasing `slot_id` with
+  `expected_holder=<user_id>`. That names a *user*, not a task. If the same person has since
+  claimed the same desk, the replay frees it under them and clears the `ACTIVE#` admission
+  Bug E added. Narrowing the release would mean putting a task id on the `AGENT#` row, which is
+  a schema change a recovery tool should not drag in. `DEPLOYMENT.md`'s runbook now says to
+  check `--inspect` output against the board before `--redrive-all`.
+
+- **`ACTIVE#` locks a user out for up to an hour if a runner dies without its `finally`.**
+  By design — the TTL is the orphan net and it matches `TaskQueue`'s `MessageRetentionPeriod`.
+  Every ordinary path releases it (`set_idle` on completion, the rollback in `_claim_agent`,
+  the handoff's failure branch), so this is reachable only by a hard Lambda kill. Worth knowing
+  before debugging a "you already have an agent running or queued" that looks impossible:
+  the row is at `TEAM#<team>` / `ACTIVE#<userId>` and deleting it by hand is safe.
+
 - **A queued person's label loses its ochre for the ~700 ms they are walking. Not fixed, and
   deliberately not fixed now.** `components.jsx:1368` assigns `pawn--waiting` only when
   `waiting && !isWalking`, so while a newly-queued member crosses to the waiting area their
@@ -3155,8 +3185,8 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | GitHub repo | ✅ https://github.com/arunishrajput/hiveos |
 | WebSocket API `hiveos-ws` | ✅ `mel2gpat9c`, stage `prod` |
 | Router Lambda `hiveos-router` | ✅ verified end to end |
-| SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered |
-| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens, **and the PR #7 budget-ceiling reservation** (deployed 2026-09-21 17:54 UTC, `CodeSha256 nIcfOCnE19HI6m7bfFi9pf7oI8MjBCxuvbzMCNolxg8=`) |
+| SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered. **DLQ now has recovery tooling** (`scripts/recover_dlq.py`, `backend/shared/dlq.py`) — `--inspect` verified against the live queue 2026-09-22. Export `hiveos-DeadLetterQueueUrl` exists; `DLQ_URL` is on the runner's environment |
+| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens, the PR #7 budget-ceiling reservation, **and bugs F/E/H/G** (deployed **2026-09-22 06:01 UTC**, `CodeSha256 KWn/4lZ+4KXjKM60ydKMmS8WJ1f8FfCST99V5ljpV8g=`). `DLQ_URL` present in its environment |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
 | Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 37**, Phase 24 build |
 | Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base** — read back from the live picker |
@@ -3173,11 +3203,15 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-### ▶ Build **Phase 25 — Desert Outpost**.
+### ▶ Build **Phase 26 — Ancient Ruins**.
 
 That is the answer to "Start the next phase". It is the first phase on the board that is not
-`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 25 — Desert Outpost*, and the route in is
-below. Queue after it: **26 → 27**, with 27 last.
+`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 26 — Ancient Ruins*, and the route in is
+below. Queue after it: **27**, which is genuinely last — it depends on every world that shipped.
+
+**Nothing backend is outstanding.** Bugs F, E, H and G went in on 2026-09-22 as PRs #9, #8, #11
+and #10, in that order, and the stack was redeployed for the DLQ wiring #10 needs. `pytest`
+112/112. The remaining work is the two world phases and nothing else.
 
 **Why this is live work again.** The hackathon is over and **the submission is in** — the video
 is recorded, uploaded and verified public
