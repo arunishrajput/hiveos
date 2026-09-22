@@ -34,7 +34,8 @@ Both functions are built from `CodeUri: backend/` with handlers like `router.app
 |---|---|---|
 | `TABLE_NAME` | both | DynamoDB table name |
 | `TEAM_ID` | both | Team partition (`alpha` in the MVP) |
-| `QUEUE_URL` | Router | SQS queue URL |
+| `QUEUE_URL` | both | SQS queue URL (Router produces; Runner consumes and dispatches next) |
+| `DLQ_URL` | Agent Runner | SQS dead-letter queue URL (for task inspection, recovery, and redrive) |
 | `WS_ENDPOINT` | both | API Gateway management endpoint (`https://{api}.execute-api.{region}.amazonaws.com/{stage}`) |
 | `BEDROCK_MODEL_ID` | Agent Runner | Resolved in Phase 0 — see below |
 | `TOKEN_BUDGET` | Agent Runner | Team token ceiling |
@@ -189,6 +190,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
 | `TEAM#<team>` | `ACTIVE#<userId>` | `user_id`, `task_id`, `claimed_at`, `expires_at` (N, epoch seconds). Enforces single-task admission per user. Carries TTL (3600s) as an orphan safety net. |
+| `TEAM#<team>` | `DLQ_REDRIVE#<taskId>#<hops>` | `task_id`, `hops` (N), `message_id`, `claimed_at`, `expires_at` (N, epoch seconds, matching the DLQ's 14-day retention). Atomic redrive claim gate preventing duplicate re-dispatch if DLQ message deletion fails. Cleaned on verified deletion |
 | `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). Carries TTL (86400s). Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. **Keyed on the leg, not the chain** — see below |
 
 ### Teams
@@ -406,11 +408,28 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   slot. Returning earlier would make a leaked desk permanent — trading a
   double charge for a deadlocked workspace, which is the worse of the two.
 
-  **TTL and expiry.** `expires_at` is epoch seconds (DynamoDB TTL accepts
-  nothing else) and is set a day out, comfortably past the queue's one-hour
-  `MessageRetentionPeriod`. Nothing reads these rows, and `state_snapshot`
-  queries the whole partition on every `hello`, so keeping them forever would
-  grow that read without bound.
+  **The rows that carry an expiry, and why each one does.** `expires_at` is
+  epoch seconds — DynamoDB TTL accepts nothing else — and three SK prefixes set
+  it. `IDEMPOTENCY#` is a day out, comfortably past the main queue's one-hour
+  `MessageRetentionPeriod`. `ACTIVE#` is an hour out, matching that same
+  retention, as an orphan-recovery net for an admission whose holder died
+  before releasing it. `DLQ_REDRIVE#` is fourteen days out, matching the DLQ's
+  own `MessageRetentionPeriod`, so a claim can never expire while the message
+  it guards is still sitting in the queue.
+
+  Every other row omits the attribute and is therefore never swept: they are
+  state somebody can still read. The three that do expire have no readers —
+  their existence *is* their value — and `state_snapshot` queries the whole
+  partition on every `hello`, so keeping them forever would grow that read
+  without bound.
+
+- **DLQ_REDRIVE#** — one per active redrive recovery attempt. When an operator
+  or utility redrives a dead-lettered task from the DLQ to the main queue, this
+  row is written conditionally (`attribute_not_exists(SK)`). If the redrive
+  successfully dispatches the task to the main queue but the subsequent DLQ
+  deletion fails, subsequent recovery attempts detect the claim, skip duplicate
+  dispatch and idempotency clearing, and safely retry the DLQ deletion. Upon
+  verified DLQ deletion, the row is deleted immediately.
 
 - **METADATA `usage_estimated`** — set when any spend folded into
   `tokens_used` was an estimate rather than billed model usage. Sticky: never

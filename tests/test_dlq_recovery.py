@@ -1,0 +1,369 @@
+"""Tests for DLQ inspection, recovery, replay, idempotency clearing, and partial-failure safety (Bug G)."""
+
+import json
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, call, patch
+
+import pytest
+from botocore.exceptions import ClientError
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from shared import dlq, state
+from agent_runner import app as runner_app
+
+TEAM = "test-team"
+MAIN_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/hiveos-agent-tasks"
+DLQ_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/hiveos-agent-tasks-dlq"
+
+
+@pytest.fixture(autouse=True)
+def set_env(monkeypatch):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("AWS_REGION", "us-east-1")
+    monkeypatch.setenv("QUEUE_URL", MAIN_QUEUE_URL)
+    monkeypatch.setenv("DLQ_URL", DLQ_URL)
+    monkeypatch.setenv("TABLE_NAME", "hiveos-state")
+
+
+class TestDLQInspection:
+    @patch("shared.dlq.sqs")
+    def test_inspect_dlq_empty(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        mock_sqs.receive_message.return_value = {"Messages": []}
+        mock_sqs_fn.return_value = mock_sqs
+
+        items = dlq.inspect_dlq(dlq_url=DLQ_URL)
+        assert items == []
+        mock_sqs.receive_message.assert_called_once_with(
+            QueueUrl=DLQ_URL,
+            MaxNumberOfMessages=10,
+            AttributeNames=["All"],
+            MessageAttributeNames=["All"],
+            VisibilityTimeout=0,
+        )
+
+    @patch("shared.dlq.sqs")
+    def test_inspect_dlq_with_messages(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        valid_task = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-001",
+            "hops": 0,
+            "prompt": "Test prompt",
+        }
+        mock_sqs.receive_message.return_value = {
+            "Messages": [
+                {
+                    "MessageId": "msg-1",
+                    "ReceiptHandle": "rcpt-1",
+                    "Body": json.dumps(valid_task),
+                    "Attributes": {"ApproximateReceiveCount": "5"},
+                },
+                {
+                    "MessageId": "msg-2",
+                    "ReceiptHandle": "rcpt-2",
+                    "Body": "invalid-non-json",
+                    "Attributes": {"ApproximateReceiveCount": "5"},
+                },
+            ]
+        }
+        mock_sqs_fn.return_value = mock_sqs
+
+        items = dlq.inspect_dlq(dlq_url=DLQ_URL)
+        assert len(items) == 2
+        assert items[0]["message_id"] == "msg-1"
+        assert items[0]["task"] == valid_task
+        assert items[0]["parse_error"] is None
+
+        assert items[1]["message_id"] == "msg-2"
+        assert items[1]["task"] is None
+        assert items[1]["parse_error"] is not None
+
+    @patch("shared.dlq.sqs")
+    def test_inspect_dlq_multi_batch_pagination(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        batch_1 = [
+            {"MessageId": f"msg-{i}", "ReceiptHandle": f"h-{i}", "Body": json.dumps({"task_id": f"t-{i}"})}
+            for i in range(10)
+        ]
+        batch_2 = [
+            {"MessageId": f"msg-{i}", "ReceiptHandle": f"h-{i}", "Body": json.dumps({"task_id": f"t-{i}"})}
+            for i in range(10, 15)
+        ]
+        mock_sqs.receive_message.side_effect = [
+            {"Messages": batch_1},
+            {"Messages": batch_2},
+        ]
+        mock_sqs_fn.return_value = mock_sqs
+
+        items = dlq.inspect_dlq(dlq_url=DLQ_URL, max_messages=20, visibility_timeout=15)
+        assert len(items) == 15
+        assert mock_sqs.receive_message.call_count == 2
+
+
+class TestDLQRecoveryAndReplay:
+    @patch("shared.state.table")
+    def test_clear_idempotency_marker(self, mock_table_fn):
+        mock_table = MagicMock()
+        mock_table_fn.return_value = mock_table
+
+        state.clear_idempotency_marker(TEAM, "task-999", hops=0)
+
+        mock_table.delete_item.assert_called_once_with(
+            Key={
+                "PK": state.team_pk(TEAM),
+                "SK": "IDEMPOTENCY#task-999#0",
+            }
+        )
+
+    @patch("shared.state.table")
+    def test_claim_dlq_redrive_ttl_matches_full_dlq_retention_window(self, mock_table_fn):
+        """Asserts DLQ redrive claims persist for the full 14-day DLQ retention period (1,209,600s)."""
+        import time
+        mock_table = MagicMock()
+        mock_table_fn.return_value = mock_table
+
+        now_sec = int(time.time())
+        assert state.DLQ_REDRIVE_TTL_SECONDS == 1209600  # 14 days in seconds
+
+        success = state.claim_dlq_redrive(TEAM, "task-ttl-check", hops=0)
+        assert success is True
+
+        mock_table.put_item.assert_called_once()
+        put_item_call = mock_table.put_item.call_args[1]
+        item = put_item_call["Item"]
+        assert item["PK"] == state.team_pk(TEAM)
+        assert item["SK"] == "DLQ_REDRIVE#task-ttl-check#0"
+        # Verify TTL is at least 14 days (1,209,600s) from now
+        assert item["expires_at"] >= now_sec + 1209600
+        assert item["expires_at"] <= now_sec + 1209600 + 10
+        assert put_item_call["ConditionExpression"] == "attribute_not_exists(SK)"
+
+    @patch("shared.state.release_dlq_redrive")
+    @patch("shared.state.claim_dlq_redrive", return_value=True)
+    @patch("shared.state.clear_idempotency_marker")
+    @patch("shared.dlq.sqs")
+    def test_redrive_message_clears_idempotency_and_sends_to_main_queue(
+        self, mock_sqs_fn, mock_clear_marker, mock_claim_fn, mock_release_fn
+    ):
+        mock_sqs = MagicMock()
+        mock_sqs.send_message.return_value = {"MessageId": "new-msg-123"}
+        mock_sqs_fn.return_value = mock_sqs
+
+        task_payload = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-abc",
+            "hops": 0,
+            "prompt": "Fix the build",
+        }
+
+        result = dlq.redrive_message(
+            receipt_handle="handle-123",
+            task_payload=task_payload,
+            dlq_url=DLQ_URL,
+            target_queue_url=MAIN_QUEUE_URL,
+            reset_idempotency=True,
+        )
+
+        assert result["success"] is True
+        assert result["new_message_id"] == "new-msg-123"
+        assert result["task_id"] == "task-abc"
+        assert result["already_dispatched"] is False
+
+        mock_claim_fn.assert_called_once_with(TEAM, "task-abc", hops=0)
+        mock_clear_marker.assert_called_once_with(TEAM, "task-abc", hops=0)
+        mock_sqs.send_message.assert_called_once_with(
+            QueueUrl=MAIN_QUEUE_URL,
+            MessageBody=json.dumps(task_payload),
+        )
+        mock_sqs.delete_message.assert_called_once_with(
+            QueueUrl=DLQ_URL,
+            ReceiptHandle="handle-123",
+        )
+        mock_release_fn.assert_called_once_with(TEAM, "task-abc", hops=0)
+
+    @patch("shared.state.clear_idempotency_marker")
+    @patch("shared.state.release_dlq_redrive")
+    @patch("shared.state.claim_dlq_redrive", return_value=True)
+    @patch("shared.dlq.sqs")
+    def test_redrive_message_rolls_back_claim_if_send_fails(
+        self, mock_sqs_fn, mock_claim_fn, mock_release_fn, mock_clear_marker
+    ):
+        mock_sqs = MagicMock()
+        mock_sqs.send_message.side_effect = RuntimeError("SQS send error")
+        mock_sqs_fn.return_value = mock_sqs
+
+        task_payload = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-err-01",
+            "hops": 0,
+            "prompt": "Fix something",
+        }
+
+        with pytest.raises(RuntimeError, match="SQS send error"):
+            dlq.redrive_message(
+                receipt_handle="handle-err",
+                task_payload=task_payload,
+                dlq_url=DLQ_URL,
+                target_queue_url=MAIN_QUEUE_URL,
+            )
+
+        mock_claim_fn.assert_called_once_with(TEAM, "task-err-01", hops=0)
+        mock_release_fn.assert_called_once_with(TEAM, "task-err-01", hops=0)
+
+    @patch("shared.state.release_dlq_redrive")
+    @patch("shared.state.clear_idempotency_marker")
+    @patch("shared.state.claim_dlq_redrive")
+    @patch("shared.dlq.sqs")
+    def test_redrive_message_prevents_duplicate_send_when_dlq_delete_previously_failed(
+        self, mock_sqs_fn, mock_claim_fn, mock_clear_marker, mock_release_fn
+    ):
+        """Proves that if step 2 (send) succeeded but step 3 (delete) failed,
+
+        a subsequent redrive attempt does NOT send the message again and does NOT
+        clear idempotency again, preventing duplicate executions.
+        """
+        mock_sqs = MagicMock()
+        mock_sqs_fn.return_value = mock_sqs
+
+        task_payload = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-partial-fail",
+            "hops": 0,
+            "prompt": "Test partial failure",
+        }
+
+        # Simulate subsequent recovery run: claim_dlq_redrive returns False (already claimed)
+        mock_claim_fn.return_value = False
+
+        result = dlq.redrive_message(
+            receipt_handle="handle-retry",
+            task_payload=task_payload,
+            dlq_url=DLQ_URL,
+            target_queue_url=MAIN_QUEUE_URL,
+            reset_idempotency=True,
+        )
+
+        assert result["success"] is True
+        assert result["already_dispatched"] is True
+        assert result["new_message_id"] is None
+
+        # 1. Did NOT clear idempotency again
+        mock_clear_marker.assert_not_called()
+
+        # 2. Did NOT send message to main queue again
+        mock_sqs.send_message.assert_not_called()
+
+        # 3. Retried and succeeded in deleting from DLQ
+        mock_sqs.delete_message.assert_called_once_with(
+            QueueUrl=DLQ_URL,
+            ReceiptHandle="handle-retry",
+        )
+
+        # 4. Cleaned up claim marker
+        mock_release_fn.assert_called_once_with(TEAM, "task-partial-fail", hops=0)
+
+    @patch("shared.dlq.redrive_message")
+    @patch("shared.dlq.inspect_dlq")
+    def test_redrive_all(self, mock_inspect, mock_redrive_msg):
+        task_1 = {"team_id": TEAM, "task_id": "t1", "prompt": "p1"}
+        task_2 = {"team_id": TEAM, "task_id": "t2", "prompt": "p2"}
+
+        mock_inspect.side_effect = [
+            [
+                {"message_id": "m1", "receipt_handle": "r1", "task": task_1},
+                {"message_id": "m2", "receipt_handle": "r2", "task": task_2},
+                {"message_id": "m3", "receipt_handle": "r3", "task": None, "parse_error": "JSON error"},
+            ],
+            [],  # Second batch is empty
+        ]
+        mock_redrive_msg.return_value = {"success": True}
+
+        summary = dlq.redrive_all(dlq_url=DLQ_URL, target_queue_url=MAIN_QUEUE_URL)
+
+        assert summary["redriven"] == 2
+        assert summary["failed"] == 1
+        assert summary["total"] == 3
+        assert mock_redrive_msg.call_count == 2
+
+    @patch("shared.dlq.sqs")
+    def test_purge_dlq_direct(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        mock_sqs_fn.return_value = mock_sqs
+
+        res = dlq.purge_dlq(dlq_url=DLQ_URL)
+        assert res["ok"] is True
+        assert res["method"] == "purge"
+        mock_sqs.purge_queue.assert_called_once_with(QueueUrl=DLQ_URL)
+
+    @patch("shared.dlq.sqs")
+    def test_purge_dlq_fallback_drain(self, mock_sqs_fn):
+        mock_sqs = MagicMock()
+        # Simulate rate-limited purge_queue
+        mock_sqs.purge_queue.side_effect = ClientError(
+            {"Error": {"Code": "PurgeQueueInProgress"}},
+            "PurgeQueue",
+        )
+        mock_sqs.receive_message.side_effect = [
+            {"Messages": [{"ReceiptHandle": "h1"}, {"ReceiptHandle": "h2"}]},
+            {"Messages": []},
+        ]
+        mock_sqs_fn.return_value = mock_sqs
+
+        res = dlq.purge_dlq(dlq_url=DLQ_URL)
+        assert res["ok"] is True
+        assert res["method"] == "drain"
+        assert res["drained"] == 2
+        assert mock_sqs.delete_message.call_count == 2
+
+
+class TestRunnerReplayWithIdempotencyClear:
+    @patch("agent_runner.app.state.table")
+    def test_replayed_task_executes_when_marker_cleared(self, mock_table_fn):
+        """Proves that clearing the idempotency marker enables a redriven task to execute."""
+        mock_table = MagicMock()
+        mock_table_fn.return_value = mock_table
+
+        task = {
+            "team_id": TEAM,
+            "slot_id": "ada",
+            "user_id": "alice",
+            "task_id": "task-retry-01",
+            "hops": 0,
+        }
+
+        # 1. Normal run succeeds in claiming marker
+        assert runner_app._already_delivered(TEAM, task) is False
+        mock_table.put_item.assert_called_once()
+
+        # 2. If marker was left in DB (old state), delivery is rejected as duplicate
+        mock_table.put_item.side_effect = ClientError(
+            {"Error": {"Code": "ConditionalCheckFailedException"}},
+            "PutItem",
+        )
+        assert runner_app._already_delivered(TEAM, task) is True
+
+        # 3. DLQ recovery clears the marker:
+        state.clear_idempotency_marker(TEAM, "task-retry-01", hops=0)
+        mock_table.delete_item.assert_called_once_with(
+            Key={
+                "PK": state.team_pk(TEAM),
+                "SK": "IDEMPOTENCY#task-retry-01#0",
+            }
+        )
+
+        # 4. Subsequent redrive run succeeds in claiming marker again:
+        mock_table.put_item.side_effect = None
+        assert runner_app._already_delivered(TEAM, task) is False

@@ -83,6 +83,86 @@ def ttl_after(seconds):
     return int(datetime.now(timezone.utc).timestamp()) + int(seconds)
 
 
+def clear_idempotency_marker(team, task_id, hops=0):
+    """Delete the idempotency gate for a task/hop so it can be safely replayed.
+
+    Used by DLQ recovery to permit a dead-lettered message to be redriven without
+    being falsely dropped as a duplicate by `_already_delivered`.
+    """
+    if not task_id:
+        return
+    table().delete_item(
+        Key={
+            "PK": team_pk(team),
+            "SK": f"IDEMPOTENCY#{task_id}#{int(hops or 0)}",
+        }
+    )
+
+
+# TaskDLQ retention period is 14 days (1,209,600s) as configured in template.yaml.
+# Redrive claim markers must survive for at least this window so that an orphaned
+# DLQ message whose deletion failed cannot be re-sent if redriven days later.
+DLQ_REDRIVE_TTL_SECONDS = 1209600
+
+
+def claim_dlq_redrive(team, task_id, hops=0, message_id=None, ttl_seconds=DLQ_REDRIVE_TTL_SECONDS):
+    """Atomically claim redrive execution for a dead-lettered task.
+
+    Returns True if this is the first redrive claim (safe to dispatch).
+    Returns False if already claimed by a prior redrive attempt that failed
+    at the DLQ deletion step (meaning the message was already sent to the main
+    queue and must NOT be sent again).
+
+    The claim TTL matches the DLQ MessageRetentionPeriod (14 days) to guarantee
+    the claim never expires while the dead-lettered message is still in the queue.
+    """
+    if not task_id:
+        return True
+    try:
+        table().put_item(
+            Item={
+                "PK": team_pk(team),
+                "SK": f"DLQ_REDRIVE#{task_id}#{int(hops or 0)}",
+                "task_id": task_id,
+                "hops": int(hops or 0),
+                "message_id": message_id,
+                "claimed_at": now_iso(),
+                "expires_at": ttl_after(ttl_seconds),
+            },
+            ConditionExpression="attribute_not_exists(SK)",
+        )
+        return True
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return False
+        raise
+
+
+def release_dlq_redrive(team, task_id, hops=0):
+    """Release or clear the DLQ redrive marker."""
+    if not task_id:
+        return
+    table().delete_item(
+        Key={
+            "PK": team_pk(team),
+            "SK": f"DLQ_REDRIVE#{task_id}#{int(hops or 0)}",
+        }
+    )
+
+
+def is_dlq_redriven(team, task_id, hops=0):
+    """Check if a DLQ redrive claim exists."""
+    if not task_id:
+        return False
+    item = table().get_item(
+        Key={
+            "PK": team_pk(team),
+            "SK": f"DLQ_REDRIVE#{task_id}#{int(hops or 0)}",
+        }
+    ).get("Item")
+    return item is not None
+
+
 def now_iso_micros():
     """Microsecond-precision timestamp, used only for QUEUE# sort keys.
 
