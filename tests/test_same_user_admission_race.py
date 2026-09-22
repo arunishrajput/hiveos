@@ -35,7 +35,7 @@ class InMemoryDynamoDBTable:
     def _key(self, key_dict):
         return (key_dict.get("PK"), key_dict.get("SK"))
 
-    def put_item(self, Item, ConditionExpression=None, **kwargs):
+    def put_item(self, Item, ConditionExpression=None, ExpressionAttributeValues=None, **kwargs):
         with self._lock:
             k = self._key(Item)
             if ConditionExpression == "attribute_not_exists(SK)":
@@ -47,6 +47,20 @@ class InMemoryDynamoDBTable:
                         }
                     }
                     raise ClientError(error_response, "PutItem")
+            elif ConditionExpression == "attribute_not_exists(SK) OR expires_at < :now":
+                existing = self.items.get(k)
+                vals = ExpressionAttributeValues or {}
+                now_ts = vals.get(":now", 0)
+                if existing is not None:
+                    exp = existing.get("expires_at")
+                    if exp is None or int(exp) >= int(now_ts):
+                        error_response = {
+                            "Error": {
+                                "Code": "ConditionalCheckFailedException",
+                                "Message": "The conditional request failed",
+                            }
+                        }
+                        raise ClientError(error_response, "PutItem")
             self.items[k] = dict(Item)
             return {}
 
@@ -186,6 +200,45 @@ class TestSameUserAdmissionAtomicity:
         assert state.is_user_active(TEAM, "alice") is False
         # Can acquire again after release
         assert state.acquire_user_admission(TEAM, "alice", "task-2") is True
+
+    def test_admission_record_sets_ttl_attribute(self, mock_db):
+        assert state.acquire_user_admission(TEAM, "alice", "task-1") is True
+        item = mock_db.get_item({"PK": f"TEAM#{TEAM}", "SK": "ACTIVE#alice"})["Item"]
+        assert "expires_at" in item
+        assert isinstance(item["expires_at"], int)
+        # Must be within ~1 hour in future
+        now_ts = int(state.datetime.now(state.timezone.utc).timestamp())
+        assert item["expires_at"] >= now_ts + 3500
+        assert item["expires_at"] <= now_ts + 3600
+
+    def test_orphaned_expired_admission_can_be_reacquired(self, mock_db):
+        # Simulate an orphaned admission record whose TTL has expired
+        past_ts = int(state.datetime.now(state.timezone.utc).timestamp()) - 100
+        mock_db.items[(f"TEAM#{TEAM}", "ACTIVE#alice")] = {
+            "PK": f"TEAM#{TEAM}",
+            "SK": "ACTIVE#alice",
+            "user_id": "alice",
+            "task_id": "crashed-task",
+            "claimed_at": "2026-09-20T00:00:00.000000Z",
+            "expires_at": past_ts,
+        }
+        # Expired record should not count as active
+        assert state.is_user_active(TEAM, "alice") is False
+        # User should be able to acquire new admission despite orphaned record
+        assert state.acquire_user_admission(TEAM, "alice", "new-task") is True
+        # New record should have updated task_id and fresh TTL
+        new_item = mock_db.get_item({"PK": f"TEAM#{TEAM}", "SK": "ACTIVE#alice"})["Item"]
+        assert new_item["task_id"] == "new-task"
+        assert new_item["expires_at"] > past_ts
+
+    def test_set_user_admission_handoff_refreshes_ttl(self, mock_db):
+        assert state.acquire_user_admission(TEAM, "alice", "task-1") is True
+        # Handoff to second leg refreshes admission
+        state.set_user_admission(TEAM, "alice", "task-1-leg-2")
+        item = mock_db.get_item({"PK": f"TEAM#{TEAM}", "SK": "ACTIVE#alice"})["Item"]
+        assert item["task_id"] == "task-1-leg-2"
+        assert "expires_at" in item
+        assert state.is_user_active(TEAM, "alice") is True
 
 
 class TestClaimAgentConcurrencyRace:

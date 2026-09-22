@@ -188,6 +188,7 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 | `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`, **plus its identity**: `name`, `role`, `tagline`, `persona`, `character`, `project`, `created_at`. A row written before the roster became data has the runtime fields only and is filled in from `STARTING_ROSTER` by `agents.from_row` |
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
+| `TEAM#<team>` | `ACTIVE#<userId>` | `user_id`, `task_id`, `claimed_at`, `expires_at` (N, epoch seconds). Enforces single-task admission per user. Carries TTL (3600s) as an orphan safety net. |
 | `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). **The only row in the schema that expires.** Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. **Keyed on the leg, not the chain** — see below |
 
 ### Teams
@@ -293,6 +294,7 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
 ### Entity rules
 
 - **METADATA** — one per team. `tokens_used` is only ever updated with `ADD`, never read-then-write.
+- **ACTIVE#** — one per user currently holding a desk claim or queued task. Enforces single-task admission per user (`state.acquire_user_admission`). Carries `expires_at` (TTL 3600s / 1 hour matching `TaskQueue` retention) as an orphan-recovery safety net if a function crashes before release.
 - **CONN#** — one per live WebSocket connection. Deleted on `$disconnect` **and** on any `GoneException` during broadcast. **One row per connection, not per user** — the same `user_id` with two tabs open has two rows, so `state_snapshot.members[]` can contain duplicates. `user_left`, by contrast, carries only a `user_id`, so a client that trusts it blindly removes someone who still has a live socket. The frontend dedupes `members[]` by `user_id` and re-syncs on both membership events.
 - **AGENT#** — one per slot. `IDLE → BUSY` on claim, `BUSY → IDLE` on completion. `current_user` is `null` when `IDLE`.
 - **QUEUE#** — the SK leads with a microsecond timestamp, so sorting by SK gives arrival order. **Arrival order is not dispatch order.** Deleted when dispatched. The timestamp is **microsecond** precision (`%Y-%m-%dT%H:%M:%S.%fZ`), not the second-precision `now_iso()` used everywhere else: at second granularity two people clicking within the same second tie and fall back to UUID order, i.e. random. `connection_id` is carried so the runner can reply directly to the requester once the task finally starts.

@@ -226,6 +226,9 @@ def connection_user(team, connection_id):
     return (response.get("Item") or {}).get("user_id")
 
 
+USER_ADMISSION_TTL_SECONDS = 3600  # 1 hour — matches TaskQueue MessageRetentionPeriod
+
+
 def is_user_active(team, user_id):
     """Check if the user has an active admission record."""
     if not user_id:
@@ -233,7 +236,14 @@ def is_user_active(team, user_id):
     item = table().get_item(
         Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
     ).get("Item")
-    return bool(item)
+    if not item:
+        return False
+    exp = item.get("expires_at")
+    if exp is not None:
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        if int(exp) < now_ts:
+            return False
+    return True
 
 
 def acquire_user_admission(team, user_id, task_id):
@@ -244,6 +254,7 @@ def acquire_user_admission(team, user_id, task_id):
     """
     if not user_id:
         return False
+    now_ts = int(datetime.now(timezone.utc).timestamp())
     try:
         table().put_item(
             Item={
@@ -252,8 +263,10 @@ def acquire_user_admission(team, user_id, task_id):
                 "user_id": user_id,
                 "task_id": task_id,
                 "claimed_at": now_iso(),
+                "expires_at": ttl_after(USER_ADMISSION_TTL_SECONDS),
             },
-            ConditionExpression="attribute_not_exists(SK)",
+            ConditionExpression="attribute_not_exists(SK) OR expires_at < :now",
+            ExpressionAttributeValues={":now": now_ts},
         )
     except ClientError as error:
         if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
@@ -296,6 +309,7 @@ def set_user_admission(team, user_id, task_id):
             "user_id": user_id,
             "task_id": task_id,
             "claimed_at": now_iso(),
+            "expires_at": ttl_after(USER_ADMISSION_TTL_SECONDS),
         }
     )
 
