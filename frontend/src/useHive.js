@@ -52,9 +52,8 @@ const RESYNC_EVENTS = new Set([
   'agent_state_update',
   'queue_update',
   'agent_response',
-  // `user_left` carries a user_id but membership is per-connection, so the
-  // optimistic removal below is wrong for anyone holding a second tab. The
-  // re-sync is what makes it right again.
+  // Membership events: server emits user_joined on a user's first connection
+  // and user_left on final connection disconnect.
   'user_joined',
   'user_left',
   // Any rejected action means the client just applied something optimistically

@@ -295,7 +295,7 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
 
 - **METADATA** — one per team. `tokens_used` is only ever updated with `ADD`, never read-then-write.
 - **ACTIVE#** — one per user currently holding a desk claim or queued task. Enforces single-task admission per user (`state.acquire_user_admission`). Carries `expires_at` (TTL 3600s / 1 hour matching `TaskQueue` retention) as an orphan-recovery safety net if a function crashes before release.
-- **CONN#** — one per live WebSocket connection. Deleted on `$disconnect` **and** on any `GoneException` during broadcast. **One row per connection, not per user** — the same `user_id` with two tabs open has two rows, so `state_snapshot.members[]` can contain duplicates. `user_left`, by contrast, carries only a `user_id`, so a client that trusts it blindly removes someone who still has a live socket. The frontend dedupes `members[]` by `user_id` and re-syncs on both membership events.
+- **CONN#** — one per live WebSocket connection. Deleted on `$disconnect` **and** on any `GoneException` during broadcast. **One row per connection, not per user** — the same `user_id` with two tabs open has two rows in DynamoDB so every socket receives broadcasts. `state_snapshot.members[]` deduplicates by `user_id`. `user_joined` is broadcast when a user's first connection opens (subsequent tabs reuse the existing position and avatar). `user_left` is broadcast only when a user's final connection disconnects. The frontend also dedupes `members[]` by `user_id` for defensive rendering.
 - **AGENT#** — one per slot. `IDLE → BUSY` on claim, `BUSY → IDLE` on completion. `current_user` is `null` when `IDLE`.
 - **QUEUE#** — the SK leads with a microsecond timestamp, so sorting by SK gives arrival order. **Arrival order is not dispatch order.** Deleted when dispatched. The timestamp is **microsecond** precision (`%Y-%m-%dT%H:%M:%S.%fZ`), not the second-precision `now_iso()` used everywhere else: at second granularity two people clicking within the same second tie and fall back to UUID order, i.e. random. `connection_id` is carried so the runner can reply directly to the requester once the task finally starts.
 
@@ -495,7 +495,7 @@ malformed rather than the server. A malformed frame never closes the socket.
 
 **Avatar coordinates are percentages of the canvas (0–100), not pixels.** Three browsers at different widths have to agree on where everyone is standing, and a pixel coordinate breaks that on the first mismatched window. The Router clamps to the range and rejects non-numeric values, so a hand-crafted frame cannot push an avatar off the board for everyone else.
 
-**A position is stored per connection but drawn per user.** The `CONN#` row carries `x`/`y`, so someone with two tabs open has two stored positions — but `state_snapshot.members[]` carries no `connection_id` (deliberately: it is an internal address used only by `post_to_connection`, and broadcasting it to every client buys nothing). The frontend therefore dedupes `members[]` by `user_id` for both the count and the canvas, and `avatar_moved` is keyed by `user_id`, so a second tab moves the same avatar. One person, one marker, which is also the reading that makes sense on a team board.
+**A position is stored per connection but synchronized and drawn per user.** The `CONN#` row carries `x`/`y`, and `move_avatar` synchronizes coordinates across all active connection records for that `user_id`. `state_snapshot.members[]` carries deduplicated `{user_id, avatar, x, y}` entries (with no internal `connection_id`). The frontend also dedupes `members[]` by `user_id` for both the count and the canvas, and `avatar_moved` is keyed by `user_id`, so a second tab moves the same avatar. One person, one marker, which is also the reading that makes sense on a team board.
 
 ### Server → client
 
@@ -512,8 +512,8 @@ malformed rather than the server. A malformed frame never closes the socket.
 | `agent_handoff` | `{task_id, user_id, from_agent, from_name, to_agent, to_name, note, queued}` | An agent chose to pass its task to another desk. `queued` is true when that desk was busy and the work is waiting for it |
 | `memory_updated` | `{key, val, updated_by}` | `set_team_memory` runs |
 | `budget_exhausted` | `{tokens_used, token_budget}` | Bedrock invocation refused at the ceiling |
-| `user_joined` | `{user_id, avatar, x, y}` | `$connect` |
-| `user_left` | `{user_id}` | `$disconnect` or `GoneException` |
+| `user_joined` | `{user_id, avatar, x, y}` | First `$connect` for a user |
+| `user_left` | `{user_id}` | Final `$disconnect` for a user |
 | `avatar_moved` | `{user_id, x, y}` | `move_avatar` runs |
 | `agent_spawned` | `{slot_id, agent_type, name, role, tagline, character, project, status, current_user, created_at, hired_by}` | A desk was hired onto this floor. Carries everything needed to draw it, so a client appends rather than waiting for the next snapshot. **No `persona`.** The receiving client guards against a duplicate — the 500 ms re-sync can land a snapshot already carrying this desk |
 | `agent_dismissed` | `{slot_id, agent_type, dismissed_by}` | A desk was taken off the floor |
