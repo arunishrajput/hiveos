@@ -18,7 +18,7 @@ import time
 import boto3
 from botocore.exceptions import ClientError
 
-from . import history, scheduler, state
+from . import state
 
 _sqs = None
 

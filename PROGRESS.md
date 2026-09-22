@@ -15,10 +15,10 @@
 | **Track** | Ship It (deployed, public URL) |
 | **Deadline** | 2026-09-20 — **met. Submitted.** |
 | **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **▶ Current phase** | **Phase 24 — Arctic Base. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 24.** Queue after it: **25 → 26 → 27** (27 last — it depends on every world that shipped) |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 23 `COMPLETE` — deployed and verified 2026-09-21. **Six looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City — and the board wears any of them. **Five of the eight world phases have shipped; three remain and are queued.** Gates after Phase 23: `pytest` **42/42**, `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after and finding the only two live connections belonged to a stranger (`dana`) on `TEAM#alpha` while `TEAM#p23cloud` had none — the whole flow walked in Cloud City on the deployed board across **five identities** (4/4 desks lit at once, a settled `queued #1` in `--honey`, and two real handoffs at 540 and 960), and Paper Office proven unchanged by a **73/73 custom-property, 4,752-computed-field** diff against a HEAD build whose only four deltas were the live coordinates of one pawn. |
+| **▶ Current phase** | **Phase 26 — Ancient Ruins. `QUEUED`, and it is the next thing to build.** The world phases are the active work as of 2026-09-21, on user decision: the hackathon is submitted and the user is finishing the themes that time ran out on. **"Start the next phase" means Phase 26.** Queue after it: **27** (genuinely last — it depends on every world that shipped) |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 25 `COMPLETE` — deployed and verified 2026-09-22. **Eight looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost — and the board wears any of them. **Seven of the eight world phases have shipped; one world remains, plus the polish phase.** Gates after Phase 25: `pytest` **65/65** · `ws_smoke.py` **109/113** — the four documented CONN# false positives, and again *proved* false by scanning DynamoDB immediately after: the only two `CONN#` rows in the whole table were the suite's **own** `TEAM#alpha`/`dana` fixtures racing its disconnect cleanup, none in the live workspace and none from a stranger — every state hue measured at **≥4.85:1 against all eight of this world's surfaces**, real tasks run on the deployed board in this world, and Paper Office proven unchanged by a **73/73 custom-property, 4,611-computed-field** diff across 159 records against a HEAD build with **zero** deltas. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE`. DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 36, the world-picker-on-the-landing-page build**. **`main` and the stack are in step.** No backend change since PR #4 (runner idempotency + table TTL, deployed 2026-09-20 after submission); Phase 23 is frontend-only, and `ws_smoke.py` re-verified at **109/113** after it. DynamoDB TTL is `ENABLED` on `expires_at`. |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated 2026-09-21T17:54Z — untouched by this phase). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 38, the Desert Outpost build**. **`main` and the stack are in step.** The last backend change is still PR #7 (the budget ceiling reservation), merged and deployed 2026-09-21. Phase 25 is frontend-only and in step as well. DynamoDB TTL is `ENABLED` on `expires_at`. |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -59,17 +59,17 @@
 | 21 | Reef Station | `COMPLETE` — deployed and verified 2026-09-21. Five worlds in the picker; the hardest contrast case in the set, and it holds |
 | 22 | Alien Colony | `COMPLETE` — deployed and verified 2026-09-20. Built out of order on the user's instruction; it was the third look in the picker at the time |
 | 23 | Cloud City | `COMPLETE` — deployed and verified 2026-09-21. Six worlds in the picker; the only world brighter than Paper Office, and the one where every dark world's lighting trick stops working |
-| 24 | Arctic Base | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 24 |
-| 25 | Desert Outpost | `QUEUED` — position 2 |
-| 26 | Ancient Ruins | `QUEUED` — position 3 |
-| 27 | World polish and Random World | `QUEUED` — **position 4, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
+| 24 | Arctic Base | `COMPLETE` — deployed and verified 2026-09-21. Seven worlds in the picker; the first world split down the middle — snow below the walk line, aurora above it — and the one the ambient-warm/cool-state rule was written for |
+| 25 | Desert Outpost | `COMPLETE` — deployed and verified 2026-09-22. Eight worlds in the picker; the world whose ground **is** a state hue, and the one that had to stop separating by hue altogether |
+| 26 | Ancient Ruins | **`NEXT UP` — queue position 1. This is what "start the next phase" builds.** Brief: `BUILD_PLAN.md` → Phase 26 |
+| 27 | World polish and Random World | `QUEUED` — **position 2, and genuinely last.** It depends on whichever worlds actually shipped, so it cannot run before the rest |
 | 6 | Demo readiness | `COMPLETE` — **all nine tasks.** Tasks 4 and 5 were re-done on 2026-09-19 against the Phase 17 office: `rehearse.py` covers hiring and passes **15/15** twice, and `DEMO.md`'s framing and beat timings were corrected against measurement. **Tasks 6 and 7 — record and upload — were done by the user on 2026-09-20** and the link is verified public from an unauthenticated fetch. **Task 9 — submit — was done by the user and confirmed 2026-09-21** |
 
 **Phases 18–27 are specified in `BUILD_PLAN.md`; read that section before starting any of them.**
 Every one is frontend-only and leaves `main` recordable, because Paper Office stays the default.
 **19–26 depend on 18 and on nothing else**, so their order can be reshuffled — or any of them
 dropped — without touching the rest. 27 depends on whichever worlds actually shipped.
-**A world should now read the four findings under each of Phases 19, 20, 21, 22 and 23 in
+**A world should now read the four findings under each of Phases 19, 20, 21, 22, 23 and 24 in
 `BUILD_PLAN.md` before starting** — they are the shared-code traps a costume change walks into, and
 most of them have a fix already in `worlds/nightsky.css`, `worlds/forest.css`,
 `worlds/underwater.css` or `worlds/alien.css` to copy rather than rediscover. Between them: the
@@ -82,20 +82,23 @@ must be a length and never a floor percentage**, **why every shaped gradient lay
 `--walk-top` before anything is painted on the ground**, **how to solve a `background-position`
 onto a layout constant**, **that a world has to check its cast, its handoff *and its scenery*
 against the four state meanings before drawing any of them**, **that a 9x10 sprite carries its
-identity in rows 0 and 1 and nowhere else**, and — new at Phase 23 and the one that matters most
-for Arctic Base — **that on a world brighter than Paper Office every lighting technique the three
+identity in rows 0 and 1 and nowhere else**, **that on a world brighter than Paper Office every lighting technique the three
 dark worlds established stops working, because there is no headroom above white: a bright world
 reports by going DOWN in value, by going up in saturation, and by painting the shadow instead of
-the light.**
+the light**, and — new at Phase 24 and the two that matter most for Desert Outpost — **that the
+brighter a world is, the more its own real-world palette is pushed onto the four state hues,
+because "high-visibility" and "reads as a state" are the same problem**, and **that a world with
+more than one value register has to re-pitch `--dim` and `--faint` against the darkest of them or
+the two collapse into each other.**
 
 > **▶ Resumed 2026-09-21, on user decision. These phases are the active work.** They were
 > deferred — never cut — when the 2026-09-20 deadline forced the user to take **Phase 22 only**
 > and close the project out for the recording. Two world phases shipped during the hackathon (19
-> and 22) and **Phases 20, 21 and 23 shipped on 2026-09-21**, so five of eight are done. The
+> and 22) and **Phases 20, 21, 23 and 24 shipped on 2026-09-21**, so six of eight are done. The
 > submission is in, so the user is finishing the rest.
 >
 > **A session told "Start the next phase" builds the first phase in the board above that is not
-> `COMPLETE` — right now that is Phase 24, Arctic Base.** Then 25 → 26, and
+> `COMPLETE` — right now that is Phase 25, Desert Outpost.** Then 26, and
 > **27 last**, because it depends on whichever worlds actually shipped. 19–26 depend only on 18,
 > so that order is a convention the user may reorder or cut from; 27's position is not.
 >
@@ -128,6 +131,71 @@ a fresh session reads first.
 ---
 
 ## Completed
+
+**PR #7 — the budget ceiling under concurrency — 2026-09-21 — merged, deployed and verified**
+
+Community PR from @Phantom9869, reviewed, reworked and merged. The bug it found is real: the
+ceiling *read* `tokens_used` and decided, then committed the spend at the end of the task, so two
+runners arriving together both saw room and both invoked the model. Overshoot grew with the size
+of the floor instead of staying at the one task's worth `CONTRACT.md` promises.
+
+`state.reserve_budget` now asks and commits in one conditional update whose condition is the
+admission rule itself — `tokens_used < token_budget`, both sides attribute paths, so DynamoDB
+evaluates it against the committed row and not against a number the Lambda read a moment ago. The
+second runner is tested against the first one's hold. `state.add_tokens` settles the hold against
+what the provider counted (usually a credit back), and the runner's `finally` releases it on every
+path that never reached a reply.
+
+**Three things the PR had wrong, and they are the transferable part:**
+
+1. **A hold the size of the prompt is not a hold.** The PR reserved `len(prompt)/4` — about a
+   dozen tokens against a task that costs ~800. Each admission left the counter near enough to
+   where it was found that the next desk still read room, so a floor of four could still walk
+   through a ceiling with one token left in it. `RESERVATION_CEILING` is
+   `(MAX_TOOL_ROUNDS + 1) * MAX_TOKENS` instead — derived from the two constants that bound what
+   a task may emit, roughly twice a measured task. **Sizing is the whole mechanism here, not a
+   detail of it.**
+2. **A hold must not be able to read as a spent quota.** Unclamped, a 1,806-token hold on the
+   1,600-token board `DEMO.md` documents for the ceiling beat would push `tokens_used` past
+   `token_budget`, and `useHive.js` latches the refused state on exactly that comparison from both
+   frames that carry the ceiling — red banner, disabled send, on a board with budget to spare, for
+   as long as one task ran. It is clamped to the remainder, which parks the counter *exactly* on
+   the ceiling: high enough to refuse everybody else, never higher than the meter can honestly
+   show. **A server-side placeholder is a client-visible number on this product.**
+3. **A refund in `except` misses the paths that `return`.** Moved to `finally`, ahead of the slot
+   release and fully swallowed — the release is the invariant that outranks it, so nothing in
+   front of it may raise. The hold also moved off the `task` dict into a local: `task` is an SQS
+   body the ledger and the handoff read back.
+
+The PR's own race test stubbed `reserve_budget` out and fed it scripted answers, which proves
+nothing about the condition. `tests/test_budget_ceiling_race.py` was rewritten around a fake
+METADATA row that evaluates the real condition against live state, and every claim in it was
+checked by mutation — shrinking the hold, dropping the clamp, dropping the `ConditionExpression`
+and dropping the settlement each fail tests that name the failure.
+
+**Verified on the deployed stack, not just locally.** `pytest` **65/65**; `sam build
+--use-container && sam deploy` at 17:54 UTC (runner `CodeSha256 nIcfOCnE19…`, was
+`jmqvPgsr6t…`); `ws_smoke.py` **109/113** — the same four documented `CONN#` false positives and
+nothing else, with section 17 (the ceiling refusal) and section 24's `chain=2007, team total=2007`
+both passing, which is the settlement reconciling exactly across two legs of a handoff. Unlike the
+Phase 24 run, the post-run scan found **three** lingering `CONN#` rows rather than zero (two on
+`alpha` from the run's own sockets, one on `p24arctic` from an earlier browser session) — the same
+ungraceful-`$disconnect` residue the four checks have always been tripping on, and nothing this PR
+touches.
+
+A throwaway workspace then drove the three things the smoke test does not reach, because they are
+new. Numbers as measured:
+
+| | |
+|---|---|
+| The hold is taken *before* the model answers | `tokens_used` went **0 → 1,805** while the task ran, then settled to **633** |
+| It is the size of a task, not of a prompt | **1,805** held against a task that cost **633** |
+| It settles with no residue | METADATA **633** = the `token_update` frame's **633** |
+| Clamped at the ceiling | started at **99,999/100,000**, the hold parked the counter on **exactly 100,000** and never above it |
+| The settlement is still exact there | **100,625** = 99,999 + the **626** the task really cost |
+| A refusal takes no hold | parked at **100,000/100,000**, `budget_exhausted` broadcast, counter **unchanged** |
+
+The scratch workspace was deleted afterwards; the public board was never touched.
 
 **The world picker on the landing page — 2026-09-21 — deployed and verified**
 
@@ -166,6 +234,246 @@ add), and coupling the two would mean a future fix to one silently moved the oth
 **Not re-run:** `pytest`, `ws_smoke.py`, `rehearse.py`. No backend file changed and no protocol,
 schema or shared workspace behaviour moved — the diff is one component's markup and one
 landing-scoped CSS block, and the workspace parity above is the check that actually covers it.
+
+---
+
+**Phase 25 — Desert Outpost — 2026-09-22 — deployed and verified**
+
+The eighth look, and **the world whose ground is a state hue**. A research outpost in the dunes an
+hour before sunset: adobe outposts under stretched shade canopies, a solar array and its charge
+controller on each back wall, field stations under sun-hooded readouts, a water cask, a caravan
+track with marker posts across the middle of the floor, cacti and agave, and a dune ridge along
+the back with the sun going down behind it.
+
+**Files:** `frontend/src/worlds/desert.css` (new, 1,843 lines), `frontend/src/worlds.js` (+240,
+additive), `frontend/src/main.jsx` (+1 import). `styles.css`, `components.jsx` and `sprites.js`
+were **not touched** — this is the sixth world in a row that stayed inside the two-file seam Phase
+18 built, plus the one import line.
+
+**The problem this world exists to solve.** `--honey` means *queued, and 50-80% of the budget
+spent*, and it is a deep ochre. A dune field is the same family of colour covering the **largest
+surface in the product** — the corridor every pawn stands on and every small caption sits over.
+Reef Station had the same shape of problem in the busy blue, but its blue was the *band*; this is
+the floor. The resolution was to stop using the hue axis at all: honey is left 14.5deg from the
+sand, that gap is asked to carry nothing, and the whole separation is value (0.42 against 0.94)
+and saturation (0.98 against 0.28). Underneath it is the guarantee that has held since Phase 19 —
+**amber is only ever a fill and honey is only ever a word**, and a floor is never a word.
+
+**Measured, not eyeballed — worst case across all eight of this world's surfaces:**
+
+| token | worst | binding surface |
+|---|---|---|
+| `--cool` | **4.94:1** | the lit outpost deck |
+| `--safe` | **4.85:1** | the lit outpost deck |
+| `--honey` | **4.92:1** | the lit outpost deck |
+| `--alarm` | **4.90:1** | the lit outpost deck |
+| `--screen-on` (indicator, bar 3.0) | **3.30:1** | the lit outpost deck |
+| `--dim` | **6.54:1** | the lit outpost deck |
+| `--faint` | **4.71:1** | the lit outpost deck |
+
+The binding surface is `--room-floor-busy` every single time, which is Phase 24's finding 2
+arriving exactly as it predicted: a world with a second value register has to clear its small type
+against the **darkest** of them, not against the page. `--faint` carries `.desk__role` under every
+nameplate and a nameplate is inside an outpost, so pulling it down to clear 4.71:1 there walked it
+into `--dim`, and `--dim` had to come down with it. The pair is held **1.47:1** apart against the
+1.39-1.43 Paper Office, Cloud City and Arctic Base each hold.
+
+| check | result |
+|---|---|
+| `npm run build` | ✅ clean, zero warnings |
+| `./scripts/deploy-frontend.sh` | ✅ **job 38 `SUCCEED`**, Amplify app `dbavt8jr66qxx` |
+| Desert live on the **deployed** URL, chosen through the real picker | ✅ `data-world=desert`, `--floor #efddad`, `theme-color #f8eddc`, pre-paint key written |
+| picker now offers | ✅ **8 cards**, Desert Outpost eighth |
+| real tasks run on the deployed board in this world | ✅ several, **~2,800 real tokens** spent on `TEAM#p24arctic`; the busy beat sampled in-page at `.room--busy` + `.desk--busy` from **507 ms to 4,645 ms** with the pawn reading `working` |
+| the queue, read against the dunes at 540 px | ✅ `queued #1` in `--honey` on the caravan track, **6.65:1**, between two marker posts |
+| `WAITING AREA` caption on the track | ✅ **6.37:1** in `--faint` |
+| idle outpost and busy outpost in one frame | ✅ warm shaded adobe against cool deck, lit controller, lit readout — at both demo framings |
+| switch to Paper Office and back, no reload | ✅ tokens, `theme-color` and the floor recipe (back to exactly 3 gradient layers) all restored |
+| **Paper Office unchanged** | ✅ **zero deltas** across **73 custom properties** and **4,611 computed fields** over **159 records**, against a HEAD worktree build, animations pinned to t=0 |
+| Phase 22's world-card hover fix, in this world | ✅ selected card **9.37:1 at rest, 6.83:1 hovered**; unselected **16.40:1 / 13.61:1** |
+| the brand fill stays findable on a warm page | ✅ amber **1.70:1** against the page where Paper Office manages 1.43:1, and **1.52:1** against its own empty track |
+| demo framings | ✅ floor **516×260** at 540 and **515×623** at 960 — the documented numbers, unmoved |
+| responsive sweep 1440 / 1100 / 960 / 900 / 540 / 390 | ✅ **zero horizontal overflow at every one** |
+| console | ✅ **0 errors, 0 warnings**, local and deployed |
+| `prefers-reduced-motion: reduce` | ✅ all three animations report `animationName: none`, **0 running animations**; they return under `no-preference` |
+| `pytest` | ✅ **65/65** (`.venv/bin/python` — the system 3.14 has no `botocore`) |
+| `python scripts/ws_smoke.py` | ✅ **109/113**, unchanged — the four documented CONN# false positives |
+| stack state | ✅ `hiveos` `UPDATE_COMPLETE`, untouched — nothing was deployed to it |
+
+**On the CONN# four, a fourth independent confirmation — and this one names the cause.** Phase 19
+blamed the developer's own browser tabs, Phase 22 corrected that to "one cause, not the only one",
+Phases 23 and 24 found a stranger's row and then none at all. This run closed the browser first
+and then scanned the whole table: **two** `CONN#` rows, and both were `TEAM#alpha` / user `dana` —
+**the smoke suite's own fixtures**, racing its own disconnect cleanup. None in the live workspace,
+none from a stranger. The failures are the suite observing itself, which is the most benign
+explanation yet offered and the first one that is directly evidenced.
+
+**Four findings recorded in `BUILD_PLAN.md` under Phase 25**, all four of which belong to worlds
+26 and 27 rather than to this one. In short: **a gradient ANGLE is a percentage in disguise** — a
+`linear-gradient(100deg …)` is a diagonal bar in a 175×125 room and a full-height vertical streak
+in a 175×299 one, which is Phase 20's finding 2 in the one form it did not cover and is harder to
+catch because the angle genuinely is framing-independent; **when a world's ground IS a state hue
+the hue axis is spent and the right move is to stop using it**, and the cost lands on the identity
+palette, where the ochre wedge is unavailable twice over because a warm-brown hood is both the
+ground it stands on and the word hanging under it; **a light whose colour IS a state hue has to be
+painted as its shadow**, which is a second and independent route to Cloud City's rule — low raking
+sun measures 1.9deg from `--honey`, so the sun is stated as geometry (long shadows, dark dunes with
+lit crests) and never as colour; and **a smooth closed curve on an even surface is a spill**, so
+Phase 24's rim trick needs its shapes to overlap — the rims that run *through* a neighbour stop
+being outlines and become the crack network the world would otherwise have drawn as forbidden
+strokes.
+
+**Two things worth knowing before Phase 26.** The solar array is **room-level**, not per-desk as
+the brief has it: `.desk` is a centred flex column with a two-line nameplate above the stack and
+the open desks sit at floor x 8 and x 91, so there is no free space either above or to the side —
+the array and the controller live in the two top corners the nameplate and the speech bubble never
+reach, which is Cloud City's placement finding taken as given. And **a real task finishes in about
+four seconds**, which is shorter than a screenshot round trip; the busy beat was verified by
+sampling the DOM from inside the page, and a world phase that wants the busy state in a photograph
+should force the class and say so rather than race the agent.
+
+---
+
+**Phase 24 — Arctic Base — 2026-09-21 — deployed and verified**
+
+The seventh look, and **the first world split down the middle**: packed snow below the walk line,
+a twilight sky with an aurora above it. A polar research station — insulated cabins with heavy
+doors and drifted thresholds, survey stations under frosted instrument windows, an ice-core rack,
+antenna masts standing in their own snowdrifts, a route of black flags across swept ice, and a
+weather board on a post against the ridge.
+
+**What landed.** `frontend/src/worlds/arctic.css` (new, 49 scoped rules), a registry entry plus a
+five-explorer cast, a four-penguin agent cast and an eight-colour palette in `worlds.js`, one
+import line in `main.jsx`. **Three files and nothing else** — the diff is `+1` line in
+`main.jsx`, `+235` in `worlds.js`, and one new file.
+
+**The problem this world exists to solve.** Cloud City is bright everywhere and the three dark
+worlds are dark everywhere. A polar station at midwinter is neither, because snow is bright
+*precisely by reflecting the whole sky dome* and the sky is what is left over. So both halves of
+the project's lighting experience apply here, each on its own side of one line — and that line is
+`--walk-top`, the one number a world file may read and may never set.
+
+| | below the line | above the line |
+|---|---|---|
+| **regime** | Cloud City's: no headroom above white | Night Watch's: additive light on near-black |
+| **surfaces** | eight, value 0.88–1.00, saturation 0.01–0.18 | sky 0.09–0.50, carries no word, not walkable |
+| **how relief reads** | as the **shadow** it casts — sastrugi, boot tracks, the berm, the door drift | as the **light** it emits — aurora, stars, afterglow |
+| **the fixture in the band** | — | **pale**, where Cloud City's had to be dark |
+
+That last row is the transferable half. `.fixture--board` is the same element in both worlds and
+took the opposite treatment, for the same reason both times: **the only object that reads against
+a band is one on the other side of it from the band.** A world that picked one lighting register
+and applied it everywhere gets this exactly backwards.
+
+**The three value registers, and why they are what makes the phase's gate passable.**
+
+| register | token | value | against |
+|---|---|---|---|
+| the snow outside | `--floor` `#f2f7fb` | L 0.924 | — |
+| a cabin deck | `--room-floor` `#cfdae1` | L 0.688 | **1.32:1 below the snow** |
+| a lit cabin deck | `--room-floor-busy` `#b9d1e1` | L 0.614 | **1.11:1 below idle, at 2.3× the saturation** |
+| the band | `--sky-deep` → `--sky-low` | L 0.017–0.11 | — |
+
+A sky harbour's pavilion is open deck at value 0.99, so both of its lights had to report by going
+*down* and the warm one could not exist at all. A polar cabin is a sealed box, so its deck is
+allowed to be darker than the ground outside — and that gap is headroom. It buys the thing the
+brief's gate actually asks for: **the two lights move in opposite directions.** The living
+window's warm pool goes **up** in value against the cabin deck; the instrument port's cool wash
+goes **down**. A viewer never has to tell warm from cool at 540px on a compressed recording —
+only lighter from darker, which survives compression, a bad projector and a colourblind reader.
+
+**The recolour test.**
+
+| requirement | what changed |
+|---|---|
+| ground-plane **structure** | `.floor` is rebuilt from 3 layers to 12: a berm line, a near ridge, a far ridge, the afterglow, an opaque twilight sky, one sastrugi field, three drift shadows and three bare-ice plates. Not one checker remains |
+| **two of three** decoration slots | all three — sky: aurora curtains + a star field; ground: trodden aprons, boot grain and a drifting ground blizzard; air: falling snow |
+| the **sprite design table** | two new tables: five parka'd explorers (`PARKA_TEAM`) and four penguins (`PENGUINS`), the third world to use `agentDesigns` |
+| **three of five** fixtures | all five — weather board, ice-core rack, frosted pane with icicles, the low sun's raking pool, antenna masts |
+| the **form** of a state expression | busy moves off the desk and onto the **cabin's back wall**: an instrument port beside the living window, dark when idle and cool-lit when working, in a place the nameplate and the speech bubble never reach |
+
+**The state-legibility contract — measured, not eyeballed.** Every state hue against **all eight**
+of this world's surfaces; worst case per hue:
+
+| | `--cool` | `--safe` | `--honey` | `--alarm` | `--screen-on` (indicator) |
+|---|---|---|---|---|---|
+| **worst of eight** | **5.84:1** | **5.13:1** | **4.96:1** | **4.96:1** | **3.47:1** |
+| binding surface | a lit cabin deck, every time | | | | |
+| hue | 196.9° | 148.2° | 31.0° | 4.7° | 196.2° |
+| saturation | 0.92 | 0.90 | 0.96 | 0.83 | 0.93 |
+
+Bar is 4.5:1 for anything carrying a word and 3:1 for an indicator. Text tokens clear it too —
+`--ink` 10.48:1, `--dim` 6.75:1, `--faint` **4.71:1**, all worst-case against the same lit deck.
+The brand fill carries its own dark label at **9.80:1** and still carries no meaning. `--honey`
+and `--amber` separate by **4.16:1 in value** at only 8.3° of hue, which is the separation a
+bright world gets back and a dark one cannot have.
+
+| check | result |
+|---|---|
+| `npm run build` | ✅ clean |
+| `./scripts/deploy-frontend.sh` | ✅ **job 37 `SUCCEED`** → https://main.dbavt8jr66qxx.amplifyapp.com |
+| every rule scoped to `:root[data-world='arctic']` | ✅ **49/49**, checked by parsing the file |
+| `--walk-top` never set, only read | ✅ 0 declarations, 11 reads; deployed value still `14%` |
+| `@keyframes` name collisions | ✅ none — all five prefixed `arctic-`, 0 hits in the other six stylesheets |
+| **Paper Office unchanged** | ✅ **73/73 custom properties and 37,959 computed fields, ZERO deltas** against a HEAD worktree build served side by side |
+| world switch with no reload | ✅ arctic → paper → arctic, tokens and floor repaint both ways |
+| cold load | ✅ `data-world` stamped pre-paint, `theme-color` `#eef3f8`, body ground already arctic — no cream flash |
+| hire + run on the deployed board | ✅ Jim and Pam hired through the real UI; **21,688 real tokens** spent on `TEAM#p24arctic` |
+| every desk lit at once | ✅ **4/4 `BUSY`** confirmed in DynamoDB while the browser rendered it |
+| queue + handoff in frame | ✅ `queued #1–#4` in `--honey` on the ice path, and the dispatch tube crossing the corridor — **see the note below on how this frame was produced** |
+| responsive sweep | ✅ **zero horizontal overflow** at 1440 / 1100 / 960 / 900 / 540 / 390 / 360; the nav never scrolls and the world button is a full 26×26 inside the viewport at 360 |
+| `prefers-reduced-motion: reduce` | ✅ all five animations → `none`; `document.getAnimations()` returns **0** |
+| console | ✅ **0 errors, 0 warnings** |
+| `pytest` | ✅ **42/42** |
+| `ws_smoke.py` | ✅ **109/113** — unchanged, the four documented CONN# false positives |
+| stack state | ✅ `hiveos` `UPDATE_COMPLETE`, untouched — nothing was deployed to it |
+
+**On the CONN# four, a third independent confirmation.** Phase 19 blamed the developer's own
+browser tabs, Phase 22 corrected that to "one cause, not the only one". This run scanned the whole
+table immediately after the suite and found **zero `CONN#` rows anywhere** — not two belonging to
+a stranger, as at Phase 23, but none at all. The rows the suite reads are transient and gone
+before the scan; there is no leak.
+
+**On the queue-and-handoff frame, stated plainly.** Both were photographed by setting the states
+on the **deployed** page — the real build, the real stylesheet, the real DOM — rather than by
+winning a race against the scheduler. The reason is the scheduler being correct rather than
+anything being broken: `ws_smoke.py`'s own wording is *a preference is not a reservation*, so on a
+four-desk floor N simultaneous claims never queue at all, and N+k queue only for as long as the
+first task runs (~8s). Five separate attempts across three workspaces, with claims fired from 8
+identities at once, produced real 4/4 `BUSY` floors but never a queue that outlived the poll. The
+CSS under test is the same either way — `.pawn--waiting .pawn__state` renders `rgb(125,67,5)`,
+exactly `--honey` — and the scheduler's own queue behaviour is covered unchanged by `ws_smoke.py`
+and `pytest`. **A later world phase that wants the queue live should shrink the floor to two desks
+first.**
+
+**Four findings recorded in `BUILD_PLAN.md` under Phase 24**, all four of which belong to worlds
+25 and 26 rather than to this one: **the split-world rule** (both lighting regimes apply, each on
+its own side of `--walk-top`; a fixture inside the band takes the band's regime, not the world's;
+and a building darker than its ground buys the opposite-directions trick a uniformly bright world
+cannot have); **that every value register you add costs a re-pitch of `--dim` and `--faint`**,
+because the small type has to clear the darkest one and `--faint` walks into `--dim` on the way
+down; **that a bright world's collisions with the state hues are systematic rather than
+incidental**, because "high-visibility" is defined as *what stands out against white* and that is
+the same job the four state hues do — an orange parka, a red route flag, a green aurora and an
+orange bill are four props and four state hues in one world, and **Desert Outpost is made of
+`--honey`**; and **that a crack is not a line but an edge between two materials**, which took a
+graph-paper failure and a scratched-lens failure to arrive at.
+
+**Four notes that are not corrections.** The room-level state expression sits on the cabin's back
+wall beside the living window, which is Cloud City's placement finding taken as given rather than
+rediscovered — and the pair is separated by **shape** as well as hue, a wide low instrument pane
+against a small square with a cross mullion, because at 540px shape is the stronger channel. The
+penguins carry **no `F` layer**, because a penguin's white front is the first thing anybody draws
+and it is not visible from directly above; `--sp-skin` therefore stays unambiguously human, the
+same tell the colony's robots and the harbour's drones carry. The handoff's `.envelope__flap` is
+**reused** as the tube's strap rather than stood down as Cloud City stood its down — a courier
+bird is a silhouette and a second shape on a silhouette becomes the average of the two, but a
+tube is a solid object and a strap is a **line**, and lines survive at 24×10 real pixels where
+blobs do not. And the aurora was **rebuilt once**: the first version was a repeating gradient of
+evenly spaced rays with an opaque veil cutting its top and foot, which rendered as a barcode *and*
+painted over the ridge the band most needed; it is now eleven soft lozenges at hand-picked
+positions, in an element whose height is `calc(var(--walk-top) - var(--tile-size) * 0.34)` so it
+stops above the ridge by construction instead of being covered up.
 
 ---
 
@@ -2848,10 +3156,10 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | WebSocket API `hiveos-ws` | ✅ `mel2gpat9c`, stage `prod` |
 | Router Lambda `hiveos-router` | ✅ verified end to end |
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered |
-| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens |
+| Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens, **and the PR #7 budget-ceiling reservation** (deployed 2026-09-21 17:54 UTC, `CodeSha256 nIcfOCnE19HI6m7bfFi9pf7oI8MjBCxuvbzMCNolxg8=`) |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
-| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 33**, Phase 20 build |
-| Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Alien Colony** — read back from the live picker |
+| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 37**, Phase 24 build |
+| Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base** — read back from the live picker |
 | Demo video | ✅ **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, `playabilityStatus: OK` on an unauthenticated fetch |
 
 **The Amplify app is not managed by CloudFormation.** This is deliberate and matches
@@ -2865,19 +3173,20 @@ and no build service role, which makes it fully scriptable. The consequence is t
 
 ## Next recommended action
 
-### ▶ Build **Phase 21 — Reef Station**.
+### ▶ Build **Phase 25 — Desert Outpost**.
 
 That is the answer to "Start the next phase". It is the first phase on the board that is not
-`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 21 — Reef Station*, and the route in is
-below. Queue after it: **23 → 24 → 25 → 26 → 27**, with 27 last.
+`COMPLETE`, its brief is `BUILD_PLAN.md` → *Phase 25 — Desert Outpost*, and the route in is
+below. Queue after it: **26 → 27**, with 27 last.
 
 **Why this is live work again.** The hackathon is over and **the submission is in** — the video
 is recorded, uploaded and verified public
 (**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38), and the user confirmed on 2026-09-21
 that it was submitted inside the deadline. Phase 6 is closed, task 9 included. With that done,
 the user is finishing the world phases the deadline cut short. Two shipped during the hackathon —
-**19 Night Watch and 22 Alien Colony** — and **20 Enchanted Forest shipped on 2026-09-21**, so
-three of the eight are done. **Five remain and they are the current work.**
+**19 Night Watch and 22 Alien Colony** — and **20 Enchanted Forest, 21 Reef Station, 23 Cloud City
+and 24 Arctic Base shipped on 2026-09-21**, so six of the eight are done. **Two remain and they
+are the current work.**
 
 > **To any future session: do not tell the user to submit.** It is done. Do not ask whether it
 > was done, do not list it as outstanding, and do not reopen it because an older line further
@@ -2898,19 +3207,23 @@ every world phase exactly as they did during the hackathon. One phase per sessio
 **How the remaining phases were left.** On 2026-09-20 the user asked for Phase 22 only and then
 for the project to be finalised for the recording. Phases **20, 21, 23–27 were deferred, not
 cut** — every brief in `BUILD_PLAN.md` is intact and each is still an isolated two-file diff.
-**20 has since shipped**; the rest are the active queue.
+**20, 21, 23 and 24 have since shipped**; 25, 26 and 27 are the active queue.
 
-**The route into Phase 21 — Reef Station**, and into every world phase after it:
+**The route into Phase 25 — Desert Outpost**, and into every world phase after it:
 
 - Read the `## Phases 18–27` section of `BUILD_PLAN.md` first — it carries two contracts (the
   recolour test and the state-legibility contract) a session will otherwise not infer, and both
   are applied at every world gate.
-- Then read **Phase 19's four findings, Phase 20's four and Phase 22's four**, in the same file.
-  Between them they cover every shared-code trap found so far, and most have a fix already written
-  in `worlds/nightsky.css`, `worlds/forest.css` or `worlds/alien.css` to copy rather than
-  rediscover.
+- Then read **the four findings under each of Phases 19, 20, 21, 22, 23 and 24**, in the same
+  file. Between them they cover every shared-code trap found so far, and most have a fix already
+  written in `worlds/nightsky.css`, `worlds/forest.css`, `worlds/underwater.css`,
+  `worlds/alien.css`, `worlds/cloudcity.css` or `worlds/arctic.css` to copy rather than
+  rediscover. **Desert Outpost is a light world, so start with Phase 23's and Phase 24's** —
+  sand has no headroom above it either, and a world in daylight needs none of the five overrides
+  a dark world needs.
 - Copy the shape of an existing registry entry in `worlds.js`. A dark world sets
-  `colorScheme: 'dark'` and a `themeColor` matching its own page ground.
+  `colorScheme: 'dark'` and a `themeColor` matching its own page ground; a light one sets
+  `'light'`, exactly as Cloud City and Arctic Base do.
 - The floor's objects are all tokens — `--mug`, `--board-face`, `--bottle`, `--cooler-body`,
   `--glass-sky`, the five fixtures, the three `.worldlayer` slots. **The recolour test is real:
   if the whole diff is values inside the token block, the phase is not done.**

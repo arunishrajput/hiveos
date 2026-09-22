@@ -189,8 +189,9 @@ Table `hiveos-state` · PK `PK` (string) · SK `SK` (string) · on-demand billin
 | `TEAM#<team>` | `AGENT#<slotId>` | `status` (`IDLE`\|`BUSY`), `current_user`, `slot_id`, `claimed_at`, **plus its identity**: `name`, `role`, `tagline`, `persona`, `character`, `project`, `created_at`. A row written before the roster became data has the runtime fields only and is filled in from `STARTING_ROSTER` by `agents.from_row` |
 | `TEAM#<team>` | `QUEUE#<ts>#<uuid>` | `user_id`, `agent_type`, `prompt`, `connection_id`, `enqueued_at` |
 | `TEAM#<team>` | `MEMORY#<slug(key)>` | `key`, `val`, `updated_by`, `created_at` |
-| `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. Keyed on the leg, not the chain — see below |
-| `TEAM#<team>` | `DLQ_REDRIVE#<taskId>#<hops>` | `task_id`, `hops` (N), `message_id`, `claimed_at`, `expires_at` (N, epoch seconds matching 14-day DLQ retention). Atomic redrive claim gate preventing duplicate re-dispatch if DLQ message deletion fails. Cleaned on verified deletion |
+| `TEAM#<team>` | `ACTIVE#<userId>` | `user_id`, `task_id`, `claimed_at`, `expires_at` (N, epoch seconds). Enforces single-task admission per user. Carries TTL (3600s) as an orphan safety net. |
+| `TEAM#<team>` | `DLQ_REDRIVE#<taskId>#<hops>` | `task_id`, `hops` (N), `message_id`, `claimed_at`, `expires_at` (N, epoch seconds, matching the DLQ's 14-day retention). Atomic redrive claim gate preventing duplicate re-dispatch if DLQ message deletion fails. Cleaned on verified deletion |
+| `TEAM#<team>` | `IDEMPOTENCY#<taskId>#<hops>` | `slot_id`, `user_id`, `claimed_at`, `expires_at` (N, epoch seconds). Carries TTL (86400s). Written conditionally by the runner; its existence *is* the value and nothing ever reads it back. **Keyed on the leg, not the chain** — see below |
 
 ### Teams
 
@@ -295,7 +296,8 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
 ### Entity rules
 
 - **METADATA** — one per team. `tokens_used` is only ever updated with `ADD`, never read-then-write.
-- **CONN#** — one per live WebSocket connection. Deleted on `$disconnect` **and** on any `GoneException` during broadcast. **One row per connection, not per user** — the same `user_id` with two tabs open has two rows, so `state_snapshot.members[]` can contain duplicates. `user_left`, by contrast, carries only a `user_id`, so a client that trusts it blindly removes someone who still has a live socket. The frontend dedupes `members[]` by `user_id` and re-syncs on both membership events.
+- **ACTIVE#** — one per user currently holding a desk claim or queued task. Enforces single-task admission per user (`state.acquire_user_admission`). Carries `expires_at` (TTL 3600s / 1 hour matching `TaskQueue` retention) as an orphan-recovery safety net if a function crashes before release.
+- **CONN#** — one per live WebSocket connection. Deleted on `$disconnect` **and** on any `GoneException` during broadcast. **One row per connection, not per user** — the same `user_id` with two tabs open has two rows in DynamoDB so every socket receives broadcasts. `state_snapshot.members[]` deduplicates by `user_id`. `user_joined` is broadcast when a user's first connection opens (subsequent tabs reuse the existing position and avatar). `user_left` is broadcast only when a user's final connection disconnects. The frontend also dedupes `members[]` by `user_id` for defensive rendering.
 - **AGENT#** — one per slot. `IDLE → BUSY` on claim, `BUSY → IDLE` on completion. `current_user` is `null` when `IDLE`.
 - **QUEUE#** — the SK leads with a microsecond timestamp, so sorting by SK gives arrival order. **Arrival order is not dispatch order.** Deleted when dispatched. The timestamp is **microsecond** precision (`%Y-%m-%dT%H:%M:%S.%fZ`), not the second-precision `now_iso()` used everywhere else: at second granularity two people clicking within the same second tie and fall back to UUID order, i.e. random. `connection_id` is carried so the runner can reply directly to the requester once the task finally starts.
 
@@ -349,6 +351,28 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   breakdown aggregates every row, so stale rows would open the board showing a
   team that had already spent its budget.
 
+  **Token rollback on permanent ledger write failure (MVP consistency tradeoff):**
+  If `history.record()` permanently fails to persist a ledger row after its
+  retries, the task is not in the ledger and the meter must not claim it is.
+  `_reply` rolls its own settlement back — `state.add_tokens(team, reserved -
+  result.tokens)`, the exact inverse of the `add_tokens(result.tokens,
+  reserved=reserved)` above it. This keeps `METADATA.tokens_used` in agreement
+  with the `TASK#` rows that `history.spend` and `state.fair_order` are read
+  from.
+
+  **The rollback restores the reservation; it does not release it.** Backing
+  out `result.tokens` alone would be wrong: the runner only clears its
+  `reserved` local *after* `_reply` returns, so on this path its `finally`
+  still releases the hold. Undoing the settlement leaves the counter exactly
+  where `_reply` found it — task unbilled, hold outstanding — and the release
+  then happens once. Subtracting `result.tokens` instead releases the same
+  placeholder twice and drives `tokens_used` below where the task found it,
+  which on a fresh workspace means negative.
+
+  *Tradeoff note:* Provider-side token consumption cannot be reversed; this
+  rollback is an internal data-consistency decision, not a claim that provider
+  billing was reversed.
+
 - **MEMORY#** — key/value facts saved by agents. No expiry in the MVP.
 
   **The SK is derived from the key, not a UUID** (`memory._slug`: lowercased,
@@ -384,19 +408,28 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   slot. Returning earlier would make a leaked desk permanent — trading a
   double charge for a deadlocked workspace, which is the worse of the two.
 
-  **Rows that carry an expiry:** `IDEMPOTENCY#` and `DLQ_REDRIVE#`. `expires_at`
-  is epoch seconds (DynamoDB TTL accepts nothing else). `IDEMPOTENCY#` is set
-  a day out (comfortably past the main queue's one-hour `MessageRetentionPeriod`).
-  `DLQ_REDRIVE#` is set 14 days out (matching the DLQ's 14-day `MessageRetentionPeriod`).
-  Nothing else in the schema carries a TTL, so workspace state is never unexpectedly expired.
+  **The rows that carry an expiry, and why each one does.** `expires_at` is
+  epoch seconds — DynamoDB TTL accepts nothing else — and three SK prefixes set
+  it. `IDEMPOTENCY#` is a day out, comfortably past the main queue's one-hour
+  `MessageRetentionPeriod`. `ACTIVE#` is an hour out, matching that same
+  retention, as an orphan-recovery net for an admission whose holder died
+  before releasing it. `DLQ_REDRIVE#` is fourteen days out, matching the DLQ's
+  own `MessageRetentionPeriod`, so a claim can never expire while the message
+  it guards is still sitting in the queue.
 
-- **DLQ_REDRIVE#** — one per active redrive recovery attempt. When an operator or
-  utility redrives a dead-lettered task from the DLQ to the main queue, this row
-  is written conditionally (`attribute_not_exists(SK)`). If the redrive successfully
-  dispatches the task to the main queue but the subsequent DLQ deletion fails,
-  subsequent recovery attempts detect the claim, skip duplicate dispatch and
-  idempotency clearing, and safely retry the DLQ deletion. Upon verified DLQ
-  deletion, the row is deleted immediately.
+  Every other row omits the attribute and is therefore never swept: they are
+  state somebody can still read. The three that do expire have no readers —
+  their existence *is* their value — and `state_snapshot` queries the whole
+  partition on every `hello`, so keeping them forever would grow that read
+  without bound.
+
+- **DLQ_REDRIVE#** — one per active redrive recovery attempt. When an operator
+  or utility redrives a dead-lettered task from the DLQ to the main queue, this
+  row is written conditionally (`attribute_not_exists(SK)`). If the redrive
+  successfully dispatches the task to the main queue but the subsequent DLQ
+  deletion fails, subsequent recovery attempts detect the claim, skip duplicate
+  dispatch and idempotency clearing, and safely retry the DLQ deletion. Upon
+  verified DLQ deletion, the row is deleted immediately.
 
 - **METADATA `usage_estimated`** — set when any spend folded into
   `tokens_used` was an estimate rather than billed model usage. Sticky: never
@@ -481,7 +514,7 @@ malformed rather than the server. A malformed frame never closes the socket.
 
 **Avatar coordinates are percentages of the canvas (0–100), not pixels.** Three browsers at different widths have to agree on where everyone is standing, and a pixel coordinate breaks that on the first mismatched window. The Router clamps to the range and rejects non-numeric values, so a hand-crafted frame cannot push an avatar off the board for everyone else.
 
-**A position is stored per connection but drawn per user.** The `CONN#` row carries `x`/`y`, so someone with two tabs open has two stored positions — but `state_snapshot.members[]` carries no `connection_id` (deliberately: it is an internal address used only by `post_to_connection`, and broadcasting it to every client buys nothing). The frontend therefore dedupes `members[]` by `user_id` for both the count and the canvas, and `avatar_moved` is keyed by `user_id`, so a second tab moves the same avatar. One person, one marker, which is also the reading that makes sense on a team board.
+**A position is stored per connection but synchronized and drawn per user.** The `CONN#` row carries `x`/`y`, and `move_avatar` synchronizes coordinates across all active connection records for that `user_id`. `state_snapshot.members[]` carries deduplicated `{user_id, avatar, x, y}` entries (with no internal `connection_id`). The frontend also dedupes `members[]` by `user_id` for both the count and the canvas, and `avatar_moved` is keyed by `user_id`, so a second tab moves the same avatar. One person, one marker, which is also the reading that makes sense on a team board.
 
 ### Server → client
 
@@ -498,8 +531,8 @@ malformed rather than the server. A malformed frame never closes the socket.
 | `agent_handoff` | `{task_id, user_id, from_agent, from_name, to_agent, to_name, note, queued}` | An agent chose to pass its task to another desk. `queued` is true when that desk was busy and the work is waiting for it |
 | `memory_updated` | `{key, val, updated_by}` | `set_team_memory` runs |
 | `budget_exhausted` | `{tokens_used, token_budget}` | Bedrock invocation refused at the ceiling |
-| `user_joined` | `{user_id, avatar, x, y}` | `$connect` |
-| `user_left` | `{user_id}` | `$disconnect` or `GoneException` |
+| `user_joined` | `{user_id, avatar, x, y}` | First `$connect` for a user |
+| `user_left` | `{user_id}` | Final `$disconnect` for a user |
 | `avatar_moved` | `{user_id, x, y}` | `move_avatar` runs |
 | `agent_spawned` | `{slot_id, agent_type, name, role, tagline, character, project, status, current_user, created_at, hired_by}` | A desk was hired onto this floor. Carries everything needed to draw it, so a client appends rather than waiting for the next snapshot. **No `persona`.** The receiving client guards against a duplicate — the 500 ms re-sync can land a snapshot already carrying this desk |
 | `agent_dismissed` | `{slot_id, agent_type, dismissed_by}` | A desk was taken off the floor |
@@ -589,6 +622,36 @@ the meter a user is looking at. `TOKEN_BUDGET` supplies only the default
 On refusal the runner broadcasts `budget_exhausted`, replies `error` to the
 requester, spends nothing, and **still releases the slot** — the refusal path
 is subject to the same no-leak invariant as every other path.
+
+**Asking and charging are the same write** (`state.reserve_budget`). The rule
+a task is admitted by has not changed — budget left means it runs — but it is
+now decided by a conditional update whose condition is that rule
+(`tokens_used < token_budget`), evaluated by DynamoDB against the committed row
+rather than against a number the Lambda read a moment earlier. Two desks
+reaching the ceiling in the same instant used to both read "room" and both
+invoke the model, so the overshoot grew with the size of the floor. It does not
+now: the first one's hold is what the second one is tested against.
+
+**The hold is a placeholder, never a bill.** `RESERVATION_CEILING` sizes it to
+a whole task rather than to the prompt — a hold smaller than a task leaves the
+counter near enough to where it was found that the next desk still reads room,
+which is the bug it replaced. `state.add_tokens` then writes the *difference*
+between the hold and what the provider actually counted, usually as a credit
+back, and `token_update` carries the settled total. A task that never reaches
+its reply has its hold released in the runner's `finally`, ahead of the slot
+release and swallowed, because a leaked desk outranks a meter reading high.
+
+**The hold is clamped to what is left**, so it can park the counter exactly on
+the ceiling and never above it. Clients latch the refused state on
+`tokens_used >= token_budget` from both frames that carry the ceiling, so an
+unclamped hold would raise "Quota reached" on a board with budget to spare for
+as long as one task ran. Parked on the ceiling it refuses everybody else
+anyway, which is the whole job.
+
+**What it still does not bound is the task that was admitted.** Nobody knows
+what a completion will cost until it returns, so the total can finish above the
+ceiling by one task's spend. That is the documented allowance, unchanged. What
+changed is that it stays one task's worth however many desks are in flight.
 
 **Clients must clear the refused state from `token_update`, not only from
 `state_snapshot`.** `budget_exhausted` latches the client into a blocked state,
@@ -763,8 +826,8 @@ agent_state_update    → Iris's desk IDLE
 **The release comes before the handoff, always.** A handoff is a scheduling
 request and must compete for a desk on the same terms as anyone in the queue.
 Dispatching it while the handing task still held its slot would let one chain
-occupy both desks at once — precisely the monopoly `_already_working` exists to
-prevent.
+occupy both desks at once — precisely the monopoly `state.acquire_user_admission`
+exists to prevent.
 
 ### Rules
 
@@ -775,7 +838,8 @@ prevent.
   produced exactly two legs. A limit the model is merely *asked* to respect is
   not a limit.
 - **The ceiling governs every leg.** Each leg meets `_refuse_over_budget`
-  immediately before its own model call, exactly like any other task. A chain
+  immediately before its own model call, exactly like any other task — so each
+  leg takes its own hold and settles it (see *The budget ceiling*). A chain
   can therefore overshoot by at most one leg's worth — the same as a single
   task — and a handoff is not a way to spend past the ceiling incrementally.
   Deliberately *not* re-checked at handoff time: a handoff can sit in the queue

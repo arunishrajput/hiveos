@@ -344,6 +344,24 @@ python3 scripts/recover_dlq.py --inspect --dlq-url <DLQ_URL> --queue-url <QUEUE_
 - **Atomic redrive claim**: `state.claim_dlq_redrive()` records a temporary claim with a 14-day TTL (matching `TaskDLQ` `MessageRetentionPeriod: 1209600`). If SQS message deletion fails after re-dispatch, subsequent recovery runs skip duplicate re-dispatch and safely finish DLQ message deletion.
 - **Rollback on send failure**: If sending to the main queue fails, the redrive claim is released so the task can be retried.
 
+### Before you redrive: check the desk is not back in use
+
+A redrive deliberately clears the task's `IDEMPOTENCY#` marker, which is the
+only thing that stops the runner executing it again — that is the whole point,
+and it means a redriven task **calls the model again and charges the team
+again**. It also means the replayed task ends the way any task ends: its
+`finally` releases `slot_id` with `expected_holder=<its user_id>`.
+
+That release names a *user*, not a task. If the same person has since claimed
+the same desk for new work, the replayed task's release will free that desk out
+from under them and clear their `ACTIVE#` admission — cutting a live task short.
+
+So redrive is safe when the floor is quiet, and worth a look first when it is
+not. `--inspect` prints the `slot_id` and `user_id` of every dead-lettered
+message without touching the queue; compare them against the board before
+running `--redrive-all`, and prefer redriving while nobody is working at those
+desks.
+
 ---
 
 ## `AUTOMATED` — Logs

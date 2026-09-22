@@ -76,8 +76,9 @@ def ttl_after(seconds):
     uses, because TTL is the one field DynamoDB itself reads and that is the
     only format it accepts.
 
-    Only `IDEMPOTENCY#` rows carry this. Every other row in the table is state
-    somebody can still read, so nothing else should ever expire.
+    Used by ephemeral rows (`IDEMPOTENCY#` redelivery guards and `ACTIVE#`
+    admission safety records). Persistent rows omit `expires_at` so they are
+    never swept by DynamoDB TTL.
     """
     return int(datetime.now(timezone.utc).timestamp()) + int(seconds)
 
@@ -238,11 +239,50 @@ def spawn_point(connection_id):
     }
 
 
+def user_connections(team, user_id):
+    """Return all active connection IDs for a user on a team."""
+    return [
+        item["SK"].split("#", 1)[1]
+        for item in query_team(team, "CONN#")
+        if item.get("user_id") == user_id
+    ]
+
+
+def user_has_connection(team, user_id):
+    """Whether a user has at least one active connection in the team."""
+    return bool(user_connections(team, user_id))
+
+
+def get_user_member(team, user_id):
+    """Find existing member profile (avatar, x, y) for a user in the team if connected."""
+    for item in query_team(team, "CONN#"):
+        if item.get("user_id") == user_id:
+            return {
+                "avatar": item.get("avatar"),
+                "x": item.get("x", Decimal(50)),
+                "y": item.get("y", Decimal(50)),
+            }
+    return None
+
+
 def add_connection(team, connection_id, user_id, avatar, is_admin=False):
+    existing = get_user_member(team, user_id)
+    if existing:
+        pos = {
+            "x": existing.get("x", Decimal(50)),
+            "y": existing.get("y", Decimal(50)),
+        }
+        member_avatar = avatar or existing.get("avatar") or "\U0001f41d"
+        is_first = False
+    else:
+        pos = spawn_point(connection_id)
+        member_avatar = avatar or "\U0001f41d"
+        is_first = True
+
     member = {
         "user_id": user_id,
-        "avatar": avatar,
-        **spawn_point(connection_id),
+        "avatar": member_avatar,
+        **pos,
     }
     table().put_item(
         Item={
@@ -258,7 +298,7 @@ def add_connection(team, connection_id, user_id, avatar, is_admin=False):
     # Written together: a member row without its index is a connection nothing
     # can route a later frame to.
     bind_connection(connection_id, team)
-    return member
+    return member, is_first
 
 
 def move_connection(team, connection_id, x, y):
@@ -285,7 +325,22 @@ def move_connection(team, connection_id, x, y):
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return None
         raise
-    return (response.get("Attributes") or {}).get("user_id")
+    attrs = response.get("Attributes") or {}
+    user_id = attrs.get("user_id")
+    if user_id:
+        for other_cid in user_connections(team, user_id):
+            if other_cid != connection_id:
+                try:
+                    table().update_item(
+                        Key={"PK": team_pk(team), "SK": f"CONN#{other_cid}"},
+                        UpdateExpression="SET x = :x, y = :y",
+                        ConditionExpression="attribute_exists(SK)",
+                        ExpressionAttributeValues={":x": Decimal(str(x)), ":y": Decimal(str(y))},
+                    )
+                except ClientError as exc:
+                    if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                        raise
+    return user_id
 
 
 def remove_connection(team, connection_id):
@@ -304,6 +359,94 @@ def connection_user(team, connection_id):
         ProjectionExpression="user_id",
     )
     return (response.get("Item") or {}).get("user_id")
+
+
+USER_ADMISSION_TTL_SECONDS = 3600  # 1 hour — matches TaskQueue MessageRetentionPeriod
+
+
+def is_user_active(team, user_id):
+    """Check if the user has an active admission record."""
+    if not user_id:
+        return False
+    item = table().get_item(
+        Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
+    ).get("Item")
+    if not item:
+        return False
+    exp = item.get("expires_at")
+    if exp is not None:
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        if int(exp) < now_ts:
+            return False
+    return True
+
+
+def acquire_user_admission(team, user_id, task_id):
+    """Atomically admit a user for a task, guaranteeing at most one running or queued task.
+
+    Returns True if admission was granted, False if the user already has an active
+    task or admission record.
+    """
+    if not user_id:
+        return False
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    try:
+        table().put_item(
+            Item={
+                "PK": team_pk(team),
+                "SK": f"ACTIVE#{user_id}",
+                "user_id": user_id,
+                "task_id": task_id,
+                "claimed_at": now_iso(),
+                "expires_at": ttl_after(USER_ADMISSION_TTL_SECONDS),
+            },
+            ConditionExpression="attribute_not_exists(SK) OR expires_at < :now",
+            ExpressionAttributeValues={":now": now_ts},
+        )
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return False
+        raise
+
+    # Double check if user is already holding a desk or in queue (e.g. reconnect or legacy state)
+    for item in query_team(team):
+        sk = item.get("SK", "")
+        if sk.startswith("AGENT#") and item.get("current_user") == user_id:
+            release_user_admission(team, user_id)
+            return False
+        if sk.startswith("QUEUE#") and item.get("user_id") == user_id:
+            release_user_admission(team, user_id)
+            return False
+
+    return True
+
+
+def release_user_admission(team, user_id):
+    """Free a user's active admission record."""
+    if not user_id:
+        return
+    try:
+        table().delete_item(
+            Key={"PK": team_pk(team), "SK": f"ACTIVE#{user_id}"}
+        )
+    except Exception as exc:
+        print(f"[state] failed to release user admission for {user_id}: {exc}")
+
+
+def set_user_admission(team, user_id, task_id):
+    """Set or refresh a user's active admission record (e.g. across handoff or requeue)."""
+    if not user_id:
+        return
+    table().put_item(
+        Item={
+            "PK": team_pk(team),
+            "SK": f"ACTIVE#{user_id}",
+            "user_id": user_id,
+            "task_id": task_id,
+            "claimed_at": now_iso(),
+            "expires_at": ttl_after(USER_ADMISSION_TTL_SECONDS),
+        }
+    )
 
 
 
@@ -839,12 +982,100 @@ def budget_state(team):
     return int(item.get("tokens_used", 0)), int(item.get("token_budget", 0))
 
 
-def add_tokens(team, count, estimated=False):
-    """Atomically add to `tokens_used`; returns a ready `token_update` payload.
+def reserve_budget(team, amount):
+    """Admit one task against the ceiling, committing `amount` up front.
+
+    Returns `(admitted, reserved, tokens_used, token_budget)`.
+
+    The admission rule is the one the product has always claimed: a task runs
+    if there was budget left when it asked, and is refused once there is not.
+    What moved is *when* the spend lands. `tokens_used` is incremented before
+    the model call rather than after it, by a conditional update whose
+    condition is the admission rule itself:
+
+        tokens_used < token_budget
+
+    Both sides of that comparison are attributes on the row, so DynamoDB
+    evaluates it against the committed state at the instant of the write — not
+    against a number this Lambda read a moment earlier. That is the whole
+    point. Two runners reaching the ceiling together used to *both* read
+    `used < budget` and both invoke the model; now the first one's reservation
+    is what the second one is tested against, and the second is refused.
+    Overshoot stays bounded at one task's worth however many runners are in
+    flight, which is what CONTRACT.md has always promised and what concurrency
+    used to be able to break.
+
+    `amount` is a placeholder for the cost, not a prediction of it: the
+    provider reports the real number afterwards and `add_tokens` reconciles to
+    it, `refund_tokens` releases it if the task never reaches its reply. Its
+    size therefore never changes what a team is charged — only how firmly the
+    next runner is held out while this one runs. See `RESERVATION_CEILING` in
+    the runner for how it is sized.
+
+    **It is clamped to what is actually left**, and that read is the reason
+    this function still does one. The read does not decide anything — the
+    conditional write does — it only stops a placeholder from pushing
+    `tokens_used` past `token_budget`, which every client would read as a spent
+    quota: `state_snapshot` and `token_update` both latch the refused state on
+    `tokens_used >= token_budget`, so an unclamped hold would raise the red
+    banner on a board with budget to spare for as long as one task ran. Clamped,
+    the worst it can do is park the counter exactly on the ceiling — which is
+    also what refuses everybody else, so the clamp tightens the guarantee
+    rather than loosening it.
+
+    A workspace with no `token_budget` has no ceiling to enforce: nothing is
+    reserved and nothing is written.
+    """
+    used, budget = budget_state(team)
+    if not budget:
+        return True, 0, used, budget
+    amount = max(1, min(amount, budget - used))
+
+    try:
+        item = table().update_item(
+            Key={"PK": team_pk(team), "SK": "METADATA"},
+            UpdateExpression="ADD tokens_used :n",
+            ConditionExpression=(
+                "attribute_exists(token_budget) AND "
+                "(attribute_not_exists(tokens_used) OR tokens_used < token_budget)"
+            ),
+            ExpressionAttributeValues={":n": amount},
+            ReturnValues="ALL_NEW",
+        )["Attributes"]
+        return (
+            True,
+            amount,
+            int(item.get("tokens_used", 0)),
+            int(item.get("token_budget", 0)),
+        )
+    except ClientError as exc:
+        # Only a lost condition means "no room". Throttling must not be
+        # laundered into a refusal — that would tell a team its quota was spent
+        # because DynamoDB was busy.
+        if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
+
+    # Re-read rather than report the numbers from above: the write lost to
+    # somebody, and what the refusal tells the room has to be the state that
+    # actually refused it.
+    used, budget = budget_state(team)
+    return False, 0, used, budget
+
+
+def add_tokens(team, count, estimated=False, reserved=0):
+    """Atomically settle a task's spend; returns a ready `token_update` payload.
 
     `ADD` rather than read-then-write because two agent runs finishing
     together would otherwise lose one of the two increments — and an
     undercounted meter is exactly the failure the product claims to prevent.
+
+    `reserved` is what `reserve_budget` already put on the counter before the
+    model was called, so what is added here is the *difference* between the
+    provider's number and the placeholder. It is routinely negative: the
+    reservation is sized to hold the next runner out, not to guess the cost,
+    and a task that came in under it gives the remainder back in this same
+    write. Zero when there is no ceiling, in which case this behaves exactly as
+    it did before reservations existed.
 
     `ALL_NEW` so the budget comes back in the same round trip that moved the
     counter. Reading it separately would let the broadcast describe a state
@@ -857,7 +1088,7 @@ def add_tokens(team, count, estimated=False):
     it, by rewriting METADATA from scratch.
     """
     expression = "ADD tokens_used :n"
-    values = {":n": count}
+    values = {":n": count - reserved}
     if estimated:
         expression += " SET usage_estimated = :e"
         values[":e"] = True
@@ -877,6 +1108,30 @@ def add_tokens(team, count, estimated=False):
         "pct_used": pct_used(used, budget),
         "estimated": bool(item.get("usage_estimated", False)),
     }
+
+
+def refund_tokens(team, amount):
+    """Give back a reservation whose task never reached its reply.
+
+    The mirror of `reserve_budget` and nothing more: it removes a placeholder,
+    it never removes real spend. `add_tokens` settles the reservation itself,
+    so the two are mutually exclusive by construction — the runner clears its
+    reservation the moment it commits one.
+
+    Deliberately unconditional. A conditional refund could fail and leave the
+    counter holding a charge for work that never happened, and of the two
+    directions an error can take, a meter that has forgotten a reservation is
+    recoverable and one that quietly keeps it is not.
+    """
+    if amount <= 0:
+        return budget_state(team)
+    item = table().update_item(
+        Key={"PK": team_pk(team), "SK": "METADATA"},
+        UpdateExpression="ADD tokens_used :n",
+        ExpressionAttributeValues={":n": -amount},
+        ReturnValues="ALL_NEW",
+    )["Attributes"]
+    return int(item.get("tokens_used", 0)), int(item.get("token_budget", 0))
 
 
 # --- Snapshot --------------------------------------------------------------
@@ -912,6 +1167,7 @@ def state_snapshot(team, is_admin=False):
     # `desks`, not `agents` — the module of that name is the roster, and the
     # two would shadow each other in the loop below.
     metadata, desks, members, memory, waiting, tasks = {}, [], [], [], [], []
+    seen_members = {}
 
     for item in query_team(team):
         sk = item["SK"]
@@ -935,14 +1191,14 @@ def state_snapshot(team, is_admin=False):
                 }
             )
         elif sk.startswith("CONN#"):
-            members.append(
-                {
-                    "user_id": item.get("user_id"),
+            uid = item.get("user_id")
+            if uid and uid not in seen_members:
+                seen_members[uid] = {
+                    "user_id": uid,
                     "avatar": item.get("avatar"),
                     "x": item.get("x", 0),
                     "y": item.get("y", 0),
                 }
-            )
         elif sk.startswith("TASK#"):
             tasks.append(item)
         elif sk.startswith("MEMORY#"):
@@ -953,6 +1209,8 @@ def state_snapshot(team, is_admin=False):
                     "updated_by": item.get("updated_by"),
                 }
             )
+
+    members = list(seen_members.values())
 
     budget = metadata.get("token_budget", 0)
     used = metadata.get("tokens_used", 0)
