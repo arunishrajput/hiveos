@@ -17,7 +17,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-const WS_URL = import.meta.env.VITE_WS_URL
+/* `?.` so this module can be imported outside a Vite build — `useHive.test.js`
+ * runs it under plain `node --test`, where `import.meta` carries no `env`.
+ * Vite defines `import.meta.env` as a whole object, so the built bundle
+ * resolves the URL exactly as before. */
+const WS_URL = import.meta.env?.VITE_WS_URL
 
 /** Mirrors scheduler.ESTIMATED_TASK_SECONDS — used only to relabel an ETA
  *  after a local renumber, never as the source of truth. */
@@ -298,7 +302,22 @@ export function applyFrame(board, frame) {
   }
 }
 
-function activityFor(frame) {
+/** Which desk's terminal an activity entry belongs in.
+ *
+ *  Most entries belong to one desk. Two kinds belong to *two*, and both of
+ *  them are a handoff: the crossing itself, and the answer the receiving desk
+ *  produces. `agent` is the desk the entry came from and `agentTo` the other
+ *  desk it also concerns — for a crossing that is where the work went, for a
+ *  handed-over answer it is the desk that passed it on.
+ *
+ *  The single definition, used by the inspector, so the rule cannot be stated
+ *  in two places and drift.
+ */
+export function belongsToDesk(entry, slotId) {
+  return entry.agent === slotId || entry.agentTo === slotId
+}
+
+export function activityFor(frame) {
   const ts = new Date()
   switch (frame.event) {
     case 'agent_response':
@@ -309,6 +328,17 @@ function activityFor(frame) {
         // the desk that *ran* the task, not the one that was asked for, or a
         // substituted task would appear in the wrong agent's terminal.
         agent: frame.agent_type ?? null,
+        // The second leg of a handoff answers at a desk the requester never
+        // chose, so the answer has to reach the terminal they *are* watching —
+        // the one they typed into, which is the desk that handed it on. Null on
+        // an ordinary response, which belongs to one desk only.
+        //
+        // Without this the chain visibly stopped at the crossing: you saw Ada
+        // say she had passed it to Iris, then the ADA → IRIS line, and then
+        // nothing, because Iris's actual answer was filed under Iris's desk
+        // alone. The work had completed and the reply had arrived; it was
+        // simply in a terminal nobody had clicked.
+        agentTo: frame.handoff_from ?? null,
         // The agent that actually answered, by name. `requested_name` is set
         // only when somebody asked for a different one and it was busy —
         // saying so is the honest version of a fallback the scheduler has

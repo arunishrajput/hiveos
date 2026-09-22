@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { useHive } from './useHive'
+import { belongsToDesk, useHive } from './useHive'
 import Landing from './landing'
 import AddAgentModal from './addagent'
 import { AVATARS } from './sprites'
@@ -303,11 +303,10 @@ function Inspector({ hive, agent, me, note }) {
    * enforce it, and un-disabling it in devtools buys an error frame. */
   const canHalt = busy && (mine || board.is_admin)
 
-  // A handoff belongs to both desks, hence the second match: the crossing
-  // shows up in the sender's terminal and the receiver's.
-  const stream = activity.filter(
-    (entry) => entry.agent === agent.slot_id || entry.agentTo === agent.slot_id,
-  )
+  // A handoff belongs to both desks, and so does the answer it produces: the
+  // crossing and the receiving desk's reply both show up in the sender's
+  // terminal and the receiver's. `belongsToDesk` owns that rule.
+  const stream = activity.filter((entry) => belongsToDesk(entry, agent.slot_id))
   const ledger = board.history.filter((row) => row.agent_type === agent.slot_id)
   const chat = activity.filter((entry) => entry.kind === 'chat')
 

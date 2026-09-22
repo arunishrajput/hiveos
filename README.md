@@ -222,7 +222,14 @@ so they need `boto3` present — which a bare system Python usually does not hav
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install boto3 pytest
-.venv/bin/python -m pytest tests/      # 14 passed
+.venv/bin/python -m pytest tests/      # 112 passed
+```
+
+The frontend has its own unit tests — the frame-to-terminal rules, including the handoff chain's
+last mile. They run on `node --test`, so there is no test-runner dependency to install:
+
+```bash
+cd frontend && npm test                # 10 passed
 ```
 
 > **`python3`, not `python`** — this machine has no `python` on `PATH`.

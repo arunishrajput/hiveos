@@ -3050,6 +3050,36 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 
 ## Known issues and discoveries
 
+- **✅ FIXED 2026-09-22 — a handoff looked like it stopped at the crossing, and the cause was not
+  in the handoff.** Reported as "the receiving agent never produces the final answer": the board
+  showed ADA → IRIS and the interaction appeared to end. **Every backend suspect was traced and
+  cleared.** The deployed Lambda package was unzipped and diffed file-by-file against `main` —
+  `agent_runner/app.py`, `router/app.py` and all eight `shared/` modules are **byte-identical**, so
+  the per-leg idempotency key from `eb01e31` (`IDEMPOTENCY#<task_id>#<hops>`) is genuinely the code
+  running. A live handoff driven against `wss://mel2gpat9c…/prod` showed both legs completing in
+  10.1s: Ada's reply, the `agent_handoff` frame, then Iris's `agent_response` carrying the real
+  answer, `user_id: alice`, `handoff_from: coder` and the **same** `task_id`. CloudWatch confirms
+  the receiving leg is dispatched to SQS, is **not** skipped as a duplicate, and does call the
+  model; DynamoDB holds `IDEMPOTENCY#<id>#0` **and** `#1` per chain, plus two `TASK#` rows.
+  The one "duplicate delivery" line in three days of logs is dated **2026-09-20 16:28**, prints the
+  pre-fix message format (no `hop N`), and therefore predates the fix being deployed.
+  **The break was the last link: `activityFor` in `frontend/src/useHive.js`.** The inspector shows
+  one desk at a time and filters activity by desk. `agent_handoff` was deliberately dual-homed
+  (`agent` = sender, `agentTo` = receiver) so the crossing could not vanish from one terminal — but
+  the **answer the crossing produces** was filed under the receiving desk alone. The user had typed
+  into Ada's inspector, so Ada's terminal is what they were watching, and Iris's answer was one
+  unclicked desk away. Fixed by giving the handed-over response the same dual-homing —
+  `agentTo: frame.handoff_from ?? null` — and hoisting the filter into an exported `belongsToDesk`
+  so the rule is stated once rather than copied. Verified in a real browser against the deployed
+  backend: Ada's terminal now reads Ada's reply → the ADA → IRIS crossing → `Iris → alice · handed
+  over by Ada` with the answer. Regression tests: `frontend/src/useHive.test.js`, 10 cases under
+  plain `node --test` (**no new dependency**), `npm test` in `frontend/`. With the one-line fix
+  reverted the key test fails with `actual: ['response','handoff']` against
+  `expected: ['response','handoff','response']` — the reported symptom exactly.
+  *Lesson worth keeping: a symptom that reads as "the backend dropped the second leg" can be a
+  frontend filter, and the cheapest way to tell them apart is to watch the wire — one `websockets`
+  client against the deployed socket answered in one run what a day of code reading could not.*
+
 - **⚠ OPEN — the last-agent guard is not atomic, so a floor can be emptied of every agent.**
   Found by `ws_smoke.py` on 2026-09-22, during Phase 27's frontend-only gate run. Check 26 sends
   two `dismiss_agent` frames back to back — `coder` then `researcher` — and expects the second to
