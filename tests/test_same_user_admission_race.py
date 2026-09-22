@@ -409,6 +409,63 @@ class TestUserAdmissionLifecycle:
         assert mock_db.items[(f"TEAM#{TEAM}", "AGENT#ada")]["status"] == "IDLE"
         assert state.is_user_active(TEAM, "alice") is False
 
+    def test_dispatch_failure_announces_the_desk_it_freed(self, mock_db):
+        """Rolling back a claim has to put the *board* back, not just the row.
+
+        `_claim_agent` broadcasts BUSY before it dispatches, so a dispatch that
+        then fails has already told every client the desk is taken. Freeing the
+        row silently leaves them all drawing a desk that never goes idle again
+        — which on a two-desk floor is half the product, wedged, with nothing
+        running in it.
+        """
+        frames = []
+
+        def failing_dispatch(*args, **kwargs):
+            raise RuntimeError("SQS unavailable")
+
+        with patch("shared.broadcast.broadcast_to_team",
+                   side_effect=lambda team, payload, **kw: frames.append(payload)), \
+             patch("shared.broadcast.send_to_connection"), \
+             patch("shared.scheduler.dispatch", side_effect=failing_dispatch), \
+             patch("shared.state.connection_user", return_value="alice"):
+
+            with pytest.raises(RuntimeError, match="SQS unavailable"):
+                router._claim_agent(
+                    TEAM, "conn-1",
+                    {"agent_type": "ada", "prompt": "Failing task", "user_id": "alice"},
+                )
+
+        states = [f for f in frames if f.get("event") == "agent_state_update"]
+        # BUSY on the way in, IDLE on the way back out — in that order.
+        assert [f["status"] for f in states] == ["BUSY", "IDLE"]
+        assert states[-1]["agent_type"] == "ada"
+        assert states[-1]["current_user"] is None
+
+    def test_dispatch_failure_frees_admission_even_if_the_desk_moved_on(self, mock_db):
+        """`set_idle` only releases admission when its conditional write wins.
+
+        If the desk is no longer ours by the time the rollback runs, that write
+        is refused and the release never happens — so the rollback frees the
+        `ACTIVE#` row itself rather than leaving the user locked out of their
+        own workspace until an hour of TTL runs down.
+        """
+        def failing_dispatch(*args, **kwargs):
+            raise RuntimeError("SQS unavailable")
+
+        with patch("shared.broadcast.broadcast_to_team"), \
+             patch("shared.broadcast.send_to_connection"), \
+             patch("shared.scheduler.dispatch", side_effect=failing_dispatch), \
+             patch("shared.scheduler.set_idle", return_value=False), \
+             patch("shared.state.connection_user", return_value="alice"):
+
+            with pytest.raises(RuntimeError, match="SQS unavailable"):
+                router._claim_agent(
+                    TEAM, "conn-1",
+                    {"agent_type": "ada", "prompt": "Failing task", "user_id": "alice"},
+                )
+
+        assert state.is_user_active(TEAM, "alice") is False
+
     def test_handoff_retains_user_admission(self, mock_db):
         task = {
             "slot_id": "ada",

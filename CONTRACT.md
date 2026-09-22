@@ -807,8 +807,8 @@ agent_state_update    → Iris's desk IDLE
 **The release comes before the handoff, always.** A handoff is a scheduling
 request and must compete for a desk on the same terms as anyone in the queue.
 Dispatching it while the handing task still held its slot would let one chain
-occupy both desks at once — precisely the monopoly `_already_working` exists to
-prevent.
+occupy both desks at once — precisely the monopoly `state.acquire_user_admission`
+exists to prevent.
 
 ### Rules
 

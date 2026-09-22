@@ -379,10 +379,21 @@ def _claim_agent(team, connection_id, body):
         )
         return OK
     except Exception:
+        # Put the floor back before letting this fail. `set_idle` alone frees
+        # the row but says nothing, and the BUSY frame above has already gone
+        # out — every client would be left drawing a desk that never goes idle
+        # again. `release_and_dispatch` is the one that frees it, announces the
+        # IDLE, and lets whoever is waiting have it, which is the same rule
+        # `dispatch_next` follows on its own failure path: the board does not
+        # get to lie about the scheduler.
         if slot_id:
-            scheduler.set_idle(team, slot_id, expected_holder=user_id)
-        else:
-            state.release_user_admission(team, user_id)
+            scheduler.release_and_dispatch(team, slot_id, expected_holder=user_id)
+        # Unconditionally, and after the release rather than instead of it.
+        # `set_idle` only releases admission when its conditional write wins,
+        # so a desk that moved on underneath us would otherwise leave this user
+        # locked out until the `ACTIVE#` row's TTL expires an hour later. The
+        # delete is idempotent, so doing it twice costs nothing.
+        state.release_user_admission(team, user_id)
         raise
 
 
@@ -480,32 +491,6 @@ def _coord(value):
     if value != value or value in (float("inf"), float("-inf")):  # NaN / inf
         return None
     return round(max(0.0, min(100.0, float(value))), 2)
-
-
-def _already_working(team, user_id):
-    """One task per user at a time.
-
-    Without this a double-clicked "Get Agent" button lets one person hold both
-    slots, which is precisely the unfair-monopoly behaviour the product claims
-    to prevent — and it would happen live on the recording.
-
-    One query rather than a get per slot plus a queue query: this runs on the
-    claim path, which is the interaction the whole demo hangs on.
-
-    A queued *handoff* counts, because its QUEUE# row carries the requester's
-    id like any other. That is the reading we want: their chain is still
-    running, it just moved desks, and letting them start a second one while a
-    second leg waits is exactly the double-claim this prevents.
-    """
-    if state.is_user_active(team, user_id):
-        return True
-    for item in state.query_team(team):
-        sk = item["SK"]
-        if sk.startswith("AGENT#") and item.get("current_user") == user_id:
-            return True
-        if sk.startswith("QUEUE#") and item.get("user_id") == user_id:
-            return True
-    return False
 
 
 # --- Helpers ---------------------------------------------------------------
