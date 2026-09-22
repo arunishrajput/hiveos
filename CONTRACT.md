@@ -347,6 +347,15 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   breakdown aggregates every row, so stale rows would open the board showing a
   team that had already spent its budget.
 
+  **Token rollback on permanent ledger write failure (MVP consistency tradeoff):**
+  If `history.record()` permanently fails to persist a ledger row after retries,
+  the runner rolls back the tokens previously added to `METADATA.tokens_used`
+  (`state.add_tokens(team, -result.tokens)`). This maintains internal consistency
+  between the team budget meter, fair-queueing computations, and the ledger.
+  *Tradeoff note:* Provider-side token consumption on AWS Bedrock cannot be
+  reversed; this rollback is an internal data-consistency decision, not a claim
+  that provider billing was reversed.
+
 - **MEMORY#** — key/value facts saved by agents. No expiry in the MVP.
 
   **The SK is derived from the key, not a UUID** (`memory._slug`: lowercased,

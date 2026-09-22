@@ -561,8 +561,12 @@ def _reply(team, task, result, names):
             handoff_from_name=_named(names, handed_from),
         )
     except Exception:
-        # If writing the ledger row fails permanently, roll back the tokens
-        # added to METADATA so tokens_used never diverges from the TASK# ledger.
+        # If writing the ledger row fails permanently after retries, roll back the tokens
+        # added to METADATA so tokens_used never diverges from the TASK# ledger and fair
+        # scheduler computations.
+        # Tradeoff note: Provider-side token usage incurred by Bedrock/LLM inference cannot
+        # be reversed. This rollback is an internal MVP consistency decision (preventing meter
+        # vs ledger desync), not a statement that provider billing was reversed.
         state.add_tokens(team, -result.tokens)
         raise
 
