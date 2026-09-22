@@ -15,7 +15,10 @@ at second granularity two tasks finishing in the same second tie and fall back
 to UUID order, i.e. random. The queue learned this the hard way in Phase 2.
 """
 
+import time
 import uuid
+
+from botocore.exceptions import BotoCoreError, ClientError
 
 from . import agents, state
 
@@ -32,10 +35,53 @@ FAILED = "failed"
 REFUSED = "refused"
 
 
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 0.05
+
+TRANSIENT_CLIENT_ERROR_CODES = {
+    "ProvisionedThroughputExceededException",
+    "ThrottlingException",
+    "RequestLimitExceeded",
+    "InternalServerError",
+    "ServiceUnavailable",
+    "TransactionConflictException",
+    "TransactionInProgressException",
+}
+
+TRANSIENT_BOTOCORE_EXCEPTIONS = (
+    "EndpointConnectionError",
+    "ConnectTimeoutError",
+    "ReadTimeoutError",
+    "ConnectionClosedError",
+    "HTTPClientError",
+    "IncompleteReadError",
+)
+
+
+def is_transient_error(exc):
+    """Determine if an exception is a transient failure worthy of retrying."""
+    if isinstance(exc, ClientError):
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code in TRANSIENT_CLIENT_ERROR_CODES:
+            return True
+        status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+        if 500 <= status_code < 600:
+            return True
+        return False
+
+    if isinstance(exc, BotoCoreError):
+        return exc.__class__.__name__ in TRANSIENT_BOTOCORE_EXCEPTIONS
+
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return True
+
+    return False
+
+
 def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
            requested_agent=None, task_id=None, handoff_from=None,
-           agent_name=None, handoff_from_name=None):
-    """Write one task to the ledger. Never raises into the caller.
+           agent_name=None, handoff_from_name=None, retries=MAX_RETRIES):
+    """Write one task to the ledger.
 
     `agent_type` is the agent that **ran** the task — the desk it ran at, not
     the one the requester asked for. `requested_agent` records the preference,
@@ -56,32 +102,55 @@ def record(team, user_id, agent_type, tokens, estimated, status, prompt="",
     the ledger can answer at all. `handoff_from` is set on the second row only,
     and names the desk that passed it on.
 
-    Deliberately swallowing failures: this is a record *about* work that has
-    already happened, and losing a history row is a great deal better than
-    failing a task that already ran and already charged the team for it.
+    TASK# rows are the authoritative source for scheduler fairness
+    (`state.last_served` / `fair_order`) and per-person spend breakdowns
+    (`history.spend`). Writes are retried against transient persistence
+    failures with backoff, and failures raise to prevent silent corruption
+    of fairness and spend state.
     """
     substituted = requested_agent if requested_agent and requested_agent != agent_type else None
-    try:
-        state.table().put_item(
-            Item={
-                "PK": state.team_pk(team),
-                "SK": f"TASK#{state.now_iso_micros()}#{uuid.uuid4().hex[:8]}",
-                "user_id": user_id or "unknown",
-                "agent_type": agent_type or "",
-                "agent_name": agent_name or agent_type or "",
-                "requested_agent": substituted,
-                "task_id": task_id,
-                "handoff_from": handoff_from,
-                "handoff_from_name": handoff_from_name,
-                "tokens": int(tokens or 0),
-                "estimated": bool(estimated),
-                "status": status,
-                "prompt": (prompt or "")[:MAX_PROMPT],
-                "created_at": state.now_iso(),
-            }
-        )
-    except Exception as exc:  # pragma: no cover - telemetry, not control flow
-        print(f"[history] could not record task ({type(exc).__name__}: {exc})")
+    item = {
+        "PK": state.team_pk(team),
+        "SK": f"TASK#{state.now_iso_micros()}#{uuid.uuid4().hex[:8]}",
+        "user_id": user_id or "unknown",
+        "agent_type": agent_type or "",
+        "agent_name": agent_name or agent_type or "",
+        "requested_agent": substituted,
+        "task_id": task_id,
+        "handoff_from": handoff_from,
+        "handoff_from_name": handoff_from_name,
+        "tokens": int(tokens or 0),
+        "estimated": bool(estimated),
+        "status": status,
+        "prompt": (prompt or "")[:MAX_PROMPT],
+        "created_at": state.now_iso(),
+    }
+
+    backoff = INITIAL_BACKOFF
+    last_exc = None
+    for attempt in range(max(1, retries)):
+        try:
+            state.table().put_item(Item=item)
+            return item
+        except Exception as exc:
+            last_exc = exc
+            if not is_transient_error(exc):
+                # Non-transient error (validation, permissions, programming bug) — do not retry
+                print(
+                    f"[history] permanent write error ({type(exc).__name__}: {exc})"
+                )
+                raise
+            print(
+                f"[history] transient write attempt {attempt + 1}/{retries} failed "
+                f"({type(exc).__name__}: {exc})"
+            )
+            if attempt < retries - 1:
+                time.sleep(backoff)
+                backoff *= 2
+
+    if last_exc is not None:
+        raise last_exc
+    return item
 
 
 def view(rows):

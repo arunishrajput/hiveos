@@ -62,7 +62,7 @@ A deployed, public, multi-user office where:
   **one bill** under a single task id, bounded to one hop
 - A **per-person spend ledger** records who spent what, and which agent ran it
 - The board can **wear a different world** — Paper Office, Night Watch, Enchanted Forest, Reef
-  Station, Alien Colony or Cloud City — swapped from the title bar, or from the landing page
+  Station, Alien Colony, Cloud City or Arctic Base — swapped from the title bar, or from the landing page
   before you even enter, with no reload. Same sockets, same scheduler, same rows; re-dressed. A
   world may never change what anything *means*, so each one's state hues are re-tuned for its own
   surfaces and **measured at ≥4.5:1 against every surface it paints**, and never reassigned

@@ -349,6 +349,28 @@ but it is not cleaned up by `seed.sh`, which is a known MVP simplification.
   breakdown aggregates every row, so stale rows would open the board showing a
   team that had already spent its budget.
 
+  **Token rollback on permanent ledger write failure (MVP consistency tradeoff):**
+  If `history.record()` permanently fails to persist a ledger row after its
+  retries, the task is not in the ledger and the meter must not claim it is.
+  `_reply` rolls its own settlement back — `state.add_tokens(team, reserved -
+  result.tokens)`, the exact inverse of the `add_tokens(result.tokens,
+  reserved=reserved)` above it. This keeps `METADATA.tokens_used` in agreement
+  with the `TASK#` rows that `history.spend` and `state.fair_order` are read
+  from.
+
+  **The rollback restores the reservation; it does not release it.** Backing
+  out `result.tokens` alone would be wrong: the runner only clears its
+  `reserved` local *after* `_reply` returns, so on this path its `finally`
+  still releases the hold. Undoing the settlement leaves the counter exactly
+  where `_reply` found it — task unbilled, hold outstanding — and the release
+  then happens once. Subtracting `result.tokens` instead releases the same
+  placeholder twice and drives `tokens_used` below where the task found it,
+  which on a fresh workspace means negative.
+
+  *Tradeoff note:* Provider-side token consumption cannot be reversed; this
+  rollback is an internal data-consistency decision, not a claim that provider
+  billing was reversed.
+
 - **MEMORY#** — key/value facts saved by agents. No expiry in the MVP.
 
   **The SK is derived from the key, not a UUID** (`memory._slug`: lowercased,
@@ -582,6 +604,36 @@ On refusal the runner broadcasts `budget_exhausted`, replies `error` to the
 requester, spends nothing, and **still releases the slot** — the refusal path
 is subject to the same no-leak invariant as every other path.
 
+**Asking and charging are the same write** (`state.reserve_budget`). The rule
+a task is admitted by has not changed — budget left means it runs — but it is
+now decided by a conditional update whose condition is that rule
+(`tokens_used < token_budget`), evaluated by DynamoDB against the committed row
+rather than against a number the Lambda read a moment earlier. Two desks
+reaching the ceiling in the same instant used to both read "room" and both
+invoke the model, so the overshoot grew with the size of the floor. It does not
+now: the first one's hold is what the second one is tested against.
+
+**The hold is a placeholder, never a bill.** `RESERVATION_CEILING` sizes it to
+a whole task rather than to the prompt — a hold smaller than a task leaves the
+counter near enough to where it was found that the next desk still reads room,
+which is the bug it replaced. `state.add_tokens` then writes the *difference*
+between the hold and what the provider actually counted, usually as a credit
+back, and `token_update` carries the settled total. A task that never reaches
+its reply has its hold released in the runner's `finally`, ahead of the slot
+release and swallowed, because a leaked desk outranks a meter reading high.
+
+**The hold is clamped to what is left**, so it can park the counter exactly on
+the ceiling and never above it. Clients latch the refused state on
+`tokens_used >= token_budget` from both frames that carry the ceiling, so an
+unclamped hold would raise "Quota reached" on a board with budget to spare for
+as long as one task ran. Parked on the ceiling it refuses everybody else
+anyway, which is the whole job.
+
+**What it still does not bound is the task that was admitted.** Nobody knows
+what a completion will cost until it returns, so the total can finish above the
+ceiling by one task's spend. That is the documented allowance, unchanged. What
+changed is that it stays one task's worth however many desks are in flight.
+
 **Clients must clear the refused state from `token_update`, not only from
 `state_snapshot`.** `budget_exhausted` latches the client into a blocked state,
 and the only two frames carrying the whole ceiling — used *and* budget — are
@@ -767,7 +819,8 @@ prevent.
   produced exactly two legs. A limit the model is merely *asked* to respect is
   not a limit.
 - **The ceiling governs every leg.** Each leg meets `_refuse_over_budget`
-  immediately before its own model call, exactly like any other task. A chain
+  immediately before its own model call, exactly like any other task — so each
+  leg takes its own hold and settles it (see *The budget ceiling*). A chain
   can therefore overshoot by at most one leg's worth — the same as a single
   task — and a handoff is not a way to spend past the ceiling incrementally.
   Deliberately *not* re-checked at handoff time: a handoff can sit in the queue
