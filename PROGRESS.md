@@ -18,7 +18,7 @@
 | **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Three real defects this run turned up and did **not** fix are open under *Known issues and discoveries*, and acting on any of them needs the user to ask |
 | **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 27 `COMPLETE` — deployed and verified 2026-09-22. **Nine looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins — the board wears any of them, and a cross-fade carries it between any two. Gates after Phase 27: `pytest` **112/112** · `ws_smoke.py` **109/113**, unchanged from its recorded score, the four failures the documented CONN# false positive and *proved* false again by scanning DynamoDB immediately after (the only two `CONN#` rows in the table were the suite's own `TEAM#alpha`/`dana` fixture and a stale row from the Phase 24 session) · **the full 36-cell contrast matrix measured on rendered pixels at both demo framings — all eight worlds ≥ 5.54:1 worst, against 10 failing cells before the phase** · a **45-cell responsive sweep** with zero overflow and zero console output · every animation gone under `prefers-reduced-motion` in all nine worlds · and Paper Office proven unchanged by a **150-element, 81,951-computed-field** diff against a built HEAD with **zero deltas**. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
-| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 41, the Phase 27 polish build**. **`main` and the stack are in step.** The last backend change is **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
+| **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 42, 2026-09-22**: the Phase 27 polish build *plus* the handoff-inspector fix `5473dfa`, which job 41 predated by 35 minutes and therefore never carried. **`main`, the stack and the deployed frontend are all in step** — verified by hash, not by timestamp. The last backend change is **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
 | **🖥 Straight to the board** | **https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace** — what the recording windows point at |
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
@@ -3076,9 +3076,33 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
   plain `node --test` (**no new dependency**), `npm test` in `frontend/`. With the one-line fix
   reverted the key test fails with `actual: ['response','handoff']` against
   `expected: ['response','handoff','response']` — the reported symptom exactly.
+  **Deployed 2026-09-22 as Amplify job 42 (23:48:50–23:48:58 IST).** The fix was briefly
+  committed-but-unshipped: pushed at 23:43, while job 41 had gone out at 23:08, so for five
+  minutes the public URL still had the bug that `main` no longer had. Caught by the next
+  session's deployment check rather than by anything that watches for it. Proven by the bundle rather than the clock — the shipped
+  `index-DFs9rVOB.js` held **2** occurrences of `agentTo` (the pre-fix count: the crossing in
+  `useHive.js` and the inline filter in `App.jsx`), and job 42's `index-BBFAQh6W.js` holds
+  **3**, including `agentTo:f.handoff_from??null` in the `agent_response` case, which is the
+  one-line fix itself. The live file is byte-identical to a local build of `main`
+  (SHA-256 `8a312c6e…858e58`) and the CSS hash is unchanged from job 41, so nothing about the
+  nine worlds moved. `npm test` 10/10 before the build.
+
   *Lesson worth keeping: a symptom that reads as "the backend dropped the second leg" can be a
   frontend filter, and the cheapest way to tell them apart is to watch the wire — one `websockets`
   client against the deployed socket answered in one run what a day of code reading could not.*
+
+- **✅ CLOSED 2026-09-22 — a green push is not a deployed frontend, and nothing in the repo
+  says so.** Caught early here, but worth stating once: Amplify is in
+  **manual-deploy mode** — `aws amplify get-app` reports `repository: None` — so **no build
+  fires on `git push`**, and the branch's `enableAutoBuild: true` is inert without a connected
+  repo, which makes it actively misleading to read. A frontend commit is only live once
+  `./scripts/deploy-frontend.sh` has been run for it. The tell is cheap: a manual deploy takes
+  ~8 seconds end to end, so compare the newest job's `endTime` against the commit time, and
+  when they disagree settle it on the bytes — `curl` the live `index.html` for its asset hash
+  and compare with `frontend/dist/`. This is deliberate (no GitHub OAuth, no build role — see
+  *The Amplify app is not managed by CloudFormation* below) and is not a defect to fix; it is a
+  step that has to be remembered, and a session that verifies deployment state by reading
+  `PROGRESS.md` will get it wrong.
 
 - **⚠ OPEN — the last-agent guard is not atomic, so a floor can be emptied of every agent.**
   Found by `ws_smoke.py` on 2026-09-22, during Phase 27's frontend-only gate run. Check 26 sends
@@ -3419,7 +3443,7 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
 | SQS `hiveos-agent-tasks` + DLQ | ✅ both empty, nothing dead-lettered. **DLQ now has recovery tooling** (`scripts/recover_dlq.py`, `backend/shared/dlq.py`) — `--inspect` verified against the live queue 2026-09-22. Export `hiveos-DeadLetterQueueUrl` exists; `DLQ_URL` is on the runner's environment |
 | Agent Runner `hiveos-agent-runner` | ✅ verified end to end — **real model**, provider-reported tokens, the PR #7 budget-ceiling reservation, **and bugs F/E/H/G** (deployed **2026-09-22 06:01 UTC**, `CodeSha256 KWn/4lZ+4KXjKM60ydKMmS8WJ1f8FfCST99V5ljpV8g=`). `DLQ_URL` present in its environment |
 | SSM `/hiveos/groq-api-key` | ✅ SecureString, read at runtime, IAM-scoped to the Agent Runner |
-| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 40**, the Ancient Ruins build |
+| Amplify app `hiveos` / public URL | ✅ `dbavt8jr66qxx` → https://main.dbavt8jr66qxx.amplifyapp.com — **job 42** (2026-09-22), the Phase 27 polish build plus the handoff-inspector fix. Live bundle `index-BBFAQh6W.js`, SHA-256 `8a312c6e…858e58`, **byte-identical** to a local build of `main`; the CSS is still `index-CXyWO1wF.css`, the same hash job 41 served, so all nine worlds and the pixel-frozen default are untouched by the deploy |
 | Worlds shipped in the deployed bundle | ✅ **Paper Office (default), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins** — all nine read back from the live picker |
 | Demo video | ✅ **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, `playabilityStatus: OK` on an unauthenticated fetch |
 
