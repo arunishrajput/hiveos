@@ -313,6 +313,39 @@ npx wscat -c "$(aws cloudformation describe-stacks --stack-name hiveos \
 
 ---
 
+## Operational runbook: Dead-Letter Queue (DLQ) inspection and recovery
+
+When tasks fail repeatedly in the Agent Runner (e.g. Lambda timeouts, unhandled exceptions, or transient infrastructure faults), SQS moves them to the Dead-Letter Queue (`TaskDLQ`).
+
+### Deployment prerequisite
+SAM / CloudFormation deployment (`sam deploy`) must be completed before DLQ tools can rely on stack-injected endpoints:
+- `template.yaml` injects `DLQ_URL: !Ref TaskDLQ` into `AgentRunnerFunction`.
+- `template.yaml` exports `DeadLetterQueueUrl` (`${AWS::StackName}-DeadLetterQueueUrl`) and `QueueUrl` (`${AWS::StackName}-QueueUrl`).
+
+### Operational commands
+Use `scripts/recover_dlq.py` to inspect, redrive, or purge dead-lettered messages:
+
+```bash
+# 1. Passive inspection (peeks at messages without modifying or removing them)
+python3 scripts/recover_dlq.py --inspect
+
+# 2. Safe atomic redrive (clears idempotency markers and replays tasks to main queue)
+python3 scripts/recover_dlq.py --redrive-all
+
+# 3. Purge/drain DLQ
+python3 scripts/recover_dlq.py --purge
+
+# Options: override URLs or stack name directly
+python3 scripts/recover_dlq.py --inspect --dlq-url <DLQ_URL> --queue-url <QUEUE_URL>
+```
+
+### Safety and atomicity guarantees
+- **Idempotency marker clearance**: When redriving, `state.clear_idempotency_marker()` removes the task's `IDEMPOTENCY#<task_id>#<hops>` marker so the Agent Runner does not treat the redriven task as a duplicate.
+- **Atomic redrive claim**: `state.claim_dlq_redrive()` records a temporary claim with a 14-day TTL (matching `TaskDLQ` `MessageRetentionPeriod: 1209600`). If SQS message deletion fails after re-dispatch, subsequent recovery runs skip duplicate re-dispatch and safely finish DLQ message deletion.
+- **Rollback on send failure**: If sending to the main queue fails, the redrive claim is released so the task can be retried.
+
+---
+
 ## `AUTOMATED` — Logs
 
 ```bash

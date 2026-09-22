@@ -61,6 +61,28 @@ def main():
     if args.dlq_url:
         os.environ["DLQ_URL"] = args.dlq_url
 
+    # Validate that required infrastructure endpoints are resolved
+    resolved_dlq = dlq.get_dlq_url()
+    if not resolved_dlq:
+        print(
+            "ERROR: DLQ_URL could not be resolved from environment or CloudFormation stack.\n"
+            "Prerequisite: SAM / CloudFormation deployment ('sam deploy') must be completed\n"
+            "so the 'DeadLetterQueueUrl' stack output exists, or provide --dlq-url explicitly.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if args.redrive_all:
+        resolved_queue = dlq.get_main_queue_url()
+        if not resolved_queue:
+            print(
+                "ERROR: QUEUE_URL could not be resolved from environment or CloudFormation stack.\n"
+                "Prerequisite: SAM / CloudFormation deployment ('sam deploy') must be completed\n"
+                "so the 'QueueUrl' stack output exists, or provide --queue-url explicitly.",
+                file=sys.stderr,
+            )
+            return 1
+
     if not args.inspect and not args.redrive_all and not args.purge:
         # Default action: inspect
         args.inspect = True
