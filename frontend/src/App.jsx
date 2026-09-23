@@ -826,8 +826,8 @@ function Workspace({ identity }) {
  *
  * The hash specifically, rather than a real path. Amplify serves this SPA with
  * a `404-200` rewrite, so a deep link like `/workspace` returns the right body
- * under an HTTP **404** (see PROGRESS.md — harmless, but real). A hash never
- * leaves `/`, so the workspace link a judge or a teammate is handed is a clean
+ * under an HTTP **404** (harmless, but real). A hash never
+ * leaves `/`, so the workspace link a teammate is handed is a clean
  * 200 and is still bookmarkable and shareable.
  *
  * Anything that is not the workspace is the front door, including a stale or

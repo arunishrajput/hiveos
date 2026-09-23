@@ -31,11 +31,10 @@ Resolves the wss:// URL from the CloudFormation stack output, so it never
 needs a hardcoded endpoint. Requires the AWS CLI on PATH for the DynamoDB
 assertions.
 
-**Close every browser tab pointed at the deployed URL before running this.**
-The CONN#-leak checks assert the table holds *no* connection rows, so a live
-browser anywhere in the world counts as a leak and fails four checks that have
-nothing to do with the code. If those four are the only failures, that is
-almost certainly what happened.
+The CONN#-leak checks diff against a baseline taken when each section starts
+and only count this harness's own identities, so a real visitor sitting on the
+default workspace is no longer mistaken for a leaked connection. You do not
+have to close your browser tabs to get a clean run.
 """
 
 import argparse
@@ -105,6 +104,35 @@ def connection_rows():
         json.dumps({":p": {"S": TEAM_PK}, ":s": {"S": "CONN#"}}),
     )
     return {i["SK"]["S"]: i.get("user_id", {}).get("S") for i in page["Items"]}
+
+
+# Every identity this harness connects as on the default workspace. The
+# CONN#-leak checks name them because the invariant is "this run left nothing
+# behind", not "the workspace is empty".
+HARNESS_USERS = frozenset(
+    {"alice", "bob", "carol", "ghost", "cold", "dave", "watcher"}
+)
+
+
+def leaked_connections(baseline):
+    """Rows this run opened that are still in the table.
+
+    TEAM#alpha is the default workspace behind a public URL, so somebody
+    else's CONN# row is a legitimate inhabitant of it, not a leak. Asserting
+    an empty table therefore failed four checks on other people's traffic
+    rather than on this code — the reason this suite read 109/113 for days
+    with nothing wrong.
+
+    A row is a leak only if it was absent when the section started *and*
+    carries one of this harness's own identities. A visitor row fails the
+    first test; a genuinely leaked harness row fails neither, because every
+    connection here is opened after its baseline is taken.
+    """
+    return {
+        sk: user
+        for sk, user in connection_rows().items()
+        if sk not in baseline and user in HARNESS_USERS
+    }
 
 
 def put_connection_row(sk, user_id):
@@ -334,6 +362,8 @@ async def run(url):
     print(f"\nEndpoint: {url}\n")
     reset_demo_state()
 
+    baseline = set(connection_rows())
+
     print("1. Connect + opening snapshot")
     alice = await websockets.connect(f"{url}?user_id=alice&avatar=%F0%9F%90%9D")
     await alice.send(json.dumps({"action": "hello"}))
@@ -446,7 +476,7 @@ async def run(url):
     check("alice is told bob left", left.get("user_id") == "bob", str(left))
     await alice.close()
     await asyncio.sleep(3)  # $disconnect is fire-and-forget
-    remaining = connection_rows()
+    remaining = leaked_connections(baseline)
     check("no CONN# rows leak after everyone leaves", remaining == {}, str(remaining))
 
     await run_scheduler(url)
@@ -454,6 +484,8 @@ async def run(url):
 
 async def run_scheduler(url):
     """Phase 2 gate: two slots, a real queue, and no slot leaks."""
+    baseline = set(connection_rows())
+
     print("\n7. Scheduler — claiming both slots")
     alice = await websockets.connect(f"{url}?user_id=alice")
     bob = await websockets.connect(f"{url}?user_id=bob")
@@ -639,7 +671,7 @@ async def run_scheduler(url):
         await ws.close()
     await asyncio.sleep(8)  # let bob's in-flight task finish and release
     reset_demo_state()
-    leaked = connection_rows()
+    leaked = leaked_connections(baseline)
     check("no CONN# rows leak after the scheduler run", leaked == {}, str(leaked))
 
     await run_memory_and_budget(url)
@@ -647,6 +679,8 @@ async def run_scheduler(url):
 
 async def run_memory_and_budget(url):
     """Phase 3 (Bedrock-free) gate: shared memory, token accounting, ceiling."""
+    baseline = set(connection_rows())
+
     print("\n13. Shared team memory")
     alice = await websockets.connect(f"{url}?user_id=alice")
     bob = await websockets.connect(f"{url}?user_id=bob")
@@ -750,7 +784,7 @@ async def run_memory_and_budget(url):
 
     # The cold-load case, and the reason it is a check at all: the flag once
     # rode only on live token_update frames, so a browser opening the URL for
-    # the first time — every judge — saw an unlabelled number. Cold must agree
+    # the first time — everyone — saw an unlabelled number. Cold must agree
     # with live exactly, whichever way the flag is set.
     cold = await websockets.connect(f"{url}?user_id=cold")
     await cold.send(json.dumps({"action": "hello"}))
@@ -831,7 +865,7 @@ async def run_memory_and_budget(url):
         used_after == 0 and memory_rows() == {},
         f"tokens_used={used_after} facts={len(memory_rows())}",
     )
-    leaked = connection_rows()
+    leaked = leaked_connections(baseline)
     check("no CONN# rows leak after the memory run", leaked == {}, str(leaked))
 
     await run_avatars(url)
@@ -1000,7 +1034,7 @@ async def run_passphrase(url):
         "joined",
     )
 
-    open_board = await _join(url, "judge", "alpha")
+    open_board = await _join(url, "visitor", "alpha")
     check(
         "**an open workspace still opens cold — zero-login survives**",
         open_board is not None and open_board.get("protected") is False,
@@ -1611,6 +1645,8 @@ async def run_fairness(url):
 
 async def run_avatars(url):
     """Phase 5: the shared workspace floor."""
+    baseline = set(connection_rows())
+
     print("\n19. Avatar presence and movement")
     alice = await websockets.connect(f"{url}?user_id=alice&avatar=%F0%9F%90%9D")
     bob = await websockets.connect(f"{url}?user_id=bob&avatar=%F0%9F%A6%8A")
@@ -1673,7 +1709,7 @@ async def run_avatars(url):
     for ws in (alice, bob):
         await ws.close()
     await asyncio.sleep(3)
-    leaked = connection_rows()
+    leaked = leaked_connections(baseline)
     check("no CONN# rows leak after the avatar run", leaked == {}, str(leaked))
 
 

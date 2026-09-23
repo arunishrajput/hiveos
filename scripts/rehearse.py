@@ -14,7 +14,7 @@ as surely as one that breaks, because the video has 180 seconds total.
     python scripts/rehearse.py --takes 2  # BUILD_PLAN Phase 6 task 4
     python scripts/rehearse.py --ceiling  # the budget-refusal beat instead
 
-The beat order is BUILD_PLAN's, not PROGRESS.md's earlier run sheet, and the
+The beat order is the build plan's, not the progress log's earlier run sheet, and the
 difference is deliberate — see `pick a slot` below.
 
 Close stray browser tabs first: this asserts on the member list.
@@ -50,13 +50,13 @@ HIRE_NAME = "Dwight"
 HIRE_ROLE = "Analyst"
 
 # What the video has to fit inside. The beats below are the 0:25-2:20 stretch
-# of DEMO.md's script — problem framing and the AWS/learnings outro are
+# of docs/internal/DEMO.md's script — problem framing and the AWS/learnings outro are
 # talking over a static board and cost no product time.
 DEMO_BUDGET_SECONDS = 110
 
 # What a take runs on, and what this script rehearses against. Small on
 # purpose: the meter climbing is the beat, and at ~800 tokens a task 5,000 puts
-# a rehearsed take at 50-57% — the figure DEMO.md's Beat 3 quotes.
+# a rehearsed take at 50-57% — the figure docs/internal/DEMO.md's Beat 3 quotes.
 RECORDING_BUDGET = 5000
 
 # What the board is left on afterwards, and the same number `reset-demo.sh`
@@ -263,7 +263,7 @@ async def run_demo(url):
 
     try:
         # Three identities, not three windows. The take shows two windows now
-        # (DEMO.md's framing box — two landscape windows do not fit the
+        # (docs/internal/DEMO.md's framing box — two landscape windows do not fit the
         # recording desktop), but the queue beat still needs a third person:
         # alice and bob fill the two desks and charlie is the one who queues.
         with Beat("BEAT 1 (0:25) — three people, one workspace"):
@@ -302,7 +302,7 @@ async def run_demo(url):
 
         with Beat("BEAT 2 (0:45) — the queue moment"):
             # Alice's task IS the memory save. This is the one place the
-            # rehearsal departs from PROGRESS.md's run sheet, and it is not a
+            # rehearsal departs from the progress log's run sheet, and it is not a
             # style preference: a user holding a slot cannot claim a second one
             # (scheduler refuses it), so "Alice claims, then Alice saves a fact"
             # is two separate rounds and ~15 extra seconds. Folding the save
@@ -402,7 +402,7 @@ async def run_demo(url):
             # likely viewer, and they must not see an estimate presented as
             # billed usage. Which way this flag falls decides a line of
             # narration, so it is reported loudly rather than merely asserted
-            # — see DEMO.md, "what to say about the token counts".
+            # — see docs/internal/DEMO.md, "what to say about the token counts".
             cold = await websockets.connect(ws_url(url, "judge"))
             cold_snap = await snapshot(cold, "judge")
             await cold.close()

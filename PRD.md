@@ -1,18 +1,34 @@
-# PRD.md — HiveOS MVP
+# PRD.md — HiveOS product specification
+
+What HiveOS is, who it is for, what it must do, and what it deliberately does not do.
+`ARCHITECTURE.md` explains how it is built; `CONTRACT.md` is the interface it must not drift
+from.
+
+---
 
 ## Product
 
-A cloud-deployed office where a team hires and runs a floor of AI agents together — you watch them work at their desks in real time, and the whole office runs on one shared, server-enforced token budget. Built entirely on AWS.
+A cloud-deployed office where a team hires and runs a floor of AI agents together — you watch
+them work at their desks in real time, and the whole office runs on one shared, server-enforced
+token budget. Built on AWS.
 
-**The one-sentence test.** If a judge can say *"HiveOS is Munder Difflin for teams, in the cloud — hire a floor of AI agents, watch them work, and the whole office runs on one enforced budget"* — the product landed. Every implementation decision should serve that sentence.
+**The one-sentence test.** If someone can say *"HiveOS is a floor of AI agents your team hires,
+watches and runs on one enforced budget"* — the product landed. Every implementation decision
+should serve that sentence.
 
-> **This sentence changed on 2026-09-19, and deliberately.** It used to be *"the OS scheduler for your team's shared AI budget"*, and the scheduler was the headline. The scheduler, the fair queue and the enforced ceiling are all still here and all still load-bearing — they moved from being the product to being the governance layer *inside* it. The reason is that a queue is a thing you explain and an office is a thing you see, and a 3-minute video is the only judge touchpoint.
+> **The framing changed on 2026-09-19, and deliberately.** It used to be *"the OS scheduler for
+> your team's shared AI budget"*, and the scheduler was the headline. The scheduler, the fair
+> queue and the enforced ceiling are all still here and all still load-bearing — they moved from
+> being the product to being the governance layer *inside* it. The reason is that a queue is a
+> thing you explain and an office is a thing you see.
 
 ---
 
 ## Problem
 
-Teams sharing AI agents have **no visibility into usage, no fairness mechanism for access, and no real-time governance over token spend**. One heavy agentic task can burn a team's entire monthly budget in minutes — and nobody can see it happen while it happens.
+Teams sharing AI agents have **no visibility into usage, no fairness mechanism for access, and
+no real-time governance over token spend**. One heavy agentic task can burn a team's entire
+monthly budget in minutes — and nobody can see it happen while it happens.
 
 This is verified, not assumed:
 
@@ -22,123 +38,105 @@ This is verified, not assumed:
 - Only 36% of organisations have any token or usage controls *(PointFive Research, Jul 2026)*
 - Agentic workflows consume 10–30× more tokens than simple queries *(Forbes Tech Council, Aug 2026)*
 
-**The insight.** Operating systems solved exactly this for CPU fifty years ago: process scheduling, time slices, resource quotas, fair queue allocation. HiveOS applies that abstraction to team AI compute — making invisible resource allocation visible and fair.
+**The insight.** Operating systems solved exactly this for CPU fifty years ago: process
+scheduling, time slices, resource quotas, fair queue allocation. HiveOS applies that abstraction
+to team AI compute — making invisible resource allocation visible and fair.
 
 ---
 
 ## Target user
 
-Remote or hybrid teams of 3–6 people who share AI agent access. The demo uses a software team (developer, team lead, designer), but the product is general-purpose, not coding-only.
-
----
-
-## MVP objective
-
-Ship a **deployed, publicly reachable** workspace where three simultaneous browsers demonstrably share one token budget and one pool of agent slots, with queueing and shared memory working live and in real time.
+Remote or hybrid teams of 3–6 people who share AI agent access. The default roster is a software
+team (an engineer and a researcher), but the product is general-purpose, not coding-only — an
+agent's role and persona are set when it is hired.
 
 ---
 
 ## Core user journey
 
-1. Open the public URL. Pick a name. Land on Team Alpha's floor.
-2. See the office: Ada and Iris at their desks, the team's token meter above them — **identical on every screen**.
-3. Pick a desk and send that agent a task. It goes BUSY on everyone's screen and the meter moves as it works.
-4. **Hire a third agent.** Name it, pick its character, write its briefing. It appears at a desk on *everyone's* floor, with no refresh.
-5. Give the new agent work. A third member asks while every desk is busy → stands in the waiting area at "queued #1".
+1. Open the public URL. Pick a name. Land on a floor.
+2. See the office: Ada and Iris at their desks, the team's token meter above them — **identical
+   on every screen**.
+3. Pick a desk and send that agent a task. It goes BUSY on everyone's screen and the meter moves
+   as it works.
+4. **Hire a third agent.** Name it, pick its character, write its briefing. It appears at a desk
+   on *everyone's* floor, with no refresh.
+5. Give the new agent work. A third member asks while every desk is busy → stands in the waiting
+   area at "queued #1".
 6. Tell an agent to remember a team fact. A badge appears on every screen.
-7. A desk frees → the queued member walks into the room and is auto-assigned → their agent already knows the team fact.
+7. A desk frees → the queued member walks into the room and is auto-assigned → their agent
+   already knows the team fact.
 
 ---
 
-## MVP features
+## Features
 
-### Must build (MVP-Critical)
+### Shipped and deployed
 
 | Feature | Behaviour |
 |---|---|
-| Team workspace | Any number of isolated teams, each with multiple concurrent members. `alpha` is only the default |
-| Agent slots | 2 named slots, `IDLE` / `BUSY`, with current holder |
+| Team workspaces | Any number of isolated workspaces, each with multiple concurrent members. `alpha` is only the default |
+| A floor you staff | Two agents to start, up to four; hire with a name, role, character and persona; dismiss to free the desk |
 | Real-time token meter | `tokens_used / token_budget`, identical across all browsers, updates without refresh |
-| **Enforced budget ceiling** | Server-side refusal to invoke Bedrock at 100% — a real control, not a gauge |
-| FIFO queue | Claims made while all slots are busy wait in order |
-| Queue position display | "Position #1 · ~3 min", updated live |
-| Auto-dispatch | Queued task is assigned automatically the moment a slot frees |
-| WebSocket sync | Slot state, token count, queue, and memory pushed to all connected clients |
-| Shared team memory | Agent saves a fact; the next user's agent loads it automatically |
-| Working AWS deployment | Public HTTPS URL, opens cold on a judge's laptop with zero setup |
+| **Enforced budget ceiling** | Server-side refusal to invoke the model at 100% — a real control, not a gauge |
+| Fair queue | Claims made while every desk is busy wait in order, by fairness rather than arrival |
+| Queue position display | "queued #1", updated live for the whole team |
+| Auto-dispatch | A queued task is assigned automatically the moment a desk frees |
+| WebSocket sync | Desk state, token count, queue, roster and memory pushed to all connected clients |
+| Shared team memory | An agent saves a fact; the next member's agent loads it automatically, through model-invoked tools |
+| Agent-to-agent handoff | An agent may pass a task to a better-suited desk — one request, two agents, one bill, bounded to one hop |
+| Per-person spend ledger | Who spent what, and which agent actually ran it |
+| Workspace passphrases | Optional PBKDF2-verified passphrase and an owner who can set the budget or delete the workspace |
+| Worlds | Nine looks for the same board, switched per-viewer with no reload and no change to meaning |
+| Public deployment | Public HTTPS URL, opens cold with zero setup |
 | GoneException handling | Stale WebSocket connections cleaned up on every broadcast |
 
-### Build if core works (MVP-Supporting)
+### Future work
 
-- Agent chat sidebar with response display
-- 2D CSS canvas with member avatars *(cut first if earlier phases overrun)*
-- Per-task token cost shown on completion
-- Task history in the sidebar
-- Team lead announcement broadcast
-
-### Post-Hackathon
-
-Cognito authentication · user accounts · priority queue bump · agent marketplace · usage analytics · per-user budgets
+User accounts and identity · a retention policy on the task ledger · priority queue bump ·
+per-user budgets · usage analytics across workspaces · an agent marketplace
 
 ### Out of scope — never build
 
-Phaser.js or any game engine · tilemaps, physics, pathfinding · Google Calendar / Gmail / OAuth · CPU-style token preemption mid-generation · multiple DynamoDB tables · mobile app · voice or video · multi-team analytics
+Phaser.js or any game engine · tilemaps, physics, pathfinding · Google Calendar / Gmail / OAuth ·
+CPU-style token preemption mid-generation · multiple DynamoDB tables · mobile app · voice or
+video · multi-team analytics
+
+Each was considered and rejected with reasons recorded in `ARCHITECTURE.md`.
 
 ---
 
 ## Functional requirements
 
-- A member may hold at most one agent slot at a time.
-- Slot claims are atomic — two simultaneous claims never both succeed on the same slot.
+- A member may hold at most one agent desk at a time.
+- Desk claims are atomic — two simultaneous claims never both succeed on the same desk.
 - Token accounting is atomic and never lost to a race between concurrent agent runs.
-- Queue ordering is FIFO by enqueue timestamp.
-- Every state change is broadcast to all connected team members.
-- Agent memory persists across sessions and is loaded into every new agent task.
-- Bedrock is not invoked when the budget is exhausted.
+- Queue ordering is fair, resolved at dispatch rather than by arrival timestamp alone.
+- Every state change is broadcast to all connected workspace members.
+- Team memory persists across sessions and is loaded into every new agent task.
+- The model is not invoked when the budget is exhausted.
+- A floor can never be emptied of its last agent.
 
 ## Non-functional requirements
 
-- **Demo reliability outranks feature count.** One feature that runs beats five that almost do.
+- **Reliability outranks feature count.** One feature that runs beats five that almost do.
 - State changes visible across browsers in under ~2 seconds.
 - The public URL works from a cold browser with no local setup.
 - Everything serverless, scaling to zero — no always-on resources.
-- Total AWS spend for the build and demo stays well under the available credit.
 - No secrets in the repository.
+- Every state colour clears 4.5:1 against every surface the world it sits in paints.
 
 ---
 
-## Demo requirements
+## Acceptance criteria
 
-The 3-minute video is the **only** judge touchpoint. There is no live demo and no Q&A.
+All of the following are met on the deployed system, and each is checked by a runnable gate
+rather than by inspection — see **Verify** in `README.md`.
 
-- Three browser windows, pre-loaded, three named members
-- Must show on camera: the shared token meter moving, a slot going BUSY, a real queue position, auto-dispatch on release, and shared memory benefiting a different user
-- Must name where AWS fits — naming AWS in the writeup alone does not count
-- Must state honestly what the architecture does. Say *"every agent task runs through a real SQS queue, and waiting tasks auto-dispatch the moment a slot frees."* Do **not** claim queued users are parked inside SQS — see `ARCHITECTURE.md`.
-- Address the Munder Difflin comparison in the first 20 seconds, and the honest line has changed with the product: *"Munder Difflin runs your own CLI agents as local processes, on your machine, for you. HiveOS is that office in the cloud and shared — a URL your whole team opens, hiring agents onto one floor, on one enforced budget."* Do **not** imply HiveOS spawns local processes or attaches to anyone's terminal. It cannot, and the tabs say so.
-
-**Fallback ladder if something breaks on the final day.** Fix only what is broken — never add features to rescue a demo.
-1. Token meter + slot badges working → demo the HUD only
-2. WebSocket broken → record components separately
-3. Bedrock unavailable → mock agent responses and say so
-
----
-
-## Success criteria
-
-> ✅ **All of these were met, and the project was submitted (confirmed 2026-09-21).** This is the
-> bar that was cleared, not a checklist still to work through.
-
-**Minimum viable submission**
-- Public URL loads and shows live shared state across two browsers
-- Slot claim and release work end to end
-- Video recorded and under 3 minutes; repo public; writeup submitted before the deadline
-
-**Target**
-- All Must-build features working on the deployed URL
-- Queue and auto-dispatch demonstrated live on video
-- Shared memory demonstrably benefiting a second user
-
-**Stretch**
-- 2D canvas with avatars
-- Per-task cost breakdown
+- The public URL loads and shows live shared state across multiple browsers
+- Desk claim, release and auto-dispatch work end to end
+- The ceiling refuses the model at 100% and spends nothing past it
+- A fact saved by one member reaches the next member's agent
+- A handoff bills both legs to one budget under one task id
+- Workspaces are isolated from one another, including under a passphrase
+- Every world clears the contrast bar at both common framings

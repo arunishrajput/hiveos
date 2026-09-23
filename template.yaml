@@ -297,7 +297,8 @@ Resources:
   #
   # No Bedrock permissions here on purpose. Bedrock is blocked account-wide on
   # this account (us-east-1, us-west-2 and ap-south-1 all refuse; 42 of 43
-  # per-day token quotas are zero and `adjustable=False`) — see PROGRESS.md.
+  # per-day token quotas are zero and `adjustable=False`) — see ARCHITECTURE.md,
+  # decision 7.
   # Inference runs against Groq over HTTPS, so the Agent Runner needs an
   # outbound call and an SSM read, not an IAM grant on a model.
   #

@@ -1,4 +1,9 @@
-# BUILD_PLAN.md — Phased roadmap
+# BUILD_PLAN.md — the build roadmap (archived)
+
+> **Every phase in this plan shipped.** It is kept for the briefs, the contracts and the
+> findings recorded under each phase — particularly the world contracts under Phases 18–27,
+> which are not inferable from the code and are the reference for any future world. It is
+> not a queue of work; nothing here is outstanding.
 
 Each phase is sized for one Claude Code session. Phases 0–6 were the original plan and are
 strictly sequential; everything from 7 on was added later by user decision, and each of those
@@ -533,7 +538,7 @@ there was a submittable deliverable at every point.
 
 > ### ✅ This run is finished as of 2026-09-22
 >
-> The hackathon is over and submitted. **All ten phases have shipped** — 18 the foundation, 19
+> The delivery is done and submitted. **All ten phases have shipped** — 18 the foundation, 19
 > Night Watch, 20 Enchanted Forest, 21 Reef Station, 22 Alien Colony, 23 Cloud City, 24 Arctic
 > Base, 25 Desert Outpost, 26 Ancient Ruins and **27 the polish pass** (Paper Office is the
 > Phase 12 default, not a world phase).

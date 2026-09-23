@@ -82,7 +82,7 @@
   /* --- State ------------------------------------------------------------- *
    *
    * Lifted until each one carries a word on navy. Measured against every
-   * surface in this file, worst case 4.56:1 — see PROGRESS.md for the table.
+   * surface in this file, worst case 4.56:1 — see docs/internal/PROGRESS.md for the table.
    *
    * `--honey` is the one hue that had to move sideways, and the reason is
    * worth keeping because every later dark world hits it.

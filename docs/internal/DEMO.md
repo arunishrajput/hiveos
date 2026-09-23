@@ -1,4 +1,7 @@
-# DEMO.md — the recording run sheet
+# DEMO.md — the walkthrough run sheet (archived)
+
+> The script the product walkthrough was recorded against, kept because it doubles as a
+> guided tour of the features in the order that shows them best.
 
 > ## ✅ RECORDED AND UPLOADED — 2026-09-20
 >

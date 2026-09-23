@@ -163,7 +163,7 @@ It was green because the layout had been *amputated*. Two panels were not merely
 
 ### The client that matters most reads exactly one frame
 
-Twice I shipped something that was correct for a *watching* client and wrong for a *joining* one. The token-provenance flag rode only on live update frames, so a browser opening the URL cold — **which is every judge, and every new teammate** — saw an unlabelled number. Same shape of bug erased a queue ETA 500 ms after it appeared, because the snapshot did not carry it.
+Twice I shipped something that was correct for a *watching* client and wrong for a *joining* one. The token-provenance flag rode only on live update frames, so a browser opening the URL cold — **which is every new teammate** — saw an unlabelled number. Same shape of bug erased a queue ETA 500 ms after it appeared, because the snapshot did not carry it.
 
 Every check in this repo runs against deployed AWS for this reason. A zero exit code proves a command succeeded, not that the system behaved.
 
@@ -174,7 +174,7 @@ Measured against the deployed stack, not localhost — click-to-paint across two
 | A claim reaching a second browser | **282 ms** |
 | Auto-dispatch visible after a desk frees | **187 ms** |
 | An avatar move painted on a second browser | **270–294 ms** |
-| End-to-end checks against real AWS | **109/113** |
+| End-to-end checks against real AWS | **113/113** |
 
 ---
 
@@ -219,4 +219,4 @@ Open it in two browser windows side by side. Ask an agent something in one and w
 
 ---
 
-*Built solo in ~72 hours for the First Commit hackathon (WeMakeDevs × AWS), Ship It track. Claude Code was the implementation assistant; the repository itself was its memory — a `CLAUDE.md` defining a source-of-truth hierarchy where deployed AWS state outranks documentation, so a fresh session after a context reset reads three files and knows the phase, the blocker, and the next step.*
+*Built solo in about 72 hours. Claude Code was the implementation assistant; the repository itself was its memory — a `CLAUDE.md` defining a source-of-truth hierarchy where deployed AWS state outranks documentation, so a fresh session after a context reset reads three files and knows the phase, the blocker, and the next step.*

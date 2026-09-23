@@ -63,7 +63,7 @@ Intended system design and the decisions behind it. Interfaces that must not dri
 | **SQS** (+ DLQ) | Durable at-least-once handoff of every agent task to the runner | Makes task execution survive Lambda restarts, with retry and a dead-letter queue |
 | **Agent Runner Lambda** | Consumes SQS, loads team memory, calls the model, accounts tokens, broadcasts, releases the desk, and then either dispatches the next queued task or forwards a handoff to another desk | Isolated from the Router so model latency never blocks connection handling |
 | **Groq** (`openai/gpt-oss-120b`) | Foundation model inference — **the only component not on AWS** | Bedrock is blocked account-wide on this account (decision 7). Reached with one stdlib `urllib` POST; the key is an SSM SecureString read at runtime |
-| **Amplify Hosting** | Static React frontend, public HTTPS URL | Fastest path to an HTTPS URL a judge can open cold; deployable from the CLI |
+| **Amplify Hosting** | Static React frontend, public HTTPS URL | Fastest path to an HTTPS URL anyone can open cold; deployable from the CLI |
 
 ---
 
@@ -206,15 +206,15 @@ Lambda is stateless. When a browser closes, its connection ID stays in DynamoDB 
 
 ### 8. DOM/CSS for the workspace canvas — never a game engine
 
-Hackathon teams routinely lose two to three days to tilemaps, collision, and sprite animation. The floor is a fixed-size div with absolutely positioned character divs; movement is x/y updates with CSS transitions. **Final.**
+A game engine costs two to three days in tilemaps, collision, and sprite animation before it draws anything this product needs. The floor is a fixed-size div with absolutely positioned character divs; movement is x/y updates with CSS transitions. **Final.**
 
 **The 2026-09-19 pivot inverted which half is the product, and not the technique.** This decision used to end "the HUD is the product; the canvas is the wrapper." It is now the other way round: the floor is what you look at and the panels are the governance layer inside it. That made the canvas load-bearing, which is an argument *for* a game engine — and it is still rejected, because everything the floor does is a div moving to a coordinate, and none of it is collision, physics or z-ordered tile rendering. The cost of an engine did not change; the reason to pay it still has not appeared.
 
 ### 9. No authentication for the MVP
 
-Cognito costs roughly a day of setup, and it is still not built — it remains on the never-build list, because a judge who meets a sign-up form before seeing the board is a worse outcome than an unauthenticated demo.
+Cognito costs roughly a day of setup, and it is still not built — it remains on the never-build list, because someone who meets a sign-up form before ever seeing the board is a worse outcome than an open workspace.
 
-**Workspaces can be protected by a passphrase instead** (2026-09-18). Whoever creates one may set a passphrase; joining it then requires that passphrase, verified server-side at `$connect` against a PBKDF2 hash. This closes the actual gap — that anyone who knew a workspace *name* could walk into it — without putting a wall in front of the public URL, because a workspace with no passphrase stays open. It is authentication of the *workspace*, not of the person: there are still no accounts and no identity, and members pick a display name on entry. For a judge opening a URL cold, zero-login is actively better. This is an accepted, documented tradeoff — and the reason the server-side token ceiling is mandatory. Cognito is Post-Hackathon.
+**Workspaces can be protected by a passphrase instead** (2026-09-18). Whoever creates one may set a passphrase; joining it then requires that passphrase, verified server-side at `$connect` against a PBKDF2 hash. This closes the actual gap — that anyone who knew a workspace *name* could walk into it — without putting a wall in front of the public URL, because a workspace with no passphrase stays open. It is authentication of the *workspace*, not of the person: there are still no accounts and no identity, and members pick a display name on entry. For anyone opening the URL cold, zero-login is actively better. This is an accepted, documented tradeoff — and the reason the server-side token ceiling is mandatory. Accounts remain future work.
 
 ### 10. Infrastructure as a SAM template
 
@@ -262,11 +262,11 @@ The bound is the load-bearing part: a handoff is a model decision, and an unboun
 
 | Rejected | Why |
 |---|---|
-| Phaser.js / any game engine | Consumes days of hackathon time for no judged benefit |
+| Phaser.js / any game engine | Days of work for capability this floor never uses |
 | Token-level preemption | Not practically feasible mid-generation |
 | Google OAuth / Gmail / Calendar | Consent screen verification and token vaults cost a full day |
 | Multiple DynamoDB tables | More IAM surface, more latency, harder to debug |
-| Cognito (for MVP) | Roughly a day of setup; a login wall hurts a cold-open demo |
+| Cognito (for MVP) | Roughly a day of setup; a login wall defeats a workspace you can open cold |
 | In-memory task queue | Lost on Lambda restart; would make the queue a fiction |
 | A per-agent model picker in the hire form | Would let one hire quietly change what the team spends per call — the opposite of what this product governs. The engine step is a readout |
 | Unbounded agent-to-agent negotiation | A handoff is a model decision; an unbounded chain of them is an unbounded way to spend a shared budget. Capped at one hop |

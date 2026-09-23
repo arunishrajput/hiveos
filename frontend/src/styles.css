@@ -61,7 +61,7 @@
 
   /* Activity */
   --cool: #2c7fa1;
-  /* Budget thresholds — BUILD_PLAN.md: green <50%, amber 50-80%, red >80%.
+  /* Budget thresholds — green <50%, amber 50-80%, red >80%.
    * The thresholds are unchanged; the hues are darkened for paper. `--honey`
    * is deliberately a deep ochre rather than the brand amber it used to be —
    * a warn state that reads as the same colour as every button on the board
@@ -206,7 +206,7 @@
    * is the third thing: the ground *under* the glyph. A denser halo is an
    * opaque plate of `--floor` rather than a wash of it, which is what lifts
    * every world's `--cool` cell from 2.8-4.4:1 to 5.9-9.1:1. Measured on
-   * rendered pixels, not on tokens — see PROGRESS.md, Phase 27.
+   * rendered pixels, not on tokens — see docs/internal/PROGRESS.md, Phase 27.
    *
    * Paper Office keeps the thin halos and therefore keeps the defect, at
    * 2.59:1. It is pixel-frozen for the recording and is not being retuned;

@@ -3,7 +3,7 @@
 The agent is **real**: `shared/llm.py` calls a model and reports the token
 usage the provider actually counted. Amazon Bedrock is blocked account-wide on
 this AWS account (three regions, both first-party and Marketplace models — see
-PROGRESS.md), so inference calls out to Groq. Every other component — the
+ARCHITECTURE.md, decision 7), so inference calls out to Groq. Every other component — the
 queue, the scheduler, the state, the real-time layer, the hosting — is AWS.
 
 Everything around the model is what the product actually claims:

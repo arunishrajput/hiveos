@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client'
 
-// Self-hosted so a judge's cold load never waits on a font CDN, and the type
-// never flashes mid-recording. Latin subsets only — the unscoped entrypoints
+// Self-hosted so a cold load never waits on a font CDN, and the type never
+// flashes while the page settles. Latin subsets only — the unscoped entrypoints
 // also ship Cyrillic, Greek and Vietnamese, which this UI never renders.
 //
 // 700 is here for headings only. The console never needed a bold weight; the

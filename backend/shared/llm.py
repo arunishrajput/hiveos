@@ -4,8 +4,8 @@ Amazon Bedrock is blocked account-wide on this AWS account — not by anything
 here, and not by a fixable setting. Three regions (`us-east-1`, `us-west-2`,
 `ap-south-1`), both first-party and Marketplace models, all refuse:
 `INVALID_PAYMENT_INSTRUMENT` for Anthropic/AI21, and a hard zero per-day token
-quota (`adjustable=False`) for Amazon's own Nova. See PROGRESS.md. Inference
-therefore calls out to Groq; **every other component stays on AWS.**
+quota (`adjustable=False`) for Amazon's own Nova. See ARCHITECTURE.md,
+decision 7. Inference therefore calls out to Groq; **every other component stays on AWS.**
 
 That split is worth stating plainly rather than hiding: a governance layer that
 only works with one vendor's models is a worse governance layer. The scheduler

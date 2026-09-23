@@ -1,9 +1,14 @@
-# PROGRESS.md
+# PROGRESS.md — build record (archived)
 
-> Current execution state. A fresh Claude Code session reads this to know exactly where things stand.
-> Keep it operational and short. Not a diary — history lives in git.
+> **This is history, not a to-do list.** It is the execution log the project was built against,
+> kept for the reasoning, the measurements and the defects it records. The live description of
+> the product is `README.md`; the live guide to working on it is `CLAUDE.md`. Nothing in here is
+> outstanding work, and a line in it is never a reason to reopen something that closed.
+>
+> The one section still worth reading operationally is **Known issues and discoveries**, which
+> says of each entry whether it was fixed, closed, or left deliberately.
 
-**Last updated:** 2026-09-22
+**Build closed:** 2026-09-23
 
 ---
 
@@ -12,11 +17,9 @@
 | | |
 |---|---|
 | **Project** | HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced budget |
-| **Track** | Ship It (deployed, public URL) |
-| **Deadline** | 2026-09-20 — **met. Submitted.** |
-| **🏁 Submission** | ✅ **DONE — confirmed by the user 2026-09-21. The hackathon deliverable is in. Nothing in this repo is waiting on a submission step; do not raise one again.** |
-| **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Of the three defects Phase 27 recorded and did not fix, **two are now fixed and deployed (2026-09-23)** — the last-agent dismissal race and the waiting-line crowding. The third, the whole-table `CONN#` scan that holds `ws_smoke.py` at 109/113, stays open under *Known issues and discoveries* |
-| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 27 `COMPLETE` — deployed and verified 2026-09-22. **Nine looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins — the board wears any of them, and a cross-fade carries it between any two. Gates after Phase 27: `pytest` **127/127** (112 at the time; +15 with the dismissal-race fix of 2026-09-23) · `ws_smoke.py` **109/113**, unchanged from its recorded score, the four failures the documented CONN# false positive and *proved* false again by scanning DynamoDB immediately after (the only two `CONN#` rows in the table were the suite's own `TEAM#alpha`/`dana` fixture and a stale row from the Phase 24 session) · **the full 36-cell contrast matrix measured on rendered pixels at both demo framings — all eight worlds ≥ 5.54:1 worst, against 10 failing cells before the phase** · a **45-cell responsive sweep** with zero overflow and zero console output · every animation gone under `prefers-reduced-motion` in all nine worlds · and Paper Office proven unchanged by a **150-element, 81,951-computed-field** diff against a built HEAD with **zero deltas**. |
+| **Delivery** | ✅ Shipped — deployed, public URL, confirmed 2026-09-21. Nothing is outstanding |
+| **▶ Current phase** | **None. The build plan is finished.** Phase 27 shipped 2026-09-22 and was the last one; every phase 0–27 is `COMPLETE`. There is nothing for "start the next phase" to take — a session told to start one should say so rather than invent work. Of the three defects Phase 27 recorded and did not fix, **two are now fixed and deployed (2026-09-23)** — the last-agent dismissal race and the waiting-line crowding. The third, the whole-table `CONN#` scan that held `ws_smoke.py` at 109/113, **is fixed too (2026-09-23)** — the suite now scores **113/113** with strangers on the floor. Nothing is left open |
+| **Phase status** | **Phase 6 `COMPLETE` — all nine tasks, submission included.** Phase 27 `COMPLETE` — deployed and verified 2026-09-22. **Nine looks in the picker** — Paper Office (the Phase 12 default, not a world phase), Night Watch, Enchanted Forest, Reef Station, Alien Colony, Cloud City, Arctic Base, Desert Outpost, Ancient Ruins — the board wears any of them, and a cross-fade carries it between any two. Gates after Phase 27: `pytest` **127/127** (112 at the time; +15 with the dismissal-race fix of 2026-09-23) · `ws_smoke.py` **113/113** (109 at the time; the four `CONN#` failures were a wrong invariant, fixed 2026-09-23), the four failures the documented CONN# false positive and *proved* false again by scanning DynamoDB immediately after (the only two `CONN#` rows in the table were the suite's own `TEAM#alpha`/`dana` fixture and a stale row from the Phase 24 session) · **the full 36-cell contrast matrix measured on rendered pixels at both demo framings — all eight worlds ≥ 5.54:1 worst, against 10 failing cells before the phase** · a **45-cell responsive sweep** with zero overflow and zero console output · every animation gone under `prefers-reduced-motion` in all nine worlds · and Paper Office proven unchanged by a **150-element, 81,951-computed-field** diff against a built HEAD with **zero deltas**. |
 | **🎬 Demo video** | **https://www.youtube.com/watch?v=VBSuDCQa4y4** — 2:38, public, verified unauthenticated. Scene map in `DEMO.md` → *As recorded* |
 | **Deployment state** | Stack `hiveos` live in `us-east-1`, `UPDATE_COMPLETE` (last updated **2026-09-22T06:01Z**). DynamoDB + WebSocket API + Router + SQS/DLQ + Agent Runner. Frontend live on Amplify — **job 43, 2026-09-23**: the Phase 27 polish build plus the handoff-inspector fix (job 42) and the waiting-line fix. **`main`, the stack and the deployed frontend are all in step** — verified by hash, not by timestamp. The last backend change is the **last-agent dismissal fix, deployed 2026-09-23** (router `CodeSha256 qsMjHT0Dcex47tf2ocFJSvL/RUUDKTpymP+nMJewP1s=`), which added a `TransactWriteItems` to `state.fire_agent` and one scoped `dynamodb:TransactWriteItems` statement to the router role. Before it, **PRs #9, #8, #11 and #10 — bugs F, E, H and G — merged in that order and deployed 2026-09-22**; they superseded PR #7 as the head of the backend. DynamoDB TTL is `ENABLED` on `expires_at`, and **three** SK prefixes now set it (`IDEMPOTENCY#` a day, `ACTIVE#` an hour, `DLQ_REDRIVE#` fourteen days). |
 | **🌐 Public URL** | **https://main.dbavt8jr66qxx.amplifyapp.com** — the landing page, verified cold, zero setup |
@@ -95,7 +98,7 @@ the two collapse into each other.**
 
 > **▶ Resumed 2026-09-21, on user decision. These phases are the active work.** They were
 > deferred — never cut — when the 2026-09-20 deadline forced the user to take **Phase 22 only**
-> and close the project out for the recording. Two world phases shipped during the hackathon (19
+> and close the project out for the recording. Two world phases shipped during the initial build (19
 > and 22) and **Phases 20, 21, 23 and 24 shipped on 2026-09-21**, so six of eight are done. The
 > submission is in, so the user is finishing the rest.
 >
@@ -1088,6 +1091,10 @@ Phase 17 diagnosis said.
 > public URL.** Do not quote 113/113 as the expected score. Quote 109/113 and check the `CONN#`
 > rows — `aws dynamodb scan --table-name hiveos-state --filter-expression "begins_with(SK, :c)"
 > --expression-attribute-values '{":c":{"S":"CONN#"}}'` — to confirm none of them are yours.
+>
+> **Superseded 2026-09-23.** The checks were rewritten to diff against a per-section baseline and
+> to count only the harness's own identities, so **113/113 is now the expected score with or
+> without strangers on the floor**. See *Known issues and discoveries*.
 
 ---
 
@@ -1617,7 +1624,7 @@ the `ConditionExpression` and the authorisation branch fails 3 of them.
 **Not addressed, and deliberately.** SQS duplicate delivery still
 double-charges the meter — the guard stops a redelivery from taking
 someone else's desk, not from running. The author flagged it as
-separate work and it is Post-Hackathon. **Closed on 2026-09-20 by
+separate work and it is future work. **Closed on 2026-09-20 by
 PR #4, from the same author — see below.**
 
 ---
@@ -2819,7 +2826,7 @@ No traceback anywhere in the run.
 
 | Blocker | Blocks | Status |
 |---|---|---|
-| **Bedrock unusable — account-level zero quotas; card added and did NOT fix it** | *Nothing any more* | **Closed 2026-09-18 — abandoned, not fixed.** Re-verified in three regions, then inference moved to Groq. Post-hackathon AWS Support ticket at most. |
+| **Bedrock unusable — account-level zero quotas; card added and did NOT fix it** | *Nothing any more* | **Closed 2026-09-18 — abandoned, not fixed.** Re-verified in three regions, then inference moved to Groq. An AWS Support ticket at most, some day. |
 
 ### What the Bedrock blocker cost, and what closed it
 
@@ -2884,7 +2891,7 @@ Started, notifications) — **no Free Plan / Paid Plan UI exists anywhere on thi
 | Console Home | **No Free Plan banner** — Free Plan accounts always show one |
 | Free Tier page | Legacy model (`AWS Free Usage Tier`, "Always Free"), not credits-based Free Plan |
 | Account page | No plan section, no upgrade CTA |
-| Credits | **$254.62 active** (incl. $100 WeMakeDevs, expires 2027-07-31) |
+| Credits | **$254.62 active** (expires 2027-07-31) |
 | Real spend | $0.46 MTD / $0.84 last month — the account bills normally |
 
 **The actual blocker is the payment instrument:**
@@ -3039,12 +3046,12 @@ Housekeeping, not blocking:
 
 4. **Confirm AWS Budget notification email** — check `arunishrajput7@gmail.com` for the
    `hiveos-guardrail` subscription confirmation.
-5. **Optional, post-hackathon: open an AWS Support case** about the account-level Bedrock
+5. **Optional, some day: open an AWS Support case** about the account-level Bedrock
    restriction (42 of 43 per-day token quotas at zero, `adjustable=False`, first-party Amazon
    Nova included). Nothing waits on it any more — inference runs on Groq and Phase 3 is closed.
 
 Items 1–3 **were** the submission and are **all closed**. Items 4 and 5 never blocked it and
-still don't — 4 is a two-minute inbox click worth doing, 5 is optional and post-hackathon.
+still don't — 4 is a two-minute inbox click worth doing, 5 is optional and not urgent.
 
 ---
 
@@ -3152,13 +3159,28 @@ still don't — 4 is a two-minute inbox click worth doing, 5 is optional and pos
   **both** transactions on one round in twelve — so it earns its place on evidence rather than on
   the guess that introduced it.
 
-- **⚠ OPEN (narrowed 2026-09-23) — `ws_smoke.py` sits at 109/113 on a whole-table `CONN#` scan.**
-  **The Phase 24 row named below is gone** — a scan taken straight after this run found only
-  `TEAM#alpha`/`dana`, the suite's own fixture racing its disconnect cleanup, so nothing is left
-  to delete and the decision recorded below is moot. What remains is the check's design, which is
-  the real reason for the four failures: it scans the whole table rather than the team under test,
-  so any row from any browser or any concurrent run fails all four. Kept open as that, not as a
-  stray row. The original entry follows.
+- **✅ FIXED 2026-09-23 — `ws_smoke.py` scores 113/113, and the four "documented false
+  positives" were a wrong invariant rather than a fact of life.** For most of the build the suite
+  read 109/113, and every phase note since Phase 19 carried the same footnote: the four
+  connection-leak checks assert the table holds *no* `CONN#` rows, so any browser anywhere on the
+  public URL failed all four. The advice that grew around it — close every tab before running,
+  never quote 113/113 — was treating the symptom.
+
+  **The invariant was stated wrong.** "No connections leak" is a claim about *the connections this
+  run opened*, not about the table being empty. `TEAM#alpha` is the default workspace behind a
+  public URL; somebody else's row is a legitimate inhabitant of it. Each section now takes a
+  baseline of the `CONN#` rows present before it connects, and `leaked_connections(baseline)`
+  counts a row only if it was **absent at baseline** *and* carries one of the harness's own
+  identities (`HARNESS_USERS`). A visitor row fails the first test; a genuinely leaked harness row
+  can fail neither, because every connection is opened after its baseline is taken.
+
+  **Verified with a stranger on the floor.** The run that scored **113/113** had a real visitor
+  (`dana`) connected to `TEAM#alpha` throughout — `reset-demo.sh` flagged it, which is exactly the
+  condition that used to fail all four. No product code changed; the fix is in the harness and the
+  module docstring no longer asks anyone to close their tabs.
+
+  *The lesson: a check that has needed the same footnote for nine phases is not a known
+  limitation, it is an unexamined assertion.* The original entry follows.
 
   ~~A stale `CONN#` row from the Phase 24 session is still in the table.~~ `TEAM#p24arctic` / `CONN#gbRBow8DXQAYKEiVrA==` / `claude`.
   The four "no `CONN#` rows leak" checks scan the whole table, not the team under test, so any
@@ -3543,7 +3565,7 @@ and no build service role, which makes it fully scriptable. The consequence is t
 ### ✅ Nothing is queued. The build plan is finished.
 
 **Phase 27 shipped on 2026-09-22 and it was the last one.** Every phase in `BUILD_PLAN.md` is
-`COMPLETE` — the hackathon set (0–17), the world set (18–26) and the polish pass (27). There is
+`COMPLETE` — the initial set (0–17), the world set (18–26) and the polish pass (27). There is
 no "next phase" to start; a session told to start one should say so rather than invent work.
 
 **The state this leaves.** Nine looks in the picker, all nine passing a 36-cell contrast matrix
@@ -3561,11 +3583,11 @@ waiting line crowding at six or more queued. None is in any brief; all three are
 #8, #11 and #10, in that order, and the stack was redeployed for the DLQ wiring #10 needs.
 `pytest` 112/112.
 
-**Why the world phases were live work at all.** The hackathon is over and **the submission is
+**Why the world phases were live work at all.** The delivery is done and **the submission is
 in** — the video is recorded, uploaded and verified public
 (**<https://www.youtube.com/watch?v=VBSuDCQa4y4>**, 2:38), and the user confirmed on 2026-09-21
 that it was submitted inside the deadline. Phase 6 is closed, task 9 included. With that done,
-the user finished the world phases the deadline had cut short: two shipped during the hackathon
+the user finished the world phases the deadline had cut short: two shipped during the initial build
 (**19 Night Watch and 22 Alien Colony**), **20, 21, 23 and 24 on 2026-09-21**, and **25, 26 and
 27 on 2026-09-22**.
 
@@ -3696,7 +3718,7 @@ seam.
 > The quota table is the part that closes this. Every per-day token quota on the account is
 > zero **and** carries `Adjustable: false`, so there is no Service Quotas request that can
 > raise one — it is an account-level restriction that only AWS Support can lift, and not
-> inside the hackathon window. **Do not re-run this probe.** It costs nothing but it answers
+> inside the delivery window. **Do not re-run this probe.** It costs nothing but it answers
 > the same way every time, and the answer has been the same since Phase 3.
 
 ### Standing gotchas for the recording

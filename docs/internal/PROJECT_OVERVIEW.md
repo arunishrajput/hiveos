@@ -1,4 +1,8 @@
-# HiveOS — First Commit (WeMakeDevs × AWS), Ship It track
+# HiveOS — project overview (archived)
+
+> A write-up of the project as it stood when the build closed: the problem it answers, what
+> was built, where AWS fits, what is honestly not on AWS, and what the build cost to learn.
+> Kept as a record — `README.md` is the live description of the product.
 
 **A cloud-deployed office where a team hires and runs a floor of AI agents together** — you
 watch them work at their desks in real time, and the whole office runs on one shared,
@@ -9,8 +13,7 @@ server-enforced token budget.
 | **Live URL** | <https://main.dbavt8jr66qxx.amplifyapp.com> — opens cold, no setup, no sign-in |
 | **Straight to the office** | <https://main.dbavt8jr66qxx.amplifyapp.com/#/workspace> — skips the front page |
 | **Repository** | <https://github.com/arunishrajput/hiveos> |
-| **Video** | <https://www.youtube.com/watch?v=VBSuDCQa4y4> — 2:38, public |
-| **Track** | Ship It |
+| **Walkthrough** | <https://www.youtube.com/watch?v=VBSuDCQa4y4> — 2:38, public |
 | **Built by** | Arunish Rajput, solo, in ~72 hours |
 | **Region** | `us-east-1` |
 
@@ -37,7 +40,7 @@ is shared, the queue is shared, and the ceiling is enforced server-side for ever
 
 ---
 
-## What I built
+## What was built
 
 A deployed, public, multi-user office where:
 
@@ -69,7 +72,7 @@ A deployed, public, multi-user office where:
 
 The scheduler, the fair queue and the enforced ceiling were the original pitch. They did not go
 anywhere — they became the governance layer *inside* the office, because a queue is a thing you
-explain and an office is a thing you see, and a 3-minute video is the only judge touchpoint.
+explain and an office is a thing you see, and a short video was the only touchpoint.
 
 Measured against the deployed system, not localhost:
 
@@ -78,20 +81,20 @@ Measured against the deployed system, not localhost:
 | A claim reaching a second browser | **282 ms** |
 | Auto-dispatch visible after a desk frees | **187 ms** |
 | An avatar move painted on a second browser | **270–294 ms** |
-| End-to-end checks against real AWS | **109/113** (`scripts/ws_smoke.py`) |
-| Unit tests | **27/27** (`pytest tests/`) |
+| End-to-end checks against real AWS | **113/113** (`scripts/ws_smoke.py`) |
+| Unit tests | **127/127** (`pytest tests/`) |
 | Rehearsed demo sequence | **15/15**, two consecutive unattended takes (`scripts/rehearse.py`) |
 
-The four non-passing checks are one check repeated: they assert the connection table is *empty*,
-and the public URL now has real visitors on it during a run. The invariant itself is verified
-directly — connections opened by the harness are gone from DynamoDB the moment they close.
+> Both figures moved after this was first written: the four connection-leak checks read 109/113
+> for most of the build because they asserted the *table* was empty rather than that this run
+> leaked nothing, and the unit suite grew with the last-agent dismissal fix.
 
 Timings are click-to-paint across two separate browsers — a 20 ms DOM sampler in the *observing*
 browser compared against the acting browser's click — not a server-side round trip.
 
 ---
 
-## The video
+## The walkthrough video
 
 **<https://www.youtube.com/watch?v=VBSuDCQa4y4>** — 2:38, public, 1920×1080.
 
@@ -118,7 +121,7 @@ The rest carries the problem, the architecture and the AWS map.
 
 **The narration is Amazon Polly** (Matthew, generative engine), not a human voice track. That is
 a deliberate choice and it is said out loud in the video: the one AWS service the product itself
-does not use still ended up producing the thing the judges actually hear.
+does not use still ended up producing the thing a viewer actually hears.
 
 ---
 
@@ -192,7 +195,7 @@ marks the whole total for as long as it stands. A degraded answer never gets lau
 billed-looking meter.
 
 During verification I found a real hole in that safeguard: the flag originally rode only on live
-`token_update` frames, so a browser opening the URL cold — *which is every judge* — saw an
+`token_update` frames, so a browser opening the URL cold — *which is every new visitor* — saw an
 unlabelled number. Fixed by persisting the provenance on the metadata row and returning it on
 `state_snapshot`, with a smoke-test check for exactly that case.
 
@@ -225,7 +228,7 @@ is. The rule that came out of it: **a frame describing committed state must go o
 work that could produce the next frame.**
 
 **A flag that only rides on incremental events is invisible to the client that matters most.**
-The cold-load path is the one a judge takes, and it reads exactly one frame. Twice I shipped
+The cold-load path is the one a new visitor takes, and it reads exactly one frame. Twice I shipped
 something correct for a watching client and wrong for a joining one — the token-provenance flag,
 and a queue ETA that got erased 500 ms after appearing because the snapshot didn't carry it.
 
@@ -306,7 +309,8 @@ python3 scripts/ws_smoke.py                  # end-to-end checks against deploye
 python3 scripts/rehearse.py --takes 2        # the recorded sequence, unattended
 
 python3 -m venv .venv && .venv/bin/pip install boto3 pytest
-.venv/bin/python -m pytest tests/            # 14 unit tests, no AWS needed
+.venv/bin/python -m pytest tests/            # unit tests, no AWS needed
 ```
 
-`DEPLOYMENT.md` has the full procedure and troubleshooting. `DEMO.md` is the recording run sheet.
+`DEPLOYMENT.md` has the full procedure and troubleshooting. `DEMO.md` is the walkthrough run
+sheet.

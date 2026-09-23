@@ -1,6 +1,7 @@
 /* The front door.
  *
- * Everything a judge needs in the first five seconds, at `/`, with the
+ * Everything a first-time visitor needs in the first five seconds, at `/`,
+ * with the
  * workspace one click away at `#/workspace`. It opens no socket and reads no
  * board — the landing page costs the backend nothing, which is the point of
  * keeping `useHive` inside `Workspace` rather than at the app root.
@@ -96,7 +97,7 @@ function BoardPreview() {
 
 /* --- Evidence -------------------------------------------------------------
  *
- * The figures are the ones in SUBMISSION.md, with their sources attached.
+ * Public figures, each carried with its source attached.
  * A statistic without its source on a page that argues for accountability
  * would be a poor look.
  */
@@ -235,7 +236,7 @@ export default function Landing() {
           <div className="lp-wrap lp-hero">
             <div className="lp-hero__copy">
               <p className="lp-eyebrow">
-                First Commit · WeMakeDevs × AWS · Ship It
+                Shared agents · One enforced budget
               </p>
               <h1 className="lp-hero__title">
                 An office of AI agents your whole team can walk into.
@@ -406,8 +407,7 @@ export default function Landing() {
           </nav>
 
           <p className="lp-foot__credit">
-            Built by Arunish Rajput for First Commit (WeMakeDevs × AWS), Ship It
-            track.
+            Built by Arunish Rajput. Open source under the MIT licence.
           </p>
         </div>
       </footer>

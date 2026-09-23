@@ -409,7 +409,7 @@ Expected total for build and demo: a few dollars. The risk is a runaway loop, no
 
 ---
 
-## Teardown (after the hackathon)
+## Teardown
 
 ```bash
 sam delete --stack-name hiveos

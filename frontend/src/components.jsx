@@ -12,7 +12,7 @@ import { useWorld } from './worlds'
 
 const NUM = new Intl.NumberFormat('en-US')
 
-/** BUILD_PLAN.md: green <50%, amber 50-80%, red >80%. */
+/** The budget meter's three bands: green <50%, amber 50-80%, red >80%. */
 export function toneFor(pct) {
   if (pct < 50) return 'safe'
   if (pct <= 80) return 'warn'

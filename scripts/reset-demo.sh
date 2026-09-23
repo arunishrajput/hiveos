@@ -19,7 +19,7 @@
 #   4. no verification   — seed.sh exiting 0 says the CLI worked, not that the
 #                          board a browser renders is clean
 #
-# The final check reads the board back the way a judge's browser does: a real
+# The final check reads the board back the way a visitor's browser does: a real
 # WebSocket, a real `hello`, a real `state_snapshot`.
 
 set -euo pipefail
@@ -41,14 +41,14 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # a real model, plus the tool schemas in every prompt — so 5,000 is four or
 # five tasks and then the board is spent. That was harmless while the only
 # thing reading this default was a camera. It is not harmless now: the URL is
-# public, judges arrive at it cold, and the second visitor finds a dead floor.
+# public, people arrive at it cold, and the second visitor finds a dead floor.
 #
 # 100,000 is that same calibration re-derived at the real cost — ~125 tasks of
 # headroom, one task at 0.8% of a strip whose segments are ~1.5%, so the bar
 # visibly moves across a short session instead of never painting at all.
 #
 # A recorded take still wants the small board and asks for it explicitly:
-# `TOKEN_BUDGET=5000`, which is what DEMO.md's pre-flight now says. Exporting
+# `TOKEN_BUDGET=5000`, which is what docs/internal/DEMO.md's pre-flight now says. Exporting
 # the default here means the operator cannot get the *live* board wrong by
 # running the script bare at 2am.
 export TOKEN_BUDGET="${TOKEN_BUDGET:-100000}"
@@ -114,7 +114,7 @@ fi
 
 # --- 5. verify the way a browser sees it -------------------------------------
 # seed.sh exiting 0 proves the CLI calls worked. It does not prove that the
-# board a judge opens is clean. This connects over the real WebSocket, sends the
+# board a visitor opens is clean. This connects over the real WebSocket, sends the
 # real `hello`, and asserts on the real `state_snapshot` — and warms the Router
 # on the way through.
 WS_URL="$(stack_output WebSocketURL)" python3 - <<'PY'

@@ -47,7 +47,7 @@ Both functions are built from `CodeUri: backend/` with handlers like `router.app
 openai/gpt-oss-120b   via Groq   (https://api.groq.com/openai/v1/chat/completions)
 ```
 
-**Not Bedrock.** Bedrock is blocked account-wide on this AWS account: `us-east-1`, `us-west-2` and `ap-south-1` all refuse, Marketplace models with `INVALID_PAYMENT_INSTRUMENT` and first-party Amazon Nova with a hard zero per-day token quota that reports `adjustable=False`. Verified again on 2026-09-18 before the switch. See `PROGRESS.md`.
+**Not Bedrock.** Bedrock is blocked account-wide on this AWS account: `us-east-1`, `us-west-2` and `ap-south-1` all refuse, Marketplace models with `INVALID_PAYMENT_INSTRUMENT` and first-party Amazon Nova with a hard zero per-day token quota that reports `adjustable=False`. Verified again on 2026-09-18 before the switch. See `ARCHITECTURE.md`, decision 7.
 
 Every other component is AWS. Only inference leaves.
 
@@ -621,7 +621,7 @@ than a broken workspace, but it must never be laundered into a billed-looking
 meter, which is what these two flags prevent.
 
 **The snapshot field is not optional.** A client that was not connected when
-the spend happened — which is every judge opening the public URL — has no
+the spend happened — which is everyone opening the public URL cold — has no
 other way to learn the total is partly estimated, and would otherwise render
 it as billed usage. The flag is sticky once set: an estimate already folded
 into the total does not stop being one. Only `seed.sh` clears it.

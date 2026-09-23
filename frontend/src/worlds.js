@@ -15,8 +15,8 @@
  *   A WORLD MAY NEVER CHANGE WHAT ANYTHING MEANS. The busy blue, the queued
  *   ochre, the budget jade and the over-budget red carry the whole governance
  *   story, which is the product. They are re-tuned for each world's surfaces
- *   and they are never reassigned. A judge who has watched the paper office
- *   must be able to read the reef station on first sight.
+ *   and they are never reassigned. Someone who has learned to read the paper
+ *   office must be able to read the reef station on first sight.
  *
  * The one place that bends, and it bends the same way for every world: several
  * worlds want a busy desk to be a warm pool of light — a campfire, a lit
