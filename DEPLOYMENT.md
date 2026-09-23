@@ -1,25 +1,14 @@
 # DEPLOYMENT.md — HiveOS
 
-Operational AWS guide. Every step is tagged **`AUTOMATED`** (Claude Code runs it) or **`MANUAL HUMAN ACTION`** (only you can).
+Operational AWS guide: how to deploy HiveOS, how to verify it actually works, and what to do
+when it does not. Steps are tagged **`AUTOMATED`** (a command runs it) or
+**`MANUAL HUMAN ACTION`** (only a human with console access can).
 
 | | |
 |---|---|
 | Region | `us-east-1` |
 | Stack | `hiveos` |
-| Account | `890608337320` — **your own Free Tier account**, Free Plan, ~$134 credit at project start |
-
-> **This is not the workshop sandbox, and nothing needs migrating.** The organisers mailed
-> every attendee on 2026-09-20 telling them not to deploy to the temporary workshop sandbox.
-> That mail does not apply here — HiveOS has only ever been deployed to your own account.
-> Verified 2026-09-20 against AWS itself: the account's registered contact is your own name,
-> address and phone; it belongs to **no AWS Organization** (a vended sandbox is always in the
-> organiser's org); its sole IAM principal is the long-lived user `hiveos-dev` you created on
-> 2026-09-17, authenticating with a permanent `AKIA…` key rather than the expiring `ASIA…`
-> SSO credentials a sandbox issues; and it carries the `My Zero-Spend Budget` that AWS
-> creates only for self-signed-up Free Tier accounts.
->
-> **Do not "migrate to a Free Tier account" in response to that mail.** Redeploying to a new
-> account would destroy a verified, live stack and burn hours that belong to the recording.
+| Account | Free Tier, Free Plan — a deployment costs a few dollars; the guard is the enforced token ceiling, not the plan |
 
 ---
 
@@ -68,77 +57,31 @@ Returns `UserId`, `Account`, and `Arn`.
 
 ---
 
-## MANUAL ACTION 2 — Anthropic use-case form ✅ DONE (2026-09-18)
+## Bedrock is not used — and cannot be, on this account
 
-> **The *Model access* page is retired.** Serverless foundation models now auto-enable on
-> first invoke across all AWS commercial regions. There is no per-model enabling step.
-> The only remaining gate for Anthropic models is a one-time account-level use-case form,
-> and it lives as a **banner on the Model catalog page** — not on Model access.
+HiveOS calls **Groq**, not Amazon Bedrock. This is not a preference: Bedrock is blocked
+account-wide here and the block is not a setting anyone can flip. `us-east-1`, `us-west-2` and
+`ap-south-1` all refuse; 42 of 43 per-day token quotas are `0` and report `adjustable=False`, so
+a Service Quotas increase cannot even be requested; and first-party Amazon Nova — which needs
+neither a Marketplace subscription nor a payment instrument — fails identically. The Anthropic
+use-case form was submitted and cleared, and a paid card was added; neither lifted it.
 
-**Location (for reference):** Console → **Amazon Bedrock** → `us-east-1` → **Model catalog**
-→ banner *"Anthropic requires first-time customers to submit use case details"* → **Submit use case details**.
+**Do not spend time re-attempting it, and do not upgrade the billing plan to try.** Both were
+tried and neither worked. `ARCHITECTURE.md` decision 7 records the full reasoning, and
+`backend/shared/llm.py` is the one seam a different provider would be swapped at.
 
-Form fields: company name, company website URL, industry, intended users (internal/external),
-and a ≤500-char use-case description. The submission is shared with Anthropic.
+If it ever does unlock, one call is enough to detect it:
 
-**Status:** submitted and confirmed cleared. Verified by the smoke-test error changing from
-`ResourceNotFoundException` (form gate) to a quota error — a different error means this gate passed.
-
----
-
-## MANUAL ACTION 2b — AWS Paid Plan upgrade — ✅ MOOT, DO NOT DO THIS
-
-> **This is no longer outstanding and should not be actioned.** Bedrock was abandoned, not
-> unblocked: inference runs on **Groq** (`shared/llm.py`), Phase 3 closed on that basis, and
-> `ARCHITECTURE.md` decision 7 records the reasoning. Upgrading the plan would spend money to
-> unblock a service the product no longer calls. Kept below only as the record of what was
-> investigated. A paid card *was* added during the investigation and did **not** lift the
-> restriction — do not repeat that either.
-
-**Reason:** Bedrock invocation is quota-blocked account-wide. **42 of 44** per-model per-day
-token quotas are `0` and **all are `adjustable=False`**, so a Service Quotas increase request
-is not possible. This blocks Phase 3 only.
-
-**Location:** AWS Console → **Billing and Cost Management** → account/plan settings → upgrade
-from **Free Plan** to **Paid Plan**.
-
-**Expected result:** per-model per-day token quotas become non-zero; the `$134` credit becomes
-spendable on Bedrock.
-
-**Verification:** re-run the smoke test below. Success looks like a real completion, not a throttle.
-
-**Verification:**
 ```bash
-aws bedrock list-inference-profiles --region us-east-1 \
-  --query "inferenceProfileSummaries[?contains(inferenceProfileId,'anthropic')].inferenceProfileId" \
-  --output table
-```
-
-Then prove entitlement with a **real call** — a list operation does not prove you can invoke:
-```bash
-aws bedrock-runtime converse \
-  --region us-east-1 \
+aws bedrock-runtime converse --region us-east-1 \
   --model-id "<INFERENCE_PROFILE_ID>" \
   --messages '[{"role":"user","content":[{"text":"Say OK"}]}]' \
   --inference-config '{"maxTokens":16}'
 ```
 
-**Resume by:** telling Claude Code *"Bedrock access granted"*. Claude Code records the working ID in `CONTRACT.md`.
-
-> ### ⛔ Superseded, 2026-09-18 — this entire manual action is obsolete
->
-> Bedrock is blocked account-wide and the block is not a setting: `us-east-1`, `us-west-2` and
-> `ap-south-1` all refuse, 42 of 43 per-day token quotas are zero and report
-> `adjustable=False`, and first-party Amazon Nova — which needs neither a Marketplace
-> subscription nor a payment instrument — fails identically. The use-case form was submitted and
-> cleared; that was never the binding constraint.
->
-> **Inference runs on Groq instead — see MANUAL ACTION 2c.** Do not spend session time
-> re-attempting this. One `converse` call is enough to detect if it ever unlocks.
-
 ---
 
-## MANUAL ACTION 2c — Provision the model API key
+## MANUAL ACTION 2 — Provision the model API key
 
 **Reason:** The Agent Runner reads its model API key from SSM Parameter Store at runtime.
 Without it every task falls back to composed text flagged `estimated`.
@@ -300,7 +243,10 @@ aws sqs get-queue-attributes --queue-url <QUEUE_URL> \
   --attribute-names ApproximateNumberOfMessages
 ```
 
-`scripts/ws_smoke.py` resolves the endpoint from the stack output itself, so there is no URL to keep in sync. Run it after every backend deploy — it is the Phase 1 and Phase 2 gate, and the regression check for every phase after.
+`scripts/ws_smoke.py` resolves the endpoint from the stack output itself, so there is no URL to
+keep in sync. Run it after every backend deploy: it is the regression check for the whole system,
+and a clean run is **113/113**. It counts only the connections it opens itself, so other people
+being on the public URL does not affect the score.
 
 For poking by hand instead:
 

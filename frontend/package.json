@@ -2,6 +2,8 @@
   "name": "hiveos-frontend",
   "private": true,
   "version": "1.0.0",
+  "description": "HiveOS — a cloud office where a team hires and runs a floor of AI agents on one enforced token budget.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

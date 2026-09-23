@@ -210,7 +210,7 @@ A game engine costs two to three days in tilemaps, collision, and sprite animati
 
 **The 2026-09-19 pivot inverted which half is the product, and not the technique.** This decision used to end "the HUD is the product; the canvas is the wrapper." It is now the other way round: the floor is what you look at and the panels are the governance layer inside it. That made the canvas load-bearing, which is an argument *for* a game engine — and it is still rejected, because everything the floor does is a div moving to a coordinate, and none of it is collision, physics or z-ordered tile rendering. The cost of an engine did not change; the reason to pay it still has not appeared.
 
-### 9. No authentication for the MVP
+### 9. No authentication
 
 Cognito costs roughly a day of setup, and it is still not built — it remains on the never-build list, because someone who meets a sign-up form before ever seeing the board is a worse outcome than an open workspace.
 
@@ -244,7 +244,7 @@ The bound is the load-bearing part: a handoff is a model decision, and an unboun
 
 ---
 
-## Intentionally simplified for the MVP
+## Intentionally simplified — and what the full version would be
 
 | Simplification | Real-world version |
 |---|---|
@@ -266,7 +266,7 @@ The bound is the load-bearing part: a handoff is a model decision, and an unboun
 | Token-level preemption | Not practically feasible mid-generation |
 | Google OAuth / Gmail / Calendar | Consent screen verification and token vaults cost a full day |
 | Multiple DynamoDB tables | More IAM surface, more latency, harder to debug |
-| Cognito (for MVP) | Roughly a day of setup; a login wall defeats a workspace you can open cold |
+| Cognito | Roughly a day of setup; a login wall defeats a workspace you can open cold |
 | In-memory task queue | Lost on Lambda restart; would make the queue a fiction |
 | A per-agent model picker in the hire form | Would let one hire quietly change what the team spends per call — the opposite of what this product governs. The engine step is a readout |
 | Unbounded agent-to-agent negotiation | A handoff is a model decision; an unbounded chain of them is an unbounded way to spend a shared budget. Capped at one hop |

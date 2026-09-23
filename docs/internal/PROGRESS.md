@@ -27,7 +27,7 @@
 | **WebSocket endpoint** | `wss://mel2gpat9c.execute-api.us-east-1.amazonaws.com/prod` |
 | **Amplify app** | `dbavt8jr66qxx`, branch `main` — **not in CloudFormation** (see below) |
 | **Repository** | https://github.com/arunishrajput/hiveos (public, `main`) |
-| **AWS account** | `890608337320` · `us-east-1` · IAM user `hiveos-dev` (AdministratorAccess) |
+| **AWS account** | `us-east-1` · IAM user `hiveos-dev` (AdministratorAccess) |
 
 > **The deliverable shipped and was submitted.** The Phase 4 gate — a deployed public URL
 > showing live shared state — was met long before the deadline, and the submission went in.
